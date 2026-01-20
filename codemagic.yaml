@@ -5,10 +5,11 @@ workflows:
   # PR workflow: runs on every commit and PR (skips integration tests)
   pr-workflow:
     name: PR Checks
+    instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
-      go:
-        version: "latest"
+      groups:
+        - go
     triggering:
       events:
         - push
@@ -19,6 +20,9 @@ workflows:
         - pattern: "*"
           include: true
     scripts:
+      - name: Install Go
+        script: |
+          go version
       - name: Run unit tests (no integration)
         script: |
           # Skip integration tests by default
@@ -41,10 +45,11 @@ workflows:
   # Main branch workflow: runs integration tests with real API
   main-workflow:
     name: Main Branch (with integration tests)
+    instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
-      go:
-        version: "latest"
+      groups:
+        - go
       vars:
         # Codemagic environment variables (set in project settings)
         # - ASC_KEY_ID
@@ -58,6 +63,9 @@ workflows:
         - pattern: main
           include: true
     scripts:
+      - name: Install Go
+        script: |
+          go version
       - name: Run all tests (including integration)
         script: |
           # Run full test suite (integration tests require env vars)
@@ -85,10 +93,11 @@ workflows:
   # Release workflow: creates GitHub releases
   release-workflow:
     name: ASC Release
+    instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
-      go:
-        version: "latest"
+      groups:
+        - go
     triggering:
       events:
         - tag
