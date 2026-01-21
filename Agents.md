@@ -77,6 +77,10 @@ asc builds --app "123456789" --sort -uploadedDate
 asc builds info --build "BUILD_ID"
 asc builds expire --build "BUILD_ID"
 
+# Sandbox testers
+asc sandbox list
+asc sandbox create --email "tester@example.com" --first-name "Test" --last-name "User" --password "Passwordtest1" --confirm-password "Passwordtest1" --secret-question "Question" --secret-answer "Answer" --birth-date "1980-03-01" --territory "USA"
+
 # Utilities
 asc version
 
@@ -89,7 +93,6 @@ asc auth status
 
 - `asc localizations upload/download`
 - `asc submit` - Ship builds
-- `asc sandbox` - Create test users
 
 ## Authentication
 
@@ -114,6 +117,13 @@ Analytics & sales env:
 - Vendor number comes from Sales and Trends → Reports URL (`vendorNumber=...`)
 - Use `--paginate` with `asc analytics get --date` to avoid missing instances on later pages
 - Long analytics runs can require raising `ASC_TIMEOUT`
+
+## Sandbox Testers Notes
+
+- Required fields include email, first/last name, password + confirm, secret question/answer, birth date, territory
+- Password must include uppercase, lowercase, and a number (8+ chars)
+- Territory uses 3-letter App Store territory codes (e.g., `USA`, `JPN`)
+- List/get use the v2 API; create/delete use v1 endpoints (may be unavailable on some accounts)
 
 ## Code Style
 

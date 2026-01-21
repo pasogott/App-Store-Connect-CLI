@@ -800,6 +800,7 @@ func RootCommand(version string) *ffcli.Command {
 			LocalizationsCommand(),
 			BetaGroupsCommand(),
 			BetaTestersCommand(),
+			SandboxCommand(),
 			SubmitCommand(),
 			VersionCommand(version),
 		},
