@@ -174,8 +174,14 @@ Examples:
 			resolvedVersionID := strings.TrimSpace(*versionID)
 			if strings.TrimSpace(*submissionID) != "" {
 				submissionResp, err = client.GetAppStoreVersionSubmissionResource(requestCtx, strings.TrimSpace(*submissionID))
+				if err != nil && asc.IsNotFound(err) {
+					return fmt.Errorf("submit status: no submission found for ID %q", strings.TrimSpace(*submissionID))
+				}
 			} else {
 				submissionResp, err = client.GetAppStoreVersionSubmissionForVersion(requestCtx, resolvedVersionID)
+				if err != nil && asc.IsNotFound(err) {
+					return fmt.Errorf("submit status: no submission found for version %q", resolvedVersionID)
+				}
 			}
 			if err != nil {
 				return fmt.Errorf("submit status: %w", err)
@@ -252,12 +258,18 @@ Examples:
 			if resolvedSubmissionID == "" {
 				submissionResp, err := client.GetAppStoreVersionSubmissionForVersion(requestCtx, strings.TrimSpace(*versionID))
 				if err != nil {
+					if asc.IsNotFound(err) {
+						return fmt.Errorf("submit cancel: no submission found for version %q", strings.TrimSpace(*versionID))
+					}
 					return fmt.Errorf("submit cancel: %w", err)
 				}
 				resolvedSubmissionID = submissionResp.Data.ID
 			}
 
 			if err := client.DeleteAppStoreVersionSubmission(requestCtx, resolvedSubmissionID); err != nil {
+				if asc.IsNotFound(err) {
+					return fmt.Errorf("submit cancel: no submission found for ID %q", resolvedSubmissionID)
+				}
 				return fmt.Errorf("submit cancel: %w", err)
 			}
 

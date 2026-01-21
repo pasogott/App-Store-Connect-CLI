@@ -185,20 +185,24 @@ Examples:
 			}
 
 			if *includeBuild {
-				buildResp, err := client.GetAppStoreVersionBuild(requestCtx, strings.TrimSpace(*versionID))
+				buildResp, err := fetchOptionalBuild(requestCtx, strings.TrimSpace(*versionID), client.GetAppStoreVersionBuild)
 				if err != nil {
 					return fmt.Errorf("versions get: %w", err)
 				}
-				result.BuildID = buildResp.Data.ID
-				result.BuildVersion = buildResp.Data.Attributes.Version
+				if buildResp != nil {
+					result.BuildID = buildResp.Data.ID
+					result.BuildVersion = buildResp.Data.Attributes.Version
+				}
 			}
 
 			if *includeSubmission {
-				submissionResp, err := client.GetAppStoreVersionSubmissionForVersion(requestCtx, strings.TrimSpace(*versionID))
+				submissionResp, err := fetchOptionalSubmission(requestCtx, strings.TrimSpace(*versionID), client.GetAppStoreVersionSubmissionForVersion)
 				if err != nil {
 					return fmt.Errorf("versions get: %w", err)
 				}
-				result.SubmissionID = submissionResp.Data.ID
+				if submissionResp != nil {
+					result.SubmissionID = submissionResp.Data.ID
+				}
 			}
 
 			return printOutput(result, *output, *pretty)
@@ -315,4 +319,26 @@ func resolveAppStoreVersionState(attrs asc.AppStoreVersionAttributes) string {
 		return attrs.AppVersionState
 	}
 	return attrs.AppStoreState
+}
+
+func fetchOptionalBuild(ctx context.Context, versionID string, fetch func(context.Context, string) (*asc.BuildResponse, error)) (*asc.BuildResponse, error) {
+	resp, err := fetch(ctx, versionID)
+	if err != nil {
+		if asc.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return resp, nil
+}
+
+func fetchOptionalSubmission(ctx context.Context, versionID string, fetch func(context.Context, string) (*asc.AppStoreVersionSubmissionResourceResponse, error)) (*asc.AppStoreVersionSubmissionResourceResponse, error) {
+	resp, err := fetch(ctx, versionID)
+	if err != nil {
+		if asc.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return resp, nil
 }

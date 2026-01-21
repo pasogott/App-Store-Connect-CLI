@@ -1064,6 +1064,9 @@ func TestIsNotFoundAndUnauthorized(t *testing.T) {
 	if !IsNotFound(fmt.Errorf("NOT_FOUND: missing")) {
 		t.Fatal("expected IsNotFound to return true")
 	}
+	if !IsNotFound(fmt.Errorf("The specified resource does not exist")) {
+		t.Fatal("expected IsNotFound to return true for resource does not exist")
+	}
 	if IsNotFound(fmt.Errorf("something else")) {
 		t.Fatal("expected IsNotFound to return false")
 	}

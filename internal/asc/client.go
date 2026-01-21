@@ -2425,7 +2425,13 @@ func ParseError(body []byte) error {
 
 // IsNotFound checks if the error is a "not found" error
 func IsNotFound(err error) bool {
-	return strings.Contains(err.Error(), "NOT_FOUND")
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "not_found") ||
+		strings.Contains(message, "not found") ||
+		strings.Contains(message, "resource does not exist")
 }
 
 // IsUnauthorized checks if the error is an "unauthorized" error
