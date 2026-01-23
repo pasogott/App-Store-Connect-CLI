@@ -64,11 +64,15 @@ Commands supporting `--paginate`:
 - `asc crashes --app "ID" --paginate`
 - `asc reviews --app "ID" --paginate`
 - `asc versions list --app "ID" --paginate`
+- `asc pre-release-versions list --app "ID" --paginate`
 - `asc localizations list --version "ID" --paginate`
+- `asc build-localizations list --build "ID" --paginate`
 - `asc beta-groups list --app "ID" --paginate`
 - `asc beta-testers list --app "ID" --paginate`
 - `asc sandbox list --paginate`
 - `asc analytics requests --app "ID" --paginate`
+- `asc analytics get --request-id "ID" --paginate`
+- `asc testflight apps list --paginate`
 - `asc xcode-cloud workflows --app "ID" --paginate`
 - `asc xcode-cloud build-runs --workflow-id "ID" --paginate`
 
@@ -91,6 +95,13 @@ asc crashes --app "123456789" --output markdown
 asc feedback --app "123456789" --paginate
 asc crashes --app "123456789" --paginate
 
+# TestFlight apps
+asc testflight apps list
+asc testflight apps get --app "APP_ID"
+
+# TestFlight sync
+asc testflight sync pull --app "APP_ID" --output "./testflight.yaml"
+
 # App Store - JSON for AI agents
 asc reviews --app "123456789"
 
@@ -100,13 +111,23 @@ asc reviews --app "123456789" --stars 1 --output table
 # App Store - Paginate all reviews
 asc reviews --app "123456789" --paginate
 
+# Analytics
+asc analytics sales --vendor "12345678" --type SALES --subtype SUMMARY --frequency DAILY --date "2024-01-20"
+asc analytics request --app "123456789" --access-type ONGOING
+asc analytics requests --app "123456789" --paginate
+asc analytics get --request-id "REQUEST_ID" --date "2024-01-20" --paginate
+asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
+
 # Apps & Builds - JSON for AI agents
 asc apps
 asc apps --sort name
-asc builds --app "123456789"
-asc builds --app "123456789" --sort -uploadedDate
+asc builds list --app "123456789"
+asc builds list --app "123456789" --sort -uploadedDate
 asc builds info --build "BUILD_ID"
 asc builds expire --build "BUILD_ID"
+asc builds upload --app "123456789" --ipa "app.ipa"
+asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
+asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
 
 # Apps - Paginate all apps
 asc apps --paginate
@@ -114,14 +135,66 @@ asc apps --paginate
 # Builds - Paginate all builds
 asc builds list --app "123456789" --paginate
 
+# Versions
+asc versions list --app "123456789"
+asc versions list --app "123456789" --paginate
+asc versions get --version-id "VERSION_ID"
+asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
+
+# Pre-release versions
+asc pre-release-versions list --app "123456789"
+asc pre-release-versions list --app "123456789" --paginate
+asc pre-release-versions get --id "PRERELEASE_ID"
+
+# Localizations
+asc localizations list --version "VERSION_ID"
+asc localizations list --version "VERSION_ID" --paginate
+asc localizations download --version "VERSION_ID" --path "./localizations"
+asc localizations upload --version "VERSION_ID" --path "./localizations"
+
+# Build localizations
+asc build-localizations list --build "BUILD_ID"
+asc build-localizations list --build "BUILD_ID" --paginate
+asc build-localizations get --id "LOCALIZATION_ID"
+asc build-localizations create --build "BUILD_ID" --locale "en-US" --whats-new "Bug fixes"
+asc build-localizations update --id "LOCALIZATION_ID" --whats-new "New features"
+asc build-localizations delete --id "LOCALIZATION_ID" --confirm
+
+# Beta groups
+asc beta-groups list --app "APP_ID"
+asc beta-groups list --app "APP_ID" --paginate
+asc beta-groups create --app "APP_ID" --name "Beta Testers"
+asc beta-groups get --id "GROUP_ID"
+asc beta-groups update --id "GROUP_ID" --name "New Name"
+asc beta-groups delete --id "GROUP_ID" --confirm
+asc beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
+asc beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID"
+
+# Beta testers
+asc beta-testers list --app "APP_ID"
+asc beta-testers list --app "APP_ID" --paginate
+asc beta-testers get --id "TESTER_ID"
+asc beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
+asc beta-testers remove --app "APP_ID" --email "tester@example.com"
+asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
+asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
+asc beta-testers invite --app "APP_ID" --email "tester@example.com"
+
 # Sandbox testers
 asc sandbox list
+asc sandbox get --id "SANDBOX_TESTER_ID"
+asc sandbox delete --id "SANDBOX_TESTER_ID" --confirm
 asc sandbox create --email "tester@example.com" --first-name "Test" --last-name "User" --password "Passwordtest1" --confirm-password "Passwordtest1" --secret-question "Question" --secret-answer "Answer" --birth-date "1980-03-01" --territory "USA"
 asc sandbox update --id "SANDBOX_TESTER_ID" --territory "USA"
 asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
 
 # Sandbox - Paginate all testers
 asc sandbox list --paginate
+
+# Submit
+asc submit create --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --confirm
+asc submit status --id "SUBMISSION_ID"
+asc submit cancel --id "SUBMISSION_ID" --confirm
 
 # Xcode Cloud - Trigger workflow
 asc xcode-cloud run --app "123456789" --workflow "CI" --branch "main"
@@ -144,12 +217,8 @@ asc version
 # Authentication
 asc auth login --name "MyKey" --key-id "ABC" --issuer-id "DEF" --private-key /path/to/key.p8
 asc auth status
+asc auth logout
 ```
-
-### Future Commands (v2+)
-
-- `asc localizations upload/download`
-- `asc submit` - Ship builds
 
 ## Authentication
 

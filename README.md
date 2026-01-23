@@ -71,6 +71,7 @@ Analytics & sales env:
 
 - JSON output is default for machine parsing; add `--pretty` when debugging.
 - Use `--paginate` to automatically fetch all pages (recommended for AI agents).
+- `--paginate` works on list commands including apps, builds list, feedback, crashes, reviews, versions list, pre-release versions list, localizations list, build-localizations list, beta-groups list, beta-testers list, sandbox list, analytics requests/get, testflight apps list, and Xcode Cloud workflows/build-runs.
 - Use `--limit` + `--next "<links.next>"` for manual pagination control.
 - Sort with `--sort` (prefix `-` for descending):
   - Feedback/Crashes: `createdDate` / `-createdDate`
@@ -107,6 +108,59 @@ asc crashes --app "123456789" --sort -createdDate --limit 5
 
 # Fetch all crash pages automatically (AI agents)
 asc crashes --app "123456789" --paginate
+
+# List TestFlight apps
+asc testflight apps list
+
+# Fetch a TestFlight app by ID
+asc testflight apps get --app "APP_ID"
+
+# Export TestFlight configuration to YAML
+asc testflight sync pull --app "APP_ID" --output "./testflight.yaml"
+```
+
+### Beta Groups
+
+```bash
+# List beta groups for an app
+asc beta-groups list --app "APP_ID"
+
+# Fetch all beta groups (all pages)
+asc beta-groups list --app "APP_ID" --paginate
+
+# Create, fetch, update, delete
+asc beta-groups create --app "APP_ID" --name "Beta Testers"
+asc beta-groups get --id "GROUP_ID"
+asc beta-groups update --id "GROUP_ID" --name "New Name"
+asc beta-groups delete --id "GROUP_ID" --confirm
+
+# Add/remove testers
+asc beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
+asc beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID"
+```
+
+### Beta Testers
+
+```bash
+# List beta testers
+asc beta-testers list --app "APP_ID"
+
+# Filter by build or group
+asc beta-testers list --app "APP_ID" --build "BUILD_ID"
+asc beta-testers list --app "APP_ID" --group "Beta"
+
+# Fetch all beta testers (all pages)
+asc beta-testers list --app "APP_ID" --paginate
+
+# Get, add, remove, invite
+asc beta-testers get --id "TESTER_ID"
+asc beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
+asc beta-testers remove --app "APP_ID" --email "tester@example.com"
+asc beta-testers invite --app "APP_ID" --email "tester@example.com"
+
+# Manage group membership
+asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
+asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
 ```
 
 ### App Store
@@ -263,10 +317,10 @@ asc apps --sort -bundleId
 asc apps --paginate
 
 # List builds for an app
-asc builds --app "123456789"
+asc builds list --app "123456789"
 
 # Sort builds by upload date (newest first)
-asc builds --app "123456789" --sort -uploadedDate
+asc builds list --app "123456789" --sort -uploadedDate
 
 # Fetch all builds (all pages)
 asc builds list --app "123456789" --paginate
@@ -276,6 +330,96 @@ asc builds info --build "BUILD_ID"
 
 # Expire a build (irreversible)
 asc builds expire --build "BUILD_ID"
+
+# Prepare a build upload
+asc builds upload --app "123456789" --ipa "app.ipa"
+
+# Add/remove beta groups from a build
+asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
+asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
+```
+
+### Versions
+
+```bash
+# List App Store versions
+asc versions list --app "123456789"
+
+# Fetch all versions (all pages)
+asc versions list --app "123456789" --paginate
+
+# Get version details
+asc versions get --version-id "VERSION_ID"
+
+# Attach a build to a version
+asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
+```
+
+### Pre-Release Versions
+
+```bash
+# List pre-release versions for an app
+asc pre-release-versions list --app "123456789"
+
+# Filter by platform or version
+asc pre-release-versions list --app "123456789" --platform IOS
+asc pre-release-versions list --app "123456789" --version "1.0.0"
+
+# Fetch all pre-release versions (all pages)
+asc pre-release-versions list --app "123456789" --paginate
+
+# Get pre-release version details
+asc pre-release-versions get --id "PRERELEASE_ID"
+```
+
+### Localizations
+
+```bash
+# List version localizations
+asc localizations list --version "VERSION_ID"
+
+# List app info localizations
+asc localizations list --app "APP_ID" --type app-info
+
+# Fetch all localizations (all pages)
+asc localizations list --version "VERSION_ID" --paginate
+
+# Download/upload localization files
+asc localizations download --version "VERSION_ID" --path "./localizations"
+asc localizations upload --version "VERSION_ID" --path "./localizations"
+```
+
+### Build Localizations
+
+```bash
+# List build release notes localizations
+asc build-localizations list --build "BUILD_ID"
+
+# Fetch all build localizations (all pages)
+asc build-localizations list --build "BUILD_ID" --paginate
+
+# Create/update/delete release notes
+asc build-localizations create --build "BUILD_ID" --locale "en-US" --whats-new "Bug fixes"
+asc build-localizations update --id "LOCALIZATION_ID" --whats-new "New features"
+asc build-localizations delete --id "LOCALIZATION_ID" --confirm
+
+# Fetch a localization by ID
+asc build-localizations get --id "LOCALIZATION_ID"
+```
+
+### Submit
+
+```bash
+# Submit a build for review
+asc submit create --app "123456789" --version "1.0.0" --build "BUILD_ID" --confirm
+
+# Check submission status
+asc submit status --id "SUBMISSION_ID"
+asc submit status --version-id "VERSION_ID"
+
+# Cancel a submission
+asc submit cancel --id "SUBMISSION_ID" --confirm
+asc submit cancel --version-id "VERSION_ID" --confirm
 ```
 
 ### Utilities
@@ -361,21 +505,7 @@ make install  # Installs to /usr/local/bin
 ## Documentation
 
 - [CLAUDE.md](CLAUDE.md) - Development guidelines for AI assistants
-- [PLAN.md](PLAN.md) - Detailed roadmap and feature list
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
-
-## Roadmap
-
-| Version | Features |
-|---------|----------|
-| v0.1 | Feedback, crashes, reviews |
-| v0.2 | Apps, builds management |
-| v0.3 | Beta testers, groups |
-| v0.4 | Localizations |
-| v0.5 | App submission |
-| v1.0 | Full feature set |
-
-See [PLAN.md](PLAN.md) for detailed roadmap.
 
 ## Security
 
