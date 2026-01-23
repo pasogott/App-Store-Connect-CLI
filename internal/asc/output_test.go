@@ -1084,6 +1084,44 @@ func TestPrintTable_SandboxTesters(t *testing.T) {
 	}
 }
 
+func TestPrintTable_BetaTesterGroupsUpdateResult(t *testing.T) {
+	result := &BetaTesterGroupsUpdateResult{
+		TesterID: "tester-1",
+		GroupIDs: []string{"group-1", "group-2"},
+		Action:   "added",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Tester ID") || !strings.Contains(output, "Group IDs") {
+		t.Fatalf("expected table headers, got: %s", output)
+	}
+	if !strings.Contains(output, "group-1,group-2") {
+		t.Fatalf("expected group IDs in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_BetaTesterGroupsUpdateResult(t *testing.T) {
+	result := &BetaTesterGroupsUpdateResult{
+		TesterID: "tester-1",
+		GroupIDs: []string{"group-1", "group-2"},
+		Action:   "removed",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| Tester ID | Group IDs | Action |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "group-1,group-2") {
+		t.Fatalf("expected group IDs in output, got: %s", output)
+	}
+}
+
 func TestPrintMarkdown_SandboxTesterDeleteResult(t *testing.T) {
 	result := &SandboxTesterDeleteResult{
 		ID:      "tester-1",

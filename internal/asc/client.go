@@ -955,6 +955,13 @@ type BetaTesterDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
+// BetaTesterGroupsUpdateResult represents CLI output for beta tester group updates.
+type BetaTesterGroupsUpdateResult struct {
+	TesterID string   `json:"testerId"`
+	GroupIDs []string `json:"groupIds"`
+	Action   string   `json:"action"`
+}
+
 // LocalizationFileResult represents a localization file written or read.
 type LocalizationFileResult struct {
 	Locale string `json:"locale"`
@@ -2430,6 +2437,70 @@ func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastNam
 	return &response, nil
 }
 
+// AddBetaTesterToGroups adds a tester to multiple beta groups.
+func (c *Client) AddBetaTesterToGroups(ctx context.Context, testerID string, groupIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	groupIDs = normalizeList(groupIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(groupIDs) == 0 {
+		return fmt.Errorf("group IDs are required")
+	}
+
+	relData := make([]ResourceData, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeBetaGroups,
+			ID:   groupID,
+		})
+	}
+
+	payload := RelationshipList{Data: relData}
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID)
+	if _, err := c.do(ctx, "POST", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RemoveBetaTesterFromGroups removes a tester from multiple beta groups.
+func (c *Client) RemoveBetaTesterFromGroups(ctx context.Context, testerID string, groupIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	groupIDs = normalizeList(groupIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(groupIDs) == 0 {
+		return fmt.Errorf("group IDs are required")
+	}
+
+	relData := make([]ResourceData, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeBetaGroups,
+			ID:   groupID,
+		})
+	}
+
+	payload := RelationshipList{Data: relData}
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID)
+	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
 // DeleteBetaTester deletes a beta tester by ID.
 func (c *Client) DeleteBetaTester(ctx context.Context, testerID string) error {
 	path := fmt.Sprintf("/v1/betaTesters/%s", testerID)
@@ -3104,6 +3175,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionAttachBuildMarkdown(v)
 	case *BetaTesterDeleteResult:
 		return printBetaTesterDeleteResultMarkdown(v)
+	case *BetaTesterGroupsUpdateResult:
+		return printBetaTesterGroupsUpdateResultMarkdown(v)
 	case *BetaTesterInvitationResult:
 		return printBetaTesterInvitationResultMarkdown(v)
 	case *SandboxTesterDeleteResult:
@@ -3190,6 +3263,8 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionAttachBuildTable(v)
 	case *BetaTesterDeleteResult:
 		return printBetaTesterDeleteResultTable(v)
+	case *BetaTesterGroupsUpdateResult:
+		return printBetaTesterGroupsUpdateResultTable(v)
 	case *BetaTesterInvitationResult:
 		return printBetaTesterInvitationResultTable(v)
 	case *SandboxTesterDeleteResult:
@@ -3946,6 +4021,28 @@ func printBetaTesterDeleteResultMarkdown(result *BetaTesterDeleteResult) error {
 		escapeMarkdown(result.ID),
 		escapeMarkdown(result.Email),
 		result.Deleted,
+	)
+	return nil
+}
+
+func printBetaTesterGroupsUpdateResultTable(result *BetaTesterGroupsUpdateResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Tester ID\tGroup IDs\tAction")
+	fmt.Fprintf(w, "%s\t%s\t%s\n",
+		result.TesterID,
+		strings.Join(result.GroupIDs, ","),
+		result.Action,
+	)
+	return w.Flush()
+}
+
+func printBetaTesterGroupsUpdateResultMarkdown(result *BetaTesterGroupsUpdateResult) error {
+	fmt.Fprintln(os.Stdout, "| Tester ID | Group IDs | Action |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+		escapeMarkdown(result.TesterID),
+		escapeMarkdown(strings.Join(result.GroupIDs, ",")),
+		escapeMarkdown(result.Action),
 	)
 	return nil
 }

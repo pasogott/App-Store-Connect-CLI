@@ -491,6 +491,8 @@ Examples:
   asc beta-testers get --id "TESTER_ID"
   asc beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
   asc beta-testers remove --app "APP_ID" --email "tester@example.com"
+  asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
+  asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
   asc beta-testers invite --app "APP_ID" --email "tester@example.com"
   asc beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
@@ -500,6 +502,8 @@ Examples:
 			BetaTestersGetCommand(),
 			BetaTestersAddCommand(),
 			BetaTestersRemoveCommand(),
+			BetaTestersAddGroupsCommand(),
+			BetaTestersRemoveGroupsCommand(),
 			BetaTestersInviteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -768,6 +772,128 @@ Examples:
 			}
 
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// BetaTestersAddGroupsCommand returns the beta testers add-groups subcommand.
+func BetaTestersAddGroupsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("add-groups", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta tester ID")
+	groups := fs.String("group", "", "Comma-separated beta group IDs")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "add-groups",
+		ShortUsage: "asc beta-testers add-groups --id TESTER_ID --group GROUP_ID[,GROUP_ID...]",
+		ShortHelp:  "Add a beta tester to beta groups.",
+		LongHelp: `Add a beta tester to beta groups.
+
+Examples:
+  asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
+  asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID_1,GROUP_ID_2"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			testerID := strings.TrimSpace(*id)
+			if testerID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			groupIDs := parseCommaSeparatedIDs(*groups)
+			if len(groupIDs) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --group is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-testers add-groups: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.AddBetaTesterToGroups(requestCtx, testerID, groupIDs); err != nil {
+				return fmt.Errorf("beta-testers add-groups: failed to add groups: %w", err)
+			}
+
+			result := &asc.BetaTesterGroupsUpdateResult{
+				TesterID: testerID,
+				GroupIDs: groupIDs,
+				Action:   "added",
+			}
+
+			if err := printOutput(result, *output, *pretty); err != nil {
+				return err
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully added tester %s to %d group(s)\n", testerID, len(groupIDs))
+			return nil
+		},
+	}
+}
+
+// BetaTestersRemoveGroupsCommand returns the beta testers remove-groups subcommand.
+func BetaTestersRemoveGroupsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("remove-groups", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta tester ID")
+	groups := fs.String("group", "", "Comma-separated beta group IDs")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "remove-groups",
+		ShortUsage: "asc beta-testers remove-groups --id TESTER_ID --group GROUP_ID[,GROUP_ID...]",
+		ShortHelp:  "Remove a beta tester from beta groups.",
+		LongHelp: `Remove a beta tester from beta groups.
+
+Examples:
+  asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
+  asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID_1,GROUP_ID_2"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			testerID := strings.TrimSpace(*id)
+			if testerID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			groupIDs := parseCommaSeparatedIDs(*groups)
+			if len(groupIDs) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --group is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-testers remove-groups: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.RemoveBetaTesterFromGroups(requestCtx, testerID, groupIDs); err != nil {
+				return fmt.Errorf("beta-testers remove-groups: failed to remove groups: %w", err)
+			}
+
+			result := &asc.BetaTesterGroupsUpdateResult{
+				TesterID: testerID,
+				GroupIDs: groupIDs,
+				Action:   "removed",
+			}
+
+			if err := printOutput(result, *output, *pretty); err != nil {
+				return err
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully removed tester %s from %d group(s)\n", testerID, len(groupIDs))
+			return nil
 		},
 	}
 }

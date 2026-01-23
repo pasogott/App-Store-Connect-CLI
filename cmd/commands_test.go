@@ -225,6 +225,26 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			wantErr: "--email is required",
 		},
 		{
+			name:    "beta-testers add-groups missing id",
+			args:    []string{"beta-testers", "add-groups", "--group", "GROUP_ID"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-testers add-groups missing group",
+			args:    []string{"beta-testers", "add-groups", "--id", "TESTER_ID"},
+			wantErr: "--group is required",
+		},
+		{
+			name:    "beta-testers remove-groups missing id",
+			args:    []string{"beta-testers", "remove-groups", "--group", "GROUP_ID"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-testers remove-groups missing group",
+			args:    []string{"beta-testers", "remove-groups", "--id", "TESTER_ID"},
+			wantErr: "--group is required",
+		},
+		{
 			name:    "beta-testers invite missing app",
 			args:    []string{"beta-testers", "invite", "--email", "tester@example.com"},
 			wantErr: "--app is required",
