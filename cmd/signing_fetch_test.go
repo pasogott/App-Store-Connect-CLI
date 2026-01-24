@@ -30,7 +30,7 @@ func TestSigningFetchValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "missing device for development profile",
-			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_DEVELOPMENT"},
+			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_DEVELOPMENT", "--create-missing"},
 			wantErr: "Error: --device is required for development profiles",
 		},
 	}

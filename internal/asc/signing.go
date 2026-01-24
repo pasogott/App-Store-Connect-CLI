@@ -169,8 +169,9 @@ func WithProfilesFilterBundleID(bundleID string) ProfilesOption {
 // WithProfilesFilterType filters profiles by profile type.
 func WithProfilesFilterType(profileType string) ProfilesOption {
 	return func(q *profilesQuery) {
-		if strings.TrimSpace(profileType) != "" {
-			q.profileType = strings.TrimSpace(profileType)
+		normalized := normalizeUpperCSVString(profileType)
+		if normalized != "" {
+			q.profileType = normalized
 		}
 	}
 }
