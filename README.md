@@ -65,6 +65,8 @@ Analytics & sales env:
 - `ASC_ANALYTICS_VENDOR_NUMBER` (fallback for analytics vendor number)
 - `ASC_TIMEOUT` (e.g., `90s`, `2m`)
 - `ASC_TIMEOUT_SECONDS` (e.g., `120`)
+- `ASC_UPLOAD_TIMEOUT` (e.g., `60s`, `2m`)
+- `ASC_UPLOAD_TIMEOUT_SECONDS` (e.g., `120`)
 
 Retry behavior env:
 - `ASC_MAX_RETRIES` (default: 3) for GET/HEAD requests
