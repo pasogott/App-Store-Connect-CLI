@@ -111,6 +111,8 @@ func PrintMarkdown(data interface{}) error {
 		return printSandboxTesterDeleteResultMarkdown(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultMarkdown(v)
+	case *SigningFetchResult:
+		return printSigningFetchResultMarkdown(v)
 	case *XcodeCloudRunResult:
 		return printXcodeCloudRunResultMarkdown(v)
 	case *XcodeCloudStatusResult:
@@ -223,6 +225,8 @@ func PrintTable(data interface{}) error {
 		return printSandboxTesterDeleteResultTable(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultTable(v)
+	case *SigningFetchResult:
+		return printSigningFetchResultTable(v)
 	case *XcodeCloudRunResult:
 		return printXcodeCloudRunResultTable(v)
 	case *XcodeCloudStatusResult:

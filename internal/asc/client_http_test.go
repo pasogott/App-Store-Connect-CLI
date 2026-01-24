@@ -2295,3 +2295,154 @@ func TestResolveGitReferenceByName_NoMatch(t *testing.T) {
 		t.Fatalf("expected no git reference named error, got %v", err)
 	}
 }
+
+func TestGetBundleIDs_WithIdentifierFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"bundleIds","id":"bid-1","attributes":{"identifier":"com.example.app"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds" {
+			t.Fatalf("expected path /v1/bundleIds, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[identifier]") != "com.example.app" {
+			t.Fatalf("expected filter[identifier]=com.example.app, got %q", values.Get("filter[identifier]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBundleIDs(context.Background(), WithBundleIDsFilterIdentifier("com.example.app")); err != nil {
+		t.Fatalf("GetBundleIDs() error: %v", err)
+	}
+}
+
+func TestGetCertificates_WithTypeFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"cert-1","attributes":{"certificateType":"IOS_DISTRIBUTION"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/certificates" {
+			t.Fatalf("expected path /v1/certificates, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[certificateType]") != "IOS_DISTRIBUTION" {
+			t.Fatalf("expected filter[certificateType]=IOS_DISTRIBUTION, got %q", values.Get("filter[certificateType]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCertificates(context.Background(), WithCertificatesFilterType("ios_distribution")); err != nil {
+		t.Fatalf("GetCertificates() error: %v", err)
+	}
+}
+
+func TestGetProfiles_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"profiles","id":"profile-1","attributes":{"profileType":"IOS_APP_STORE","profileState":"ACTIVE"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles" {
+			t.Fatalf("expected path /v1/profiles, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[bundleId]") != "bundle-1" {
+			t.Fatalf("expected filter[bundleId]=bundle-1, got %q", values.Get("filter[bundleId]"))
+		}
+		if values.Get("filter[profileType]") != "IOS_APP_STORE" {
+			t.Fatalf("expected filter[profileType]=IOS_APP_STORE, got %q", values.Get("filter[profileType]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfiles(context.Background(),
+		WithProfilesFilterBundleID("bundle-1"),
+		WithProfilesFilterType("IOS_APP_STORE"),
+	); err != nil {
+		t.Fatalf("GetProfiles() error: %v", err)
+	}
+}
+
+func TestGetDevices_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"devices","id":"device-1","attributes":{"udid":"UDID1","platform":"IOS","status":"ENABLED"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices" {
+			t.Fatalf("expected path /v1/devices, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[udid]") != "UDID1,UDID2" {
+			t.Fatalf("expected filter[udid]=UDID1,UDID2, got %q", values.Get("filter[udid]"))
+		}
+		if values.Get("filter[platform]") != "IOS" {
+			t.Fatalf("expected filter[platform]=IOS, got %q", values.Get("filter[platform]"))
+		}
+		if values.Get("filter[status]") != "ENABLED" {
+			t.Fatalf("expected filter[status]=ENABLED, got %q", values.Get("filter[status]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetDevices(context.Background(),
+		WithDevicesFilterUDIDs([]string{"UDID1", "UDID2"}),
+		WithDevicesFilterPlatforms([]string{"ios"}),
+		WithDevicesFilterStatuses([]string{"enabled"}),
+	); err != nil {
+		t.Fatalf("GetDevices() error: %v", err)
+	}
+}
+
+func TestCreateProfile_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"profiles","id":"profile-1","attributes":{"name":"IOS_APP_STORE-20260101","profileType":"IOS_APP_STORE"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles" {
+			t.Fatalf("expected path /v1/profiles, got %s", req.URL.Path)
+		}
+		var payload ProfileCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeProfiles {
+			t.Fatalf("expected type profiles, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.Name != "IOS_APP_STORE-20260101" {
+			t.Fatalf("expected name IOS_APP_STORE-20260101, got %q", payload.Data.Attributes.Name)
+		}
+		if payload.Data.Attributes.ProfileType != "IOS_APP_STORE" {
+			t.Fatalf("expected profileType IOS_APP_STORE, got %q", payload.Data.Attributes.ProfileType)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.BundleID == nil {
+			t.Fatalf("expected bundleId relationship")
+		}
+		if payload.Data.Relationships.BundleID.Data.ID != "bundle-1" {
+			t.Fatalf("expected bundle id bundle-1, got %q", payload.Data.Relationships.BundleID.Data.ID)
+		}
+		if payload.Data.Relationships.Certificates == nil || len(payload.Data.Relationships.Certificates.Data) != 2 {
+			t.Fatalf("expected two certificate relationships")
+		}
+		if payload.Data.Relationships.Certificates.Data[0].Type != ResourceTypeCertificates {
+			t.Fatalf("expected certificate type, got %q", payload.Data.Relationships.Certificates.Data[0].Type)
+		}
+		if payload.Data.Relationships.Devices == nil || len(payload.Data.Relationships.Devices.Data) != 1 {
+			t.Fatalf("expected one device relationship")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.CreateProfile(context.Background(), ProfileCreateAttributes{
+		Name:           "IOS_APP_STORE-20260101",
+		ProfileType:    "IOS_APP_STORE",
+		BundleIDID:     "bundle-1",
+		CertificateIDs: []string{"cert-1", "cert-2"},
+		DeviceIDs:      []string{"device-1"},
+	}); err != nil {
+		t.Fatalf("CreateProfile() error: %v", err)
+	}
+}

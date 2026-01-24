@@ -1,0 +1,322 @@
+package cmd
+
+import (
+	"context"
+	"encoding/base64"
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+)
+
+// SigningFetchCommand returns the signing fetch subcommand.
+func SigningFetchCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("fetch", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (optional, or ASC_APP_ID env)")
+	bundleID := fs.String("bundle-id", "", "Bundle identifier (e.g., com.example.app) - required")
+	profileType := fs.String("profile-type", "", "Profile type: IOS_APP_STORE, IOS_APP_DEVELOPMENT, MAC_APP_STORE, etc. (required)")
+	deviceIDs := fs.String("device", "", "Device ID(s), comma-separated (required for development profiles)")
+	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
+	outputPath := fs.String("output", "./signing", "Output directory for signing files")
+	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
+	format := fs.String("format", "json", "Output format for metadata: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "fetch",
+		ShortUsage: "asc signing fetch [flags]",
+		ShortHelp:  "Fetch signing files (certificates + profiles) for an app.",
+		LongHelp: `Fetch signing certificates and provisioning profiles for an app.
+
+This command resolves the bundle ID, finds matching certificates and profiles,
+and writes them to the output directory.
+
+With --create-missing, it will create a new profile if none exist for the
+specified configuration.
+
+Examples:
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --output ./signing
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_DEVELOPMENT --device "DEVICE1,DEVICE2"
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --create-missing`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			bundle := strings.TrimSpace(*bundleID)
+			if bundle == "" {
+				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
+				return flag.ErrHelp
+			}
+
+			profType := strings.TrimSpace(*profileType)
+			if profType == "" {
+				fmt.Fprintln(os.Stderr, "Error: --profile-type is required")
+				return flag.ErrHelp
+			}
+
+			if isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --device is required for development profiles")
+				return flag.ErrHelp
+			}
+
+			outputDir := strings.TrimSpace(*outputPath)
+			if outputDir == "" {
+				outputDir = "./signing"
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("signing fetch: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resolvedAppID := resolveAppID(*appID)
+			if resolvedAppID != "" {
+				if err := validateBundleIDMatchesApp(requestCtx, client, resolvedAppID, bundle); err != nil {
+					return fmt.Errorf("signing fetch: %w", err)
+				}
+			}
+
+			result := &asc.SigningFetchResult{
+				BundleID:    bundle,
+				ProfileType: profType,
+				OutputPath:  outputDir,
+			}
+
+			bundleIDResp, err := findBundleID(requestCtx, client, bundle)
+			if err != nil {
+				return fmt.Errorf("signing fetch: %w", err)
+			}
+			result.BundleIDResource = bundleIDResp.Data.ID
+
+			certs, err := findCertificates(requestCtx, client, profType, *certType)
+			if err != nil {
+				return fmt.Errorf("signing fetch: %w", err)
+			}
+			result.CertificateIDs = extractIDs(certs.Data)
+
+			profile, created, err := findOrCreateProfile(
+				requestCtx,
+				client,
+				bundleIDResp.Data.ID,
+				profType,
+				result.CertificateIDs,
+				splitCSV(*deviceIDs),
+				*createMissing,
+			)
+			if err != nil {
+				return fmt.Errorf("signing fetch: %w", err)
+			}
+			result.ProfileID = profile.Data.ID
+			result.Created = created
+
+			if err := os.MkdirAll(outputDir, 0o755); err != nil {
+				return fmt.Errorf("signing fetch: create output dir: %w", err)
+			}
+
+			profileName := safeFileName(profile.Data.Attributes.Name, profile.Data.ID)
+			profilePath := filepath.Join(outputDir, profileName+".mobileprovision")
+			if err := writeProfileFile(profilePath, profile.Data.Attributes.ProfileContent); err != nil {
+				return fmt.Errorf("signing fetch: write profile: %w", err)
+			}
+			result.ProfileFile = profilePath
+
+			for _, cert := range certs.Data {
+				certName := safeFileName(cert.Attributes.SerialNumber, cert.ID)
+				certPath := filepath.Join(outputDir, certName+".cer")
+				if err := writeCertificateFile(certPath, cert.Attributes.CertificateContent); err != nil {
+					return fmt.Errorf("signing fetch: write certificate: %w", err)
+				}
+				result.CertificateFiles = append(result.CertificateFiles, certPath)
+			}
+
+			return printOutput(result, *format, *pretty)
+		},
+	}
+}
+
+func validateBundleIDMatchesApp(ctx context.Context, client *asc.Client, appID, bundleID string) error {
+	app, err := client.GetApp(ctx, appID)
+	if err != nil {
+		return fmt.Errorf("fetch app: %w", err)
+	}
+	if !strings.EqualFold(strings.TrimSpace(app.Data.Attributes.BundleID), strings.TrimSpace(bundleID)) {
+		return fmt.Errorf("bundle ID %s does not match app %s (expected %s)", bundleID, appID, app.Data.Attributes.BundleID)
+	}
+	return nil
+}
+
+func findBundleID(ctx context.Context, client *asc.Client, identifier string) (*asc.BundleIDResponse, error) {
+	resp, err := client.GetBundleIDs(ctx, asc.WithBundleIDsFilterIdentifier(identifier))
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Data) == 0 {
+		return nil, fmt.Errorf("bundle ID not found: %s", identifier)
+	}
+	return &asc.BundleIDResponse{Data: resp.Data[0]}, nil
+}
+
+func findCertificates(ctx context.Context, client *asc.Client, profileType, certType string) (*asc.CertificatesResponse, error) {
+	certType = strings.TrimSpace(certType)
+	if certType == "" {
+		inferred, err := inferCertificateType(profileType)
+		if err != nil {
+			return nil, err
+		}
+		certType = inferred
+	}
+
+	resp, err := client.GetCertificates(ctx, asc.WithCertificatesFilterType(certType))
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Data) == 0 {
+		return nil, fmt.Errorf("no certificates found for type %s", certType)
+	}
+	return resp, nil
+}
+
+func findOrCreateProfile(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string, certIDs, deviceIDs []string, createMissing bool) (*asc.ProfileResponse, bool, error) {
+	profiles, err := client.GetProfiles(ctx,
+		asc.WithProfilesFilterBundleID(bundleIDResourceID),
+		asc.WithProfilesFilterType(profileType),
+	)
+	if err != nil {
+		return nil, false, err
+	}
+
+	for _, profile := range profiles.Data {
+		if profile.Attributes.ProfileState == asc.ProfileStateActive {
+			return &asc.ProfileResponse{Data: profile}, false, nil
+		}
+	}
+
+	if !createMissing {
+		return nil, false, fmt.Errorf("no active profile found; use --create-missing to create one")
+	}
+	if len(certIDs) == 0 {
+		return nil, false, fmt.Errorf("no certificates available to create profile")
+	}
+
+	name := fmt.Sprintf("%s-%s", profileType, time.Now().Format("20060102"))
+	profile, err := client.CreateProfile(ctx, asc.ProfileCreateAttributes{
+		Name:           name,
+		ProfileType:    profileType,
+		BundleIDID:     bundleIDResourceID,
+		CertificateIDs: certIDs,
+		DeviceIDs:      deviceIDs,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return profile, true, nil
+}
+
+func isDevelopmentProfile(profileType string) bool {
+	normalized := strings.ToUpper(strings.TrimSpace(profileType))
+	return strings.Contains(normalized, "DEVELOPMENT") ||
+		strings.Contains(normalized, "ADHOC") ||
+		strings.Contains(normalized, "AD_HOC")
+}
+
+func inferCertificateType(profileType string) (string, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(profileType))
+
+	switch {
+	case strings.Contains(normalized, "IOS_APP_DEVELOPMENT"):
+		return "IOS_DEVELOPMENT", nil
+	case strings.Contains(normalized, "IOS_APP_STORE"),
+		strings.Contains(normalized, "IOS_APP_ADHOC"),
+		strings.Contains(normalized, "IOS_APP_INHOUSE"):
+		return "IOS_DISTRIBUTION", nil
+	case strings.Contains(normalized, "TVOS_APP_DEVELOPMENT"):
+		return "TVOS_DEVELOPMENT", nil
+	case strings.Contains(normalized, "TVOS_APP_STORE"),
+		strings.Contains(normalized, "TVOS_APP_ADHOC"):
+		return "TVOS_DISTRIBUTION", nil
+	case strings.Contains(normalized, "MAC_APP_DEVELOPMENT"):
+		return "MAC_APP_DEVELOPMENT", nil
+	case strings.Contains(normalized, "MAC_APP_STORE"):
+		return "MAC_APP_DISTRIBUTION", nil
+	case strings.Contains(normalized, "MAC_APP_DIRECT"):
+		return "DEVELOPER_ID_APPLICATION", nil
+	default:
+		return "", fmt.Errorf("unable to infer certificate type for profile type %s; use --certificate-type", profileType)
+	}
+}
+
+func writeProfileFile(path, base64Content string) error {
+	data, err := decodeBase64Content("profile", base64Content)
+	if err != nil {
+		return err
+	}
+	return writeBinaryFile(path, data)
+}
+
+func writeCertificateFile(path, base64Content string) error {
+	data, err := decodeBase64Content("certificate", base64Content)
+	if err != nil {
+		return err
+	}
+	return writeBinaryFile(path, data)
+}
+
+func decodeBase64Content(label, content string) ([]byte, error) {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return nil, fmt.Errorf("%s content is empty", label)
+	}
+	data, err := base64.StdEncoding.DecodeString(trimmed)
+	if err != nil {
+		return nil, fmt.Errorf("decode %s: %w", label, err)
+	}
+	return data, nil
+}
+
+func writeBinaryFile(path string, data []byte) error {
+	file, err := openNewFileNoFollow(path, 0o600)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("output file already exists: %w", err)
+		}
+		return err
+	}
+	defer file.Close()
+
+	if _, err := file.Write(data); err != nil {
+		return err
+	}
+	return file.Sync()
+}
+
+func extractIDs[T any](items []asc.Resource[T]) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	return ids
+}
+
+func safeFileName(value, fallback string) string {
+	clean := strings.TrimSpace(value)
+	if clean == "" {
+		clean = fallback
+	}
+	clean = strings.ReplaceAll(clean, "/", "_")
+	clean = strings.ReplaceAll(clean, "\\", "_")
+	clean = strings.Trim(clean, ". ")
+	if clean == "" || clean == "." || clean == ".." {
+		return fallback
+	}
+	return clean
+}
