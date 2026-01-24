@@ -72,47 +72,6 @@ func (c *Client) GetAppPricePoints(ctx context.Context, appID string, opts ...Pr
 	return &response, nil
 }
 
-// GetAppPricePoint retrieves a single app price point by ID.
-func (c *Client) GetAppPricePoint(ctx context.Context, pricePointID string) (*AppPricePointsV3Response, error) {
-	pricePointID = strings.TrimSpace(pricePointID)
-	path := fmt.Sprintf("/v3/appPricePoints/%s", pricePointID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var single SingleResponse[AppPricePointV3Attributes]
-	if err := json.Unmarshal(data, &single); err != nil {
-		return nil, fmt.Errorf("failed to parse app price point response: %w", err)
-	}
-
-	response := AppPricePointsV3Response{
-		Data:  []Resource[AppPricePointV3Attributes]{single.Data},
-		Links: single.Links,
-	}
-
-	return &response, nil
-}
-
-// GetAppPricePointEqualizations retrieves equalized price points for a price point.
-func (c *Client) GetAppPricePointEqualizations(ctx context.Context, pricePointID string) (*AppPricePointsV3Response, error) {
-	pricePointID = strings.TrimSpace(pricePointID)
-	path := fmt.Sprintf("/v3/appPricePoints/%s/equalizations", pricePointID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPricePointsV3Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app price point equalizations response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetAppPriceSchedule retrieves the app price schedule for an app.
 func (c *Client) GetAppPriceSchedule(ctx context.Context, appID string) (*AppPriceScheduleResponse, error) {
 	appID = strings.TrimSpace(appID)
@@ -196,42 +155,6 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 	var response AppPriceScheduleResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse app price schedule response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppPriceScheduleManualPrices retrieves manual prices for a schedule.
-func (c *Client) GetAppPriceScheduleManualPrices(ctx context.Context, scheduleID string) (*AppPricesResponse, error) {
-	scheduleID = strings.TrimSpace(scheduleID)
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s/manualPrices", scheduleID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPricesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse manual prices response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppPriceScheduleAutomaticPrices retrieves automatic prices for a schedule.
-func (c *Client) GetAppPriceScheduleAutomaticPrices(ctx context.Context, scheduleID string) (*AppPricesResponse, error) {
-	scheduleID = strings.TrimSpace(scheduleID)
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s/automaticPrices", scheduleID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPricesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse automatic prices response: %w", err)
 	}
 
 	return &response, nil
@@ -338,20 +261,3 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 	return &response, nil
 }
 
-// GetTerritoryAvailabilities retrieves territory availabilities for an availability ID.
-func (c *Client) GetTerritoryAvailabilities(ctx context.Context, availabilityID string) (*TerritoryAvailabilitiesResponse, error) {
-	availabilityID = strings.TrimSpace(availabilityID)
-	path := fmt.Sprintf("/v2/appAvailabilities/%s/territoryAvailabilities", availabilityID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoryAvailabilitiesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse territory availabilities response: %w", err)
-	}
-
-	return &response, nil
-}

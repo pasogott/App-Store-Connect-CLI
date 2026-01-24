@@ -76,61 +76,6 @@ func TestGetAppPricePoints_WithTerritory(t *testing.T) {
 	}
 }
 
-func TestGetAppPricePoint(t *testing.T) {
-	single := SingleResponse[AppPricePointV3Attributes]{
-		Data: Resource[AppPricePointV3Attributes]{
-			Type: ResourceTypeAppPricePoints,
-			ID:   "pp-1",
-			Attributes: AppPricePointV3Attributes{
-				CustomerPrice: "0.99",
-				Proceeds:      "0.70",
-			},
-		},
-	}
-	body, _ := json.Marshal(single)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v3/appPricePoints/pp-1" {
-			t.Fatalf("expected path /v3/appPricePoints/pp-1, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	result, err := client.GetAppPricePoint(context.Background(), "pp-1")
-	if err != nil {
-		t.Fatalf("GetAppPricePoint() error: %v", err)
-	}
-	if len(result.Data) != 1 {
-		t.Fatalf("expected 1 price point, got %d", len(result.Data))
-	}
-	if result.Data[0].ID != "pp-1" {
-		t.Fatalf("expected price point pp-1, got %q", result.Data[0].ID)
-	}
-}
-
-func TestGetAppPricePointEqualizations(t *testing.T) {
-	resp := AppPricePointsV3Response{
-		Data: []Resource[AppPricePointV3Attributes]{
-			{Type: ResourceTypeAppPricePoints, ID: "pp-eq-1"},
-		},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v3/appPricePoints/pp-1/equalizations" {
-			t.Fatalf("expected path /v3/appPricePoints/pp-1/equalizations, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	if _, err := client.GetAppPricePointEqualizations(context.Background(), "pp-1"); err != nil {
-		t.Fatalf("GetAppPricePointEqualizations() error: %v", err)
-	}
-}
-
 func TestGetAppPriceSchedule(t *testing.T) {
 	resp := AppPriceScheduleResponse{
 		Data: Resource[AppPriceScheduleAttributes]{
@@ -211,42 +156,6 @@ func TestCreateAppPriceSchedule(t *testing.T) {
 	}
 }
 
-func TestGetAppPriceScheduleManualPrices(t *testing.T) {
-	resp := AppPricesResponse{
-		Data: []Resource[AppPriceAttributes]{{Type: ResourceTypeAppPrices, ID: "price-1"}},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v1/appPriceSchedules/schedule-1/manualPrices" {
-			t.Fatalf("expected path /v1/appPriceSchedules/schedule-1/manualPrices, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	if _, err := client.GetAppPriceScheduleManualPrices(context.Background(), "schedule-1"); err != nil {
-		t.Fatalf("GetAppPriceScheduleManualPrices() error: %v", err)
-	}
-}
-
-func TestGetAppPriceScheduleAutomaticPrices(t *testing.T) {
-	resp := AppPricesResponse{
-		Data: []Resource[AppPriceAttributes]{{Type: ResourceTypeAppPrices, ID: "price-1"}},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v1/appPriceSchedules/schedule-1/automaticPrices" {
-			t.Fatalf("expected path /v1/appPriceSchedules/schedule-1/automaticPrices, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	if _, err := client.GetAppPriceScheduleAutomaticPrices(context.Background(), "schedule-1"); err != nil {
-		t.Fatalf("GetAppPriceScheduleAutomaticPrices() error: %v", err)
-	}
-}
-
 func TestGetAppAvailabilityV2(t *testing.T) {
 	resp := AppAvailabilityV2Response{
 		Data: Resource[AppAvailabilityV2Attributes]{
@@ -318,26 +227,6 @@ func TestCreateAppAvailabilityV2(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("CreateAppAvailabilityV2() error: %v", err)
-	}
-}
-
-func TestGetTerritoryAvailabilities(t *testing.T) {
-	resp := TerritoryAvailabilitiesResponse{
-		Data: []Resource[TerritoryAvailabilityAttributes]{
-			{Type: ResourceTypeTerritoryAvailabilities, ID: "ta-1"},
-		},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v2/appAvailabilities/availability-1/territoryAvailabilities" {
-			t.Fatalf("expected path /v2/appAvailabilities/availability-1/territoryAvailabilities, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	if _, err := client.GetTerritoryAvailabilities(context.Background(), "availability-1"); err != nil {
-		t.Fatalf("GetTerritoryAvailabilities() error: %v", err)
 	}
 }
 
