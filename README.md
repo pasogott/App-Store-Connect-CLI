@@ -530,6 +530,31 @@ asc build-localizations delete --id "LOCALIZATION_ID" --confirm
 asc build-localizations get --id "LOCALIZATION_ID"
 ```
 
+### Migrate (Fastlane Compatibility)
+
+Validate and migrate metadata between ASC's `.strings` format and Fastlane directory structure.
+
+```bash
+# Validate metadata against App Store Connect character limits (offline)
+asc migrate validate --fastlane-dir ./metadata
+
+# Import metadata from fastlane format to App Store Connect
+asc migrate import --app "123456789" --fastlane-dir ./metadata
+
+# Export metadata from App Store Connect to fastlane format
+asc migrate export --app "123456789" --output ./exported-metadata
+```
+
+**Character limits validated:**
+| Field | Limit |
+|-------|-------|
+| Description | 4000 chars |
+| Keywords | 100 chars |
+| What's New | 4000 chars |
+| Promotional Text | 170 chars |
+| Name | 30 chars |
+| Subtitle | 30 chars |
+
 ### Submit
 
 ```bash
