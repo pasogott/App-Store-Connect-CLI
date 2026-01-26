@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
 func captureOutput(t *testing.T, fn func()) (string, string) {
@@ -1495,6 +1497,44 @@ func TestAuthLogoutBlankNameValidation(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "auth logout: --name cannot be blank") {
 			t.Fatalf("expected error containing %q, got %v", "auth logout: --name cannot be blank", err)
+		}
+	})
+}
+
+func TestAuthSwitchUnknownProfile(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	cfg := &config.Config{
+		DefaultKeyName: "personal",
+		Keys: []config.Credential{
+			{
+				Name:           "personal",
+				KeyID:          "KEY123",
+				IssuerID:       "ISS456",
+				PrivateKeyPath: "/tmp/AuthKey.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{"auth", "switch", "--name", "missing"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), `auth switch: profile "missing" not found`) {
+			t.Fatalf("expected error containing %q, got %v", `auth switch: profile "missing" not found`, err)
 		}
 	})
 }

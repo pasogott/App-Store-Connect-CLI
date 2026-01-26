@@ -119,6 +119,42 @@ func TestConfigProfileListAndSwitch(t *testing.T) {
 	}
 }
 
+func TestGetCredentials_PrefersKeychainOverConfig(t *testing.T) {
+	newKr, _ := withSeparateKeyrings(t)
+	configPath := os.Getenv("ASC_CONFIG_PATH")
+	if configPath == "" {
+		t.Fatal("expected ASC_CONFIG_PATH to be set")
+	}
+
+	storeCredentialInKeyring(t, newKr, "shared", "KEYCHAIN", "ISSUER-KEYCHAIN", "/tmp/keychain.p8")
+
+	cfg := &config.Config{
+		DefaultKeyName: "shared",
+		Keys: []config.Credential{
+			{
+				Name:           "shared",
+				KeyID:          "CONFIG",
+				IssuerID:       "ISSUER-CONFIG",
+				PrivateKeyPath: "/tmp/config.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	creds, err := GetCredentials("shared")
+	if err != nil {
+		t.Fatalf("GetCredentials(shared) error: %v", err)
+	}
+	if creds.KeyID != "KEYCHAIN" {
+		t.Fatalf("expected keychain KeyID, got %q", creds.KeyID)
+	}
+	if creds.PrivateKeyPath != "/tmp/keychain.p8" {
+		t.Fatalf("expected keychain path, got %q", creds.PrivateKeyPath)
+	}
+}
+
 func TestValidateKeyFilePermissions(t *testing.T) {
 	tempDir := t.TempDir()
 	keyPath := filepath.Join(tempDir, "AuthKey.p8")
