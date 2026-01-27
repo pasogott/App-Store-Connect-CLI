@@ -3153,6 +3153,153 @@ func TestCreateCiBuildRun(t *testing.T) {
 	}
 }
 
+func TestGetCiBuildActionArtifacts_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciArtifacts","id":"art-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildActions/action-1/artifacts" {
+			t.Fatalf("expected path /v1/ciBuildActions/action-1/artifacts, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "20" {
+			t.Fatalf("expected limit=20, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildActionArtifacts(context.Background(), "action-1", WithCiArtifactsLimit(20)); err != nil {
+		t.Fatalf("GetCiBuildActionArtifacts() error: %v", err)
+	}
+}
+
+func TestGetCiArtifact(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciArtifacts","id":"art-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciArtifacts/art-1" {
+			t.Fatalf("expected path /v1/ciArtifacts/art-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiArtifact(context.Background(), "art-1"); err != nil {
+		t.Fatalf("GetCiArtifact() error: %v", err)
+	}
+}
+
+func TestGetCiBuildActionTestResults_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciTestResults","id":"test-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildActions/action-1/testResults" {
+			t.Fatalf("expected path /v1/ciBuildActions/action-1/testResults, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "30" {
+			t.Fatalf("expected limit=30, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildActionTestResults(context.Background(), "action-1", WithCiTestResultsLimit(30)); err != nil {
+		t.Fatalf("GetCiBuildActionTestResults() error: %v", err)
+	}
+}
+
+func TestGetCiTestResult(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciTestResults","id":"test-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciTestResults/test-1" {
+			t.Fatalf("expected path /v1/ciTestResults/test-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiTestResult(context.Background(), "test-1"); err != nil {
+		t.Fatalf("GetCiTestResult() error: %v", err)
+	}
+}
+
+func TestGetCiBuildActionIssues_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciIssues","id":"issue-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildActions/action-1/issues" {
+			t.Fatalf("expected path /v1/ciBuildActions/action-1/issues, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "40" {
+			t.Fatalf("expected limit=40, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildActionIssues(context.Background(), "action-1", WithCiIssuesLimit(40)); err != nil {
+		t.Fatalf("GetCiBuildActionIssues() error: %v", err)
+	}
+}
+
+func TestGetCiIssue(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciIssues","id":"issue-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciIssues/issue-1" {
+			t.Fatalf("expected path /v1/ciIssues/issue-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiIssue(context.Background(), "issue-1"); err != nil {
+		t.Fatalf("GetCiIssue() error: %v", err)
+	}
+}
+
+func TestDownloadCiArtifact_NoAuthHeader(t *testing.T) {
+	downloadURL := "https://downloads.example.com/artifact.zip"
+	response := rawResponse(http.StatusOK, "artifact-data")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != downloadURL {
+			t.Fatalf("expected URL %q, got %q", downloadURL, req.URL.String())
+		}
+		if req.Header.Get("Authorization") != "" {
+			t.Fatalf("expected no Authorization header")
+		}
+	}, response)
+
+	download, err := client.DownloadCiArtifact(context.Background(), downloadURL)
+	if err != nil {
+		t.Fatalf("DownloadCiArtifact() error: %v", err)
+	}
+	_ = download.Body.Close()
+}
+
+func TestDownloadCiArtifact_InvalidScheme(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+	if _, err := client.DownloadCiArtifact(context.Background(), "http://downloads.example.com/artifact.zip"); err == nil {
+		t.Fatal("expected error for insecure scheme")
+	}
+}
+
+func TestDownloadCiArtifact_EmptyHost(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+	if _, err := client.DownloadCiArtifact(context.Background(), "https:///artifact.zip"); err == nil {
+		t.Fatal("expected error for empty host")
+	}
+}
+
 func TestResolveCiWorkflowByName_CaseInsensitive(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciWorkflows","id":"wf-1","attributes":{"name":"CI Build"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {

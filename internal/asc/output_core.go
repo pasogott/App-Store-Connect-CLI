@@ -299,6 +299,20 @@ func PrintMarkdown(data interface{}) error {
 		return printCiBuildRunsMarkdown(v)
 	case *CiBuildActionsResponse:
 		return printCiBuildActionsMarkdown(v)
+	case *CiArtifactsResponse:
+		return printCiArtifactsMarkdown(v)
+	case *CiArtifactResponse:
+		return printCiArtifactMarkdown(v)
+	case *CiTestResultsResponse:
+		return printCiTestResultsMarkdown(v)
+	case *CiTestResultResponse:
+		return printCiTestResultMarkdown(v)
+	case *CiIssuesResponse:
+		return printCiIssuesMarkdown(v)
+	case *CiIssueResponse:
+		return printCiIssueMarkdown(v)
+	case *CiArtifactDownloadResult:
+		return printCiArtifactDownloadResultMarkdown(v)
 	case *EndUserLicenseAgreementResponse:
 		return printEndUserLicenseAgreementMarkdown(v)
 	case *EndUserLicenseAgreementDeleteResult:
@@ -601,6 +615,20 @@ func PrintTable(data interface{}) error {
 		return printCiBuildRunsTable(v)
 	case *CiBuildActionsResponse:
 		return printCiBuildActionsTable(v)
+	case *CiArtifactsResponse:
+		return printCiArtifactsTable(v)
+	case *CiArtifactResponse:
+		return printCiArtifactTable(v)
+	case *CiTestResultsResponse:
+		return printCiTestResultsTable(v)
+	case *CiTestResultResponse:
+		return printCiTestResultTable(v)
+	case *CiIssuesResponse:
+		return printCiIssuesTable(v)
+	case *CiIssueResponse:
+		return printCiIssueTable(v)
+	case *CiArtifactDownloadResult:
+		return printCiArtifactDownloadResultTable(v)
 	case *CustomerReviewResponseResponse:
 		return printCustomerReviewResponseTable(v)
 	case *CustomerReviewResponseDeleteResult:

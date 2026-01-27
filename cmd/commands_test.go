@@ -2605,6 +2605,46 @@ func TestXcodeCloudValidationErrors(t *testing.T) {
 			args:    []string{"xcode-cloud", "build-runs"},
 			wantErr: "--workflow-id is required",
 		},
+		{
+			name:    "xcode-cloud artifacts list missing action-id",
+			args:    []string{"xcode-cloud", "artifacts", "list"},
+			wantErr: "--action-id is required",
+		},
+		{
+			name:    "xcode-cloud artifacts get missing id",
+			args:    []string{"xcode-cloud", "artifacts", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud artifacts download missing id",
+			args:    []string{"xcode-cloud", "artifacts", "download", "--path", "./artifact.zip"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud artifacts download missing path",
+			args:    []string{"xcode-cloud", "artifacts", "download", "--id", "ART_ID"},
+			wantErr: "--path is required",
+		},
+		{
+			name:    "xcode-cloud test-results list missing action-id",
+			args:    []string{"xcode-cloud", "test-results", "list"},
+			wantErr: "--action-id is required",
+		},
+		{
+			name:    "xcode-cloud test-results get missing id",
+			args:    []string{"xcode-cloud", "test-results", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud issues list missing action-id",
+			args:    []string{"xcode-cloud", "issues", "list"},
+			wantErr: "--action-id is required",
+		},
+		{
+			name:    "xcode-cloud issues get missing id",
+			args:    []string{"xcode-cloud", "issues", "get"},
+			wantErr: "--id is required",
+		},
 	}
 
 	for _, test := range tests {
