@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"golang.org/x/term"
@@ -321,6 +322,18 @@ func printOutput(data interface{}, format string, pretty bool) error {
 	default:
 		return fmt.Errorf("unsupported format: %s", format)
 	}
+}
+
+func normalizeDate(value, flagName string) (string, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "", fmt.Errorf("%s is required", flagName)
+	}
+	parsed, err := time.Parse("2006-01-02", trimmed)
+	if err != nil {
+		return "", fmt.Errorf("%s must be in YYYY-MM-DD format", flagName)
+	}
+	return parsed.Format("2006-01-02"), nil
 }
 
 func isAppAvailabilityMissing(err error) bool {

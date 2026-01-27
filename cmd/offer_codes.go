@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -281,15 +280,7 @@ Examples:
 }
 
 func normalizeOfferCodeExpirationDate(value string) (string, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "", fmt.Errorf("--expiration-date is required")
-	}
-	parsed, err := time.Parse("2006-01-02", trimmed)
-	if err != nil {
-		return "", fmt.Errorf("--expiration-date must be in YYYY-MM-DD format")
-	}
-	return parsed.Format("2006-01-02"), nil
+	return normalizeDate(value, "--expiration-date")
 }
 
 func writeOfferCodesFile(path string, codes []string) error {

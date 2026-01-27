@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -80,7 +79,7 @@ Examples:
 
 			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
 			if err != nil {
-				if isAppAvailabilityMissing(err) || strings.Contains(strings.ToLower(err.Error()), "appavailabilities") {
+				if isAppAvailabilityMissing(err) {
 					return fmt.Errorf("pre-orders get: app availability not found for app %q", resolvedAppID)
 				}
 				return fmt.Errorf("pre-orders get: %w", err)
@@ -196,7 +195,7 @@ Examples:
 
 			availabilityResp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
 			if err != nil {
-				if isAppAvailabilityMissing(err) || strings.Contains(strings.ToLower(err.Error()), "appavailabilities") {
+				if isAppAvailabilityMissing(err) {
 					return fmt.Errorf("pre-orders enable: app availability not found for app %q", resolvedAppID)
 				}
 				return fmt.Errorf("pre-orders enable: %w", err)
@@ -204,6 +203,12 @@ Examples:
 			availabilityID := strings.TrimSpace(availabilityResp.Data.ID)
 			if availabilityID == "" {
 				return fmt.Errorf("pre-orders enable: app availability ID missing from response")
+			}
+			availableInNew := availableInNewTerritories.value
+			if _, err := client.CreateAppAvailabilityV2(requestCtx, resolvedAppID, asc.AppAvailabilityV2CreateAttributes{
+				AvailableInNewTerritories: &availableInNew,
+			}); err != nil {
+				return fmt.Errorf("pre-orders enable: %w", err)
 			}
 
 			territoryResp, err := client.GetTerritoryAvailabilities(requestCtx, availabilityID)
@@ -395,15 +400,7 @@ Examples:
 }
 
 func normalizePreOrderReleaseDate(value string) (string, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "", fmt.Errorf("--release-date is required")
-	}
-	parsed, err := time.Parse("2006-01-02", trimmed)
-	if err != nil {
-		return "", fmt.Errorf("--release-date must be in YYYY-MM-DD format")
-	}
-	return parsed.Format("2006-01-02"), nil
+	return normalizeDate(value, "--release-date")
 }
 
 type territoryAvailabilityRelationships struct {
