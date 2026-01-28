@@ -144,6 +144,12 @@ type envCredentials struct {
 	complete bool
 }
 
+type resolvedCredentials struct {
+	keyID    string
+	issuerID string
+	keyPath  string
+}
+
 func resolveEnvCredentials() (envCredentials, error) {
 	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
 	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
@@ -169,7 +175,7 @@ func resolveEnvCredentials() (envCredentials, error) {
 	return creds, nil
 }
 
-func getASCClient() (*asc.Client, error) {
+func resolveCredentials() (resolvedCredentials, error) {
 	var actualKeyID, actualIssuerID, actualKeyPath string
 	profile := resolveProfileName()
 	var envCreds envCredentials
@@ -178,12 +184,16 @@ func getASCClient() (*asc.Client, error) {
 	if profile == "" && auth.ShouldBypassKeychain() {
 		resolved, err := resolveEnvCredentials()
 		if err != nil {
-			return nil, fmt.Errorf("invalid private key environment: %w", err)
+			return resolvedCredentials{}, fmt.Errorf("invalid private key environment: %w", err)
 		}
 		envCreds = resolved
 		envResolved = true
 		if envCreds.complete {
-			return asc.NewClient(envCreds.keyID, envCreds.issuerID, envCreds.keyPath)
+			return resolvedCredentials{
+				keyID:    envCreds.keyID,
+				issuerID: envCreds.issuerID,
+				keyPath:  envCreds.keyPath,
+			}, nil
 		}
 	}
 
@@ -191,7 +201,7 @@ func getASCClient() (*asc.Client, error) {
 	cfg, err := auth.GetCredentials(profile)
 	if err != nil {
 		if profile != "" {
-			return nil, err
+			return resolvedCredentials{}, err
 		}
 	} else if cfg != nil {
 		actualKeyID = cfg.KeyID
@@ -204,7 +214,7 @@ func getASCClient() (*asc.Client, error) {
 		if !envResolved {
 			resolved, err := resolveEnvCredentials()
 			if err != nil {
-				return nil, fmt.Errorf("invalid private key environment: %w", err)
+				return resolvedCredentials{}, fmt.Errorf("invalid private key environment: %w", err)
 			}
 			envCreds = resolved
 		}
@@ -221,12 +231,24 @@ func getASCClient() (*asc.Client, error) {
 
 	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
 		if path, err := config.Path(); err == nil {
-			return nil, fmt.Errorf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)
+			return resolvedCredentials{}, fmt.Errorf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)
 		}
-		return nil, fmt.Errorf("missing authentication. Run 'asc auth login' or 'asc auth init'")
+		return resolvedCredentials{}, fmt.Errorf("missing authentication. Run 'asc auth login' or 'asc auth init'")
 	}
 
-	return asc.NewClient(actualKeyID, actualIssuerID, actualKeyPath)
+	return resolvedCredentials{
+		keyID:    actualKeyID,
+		issuerID: actualIssuerID,
+		keyPath:  actualKeyPath,
+	}, nil
+}
+
+func getASCClient() (*asc.Client, error) {
+	resolved, err := resolveCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
 }
 
 func resolvePrivateKeyPath() (string, error) {

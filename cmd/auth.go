@@ -38,13 +38,15 @@ A repo-local ./.asc/config.json (if present) takes precedence.`,
 			AuthLoginCommand(),
 			AuthSwitchCommand(),
 			AuthLogoutCommand(),
+			AuthValidateCommand(),
 			AuthStatusCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {
 				return flag.ErrHelp
 			}
-			return nil
+			fmt.Fprintf(os.Stderr, "Unknown subcommand: %s\n\n", args[0])
+			return flag.ErrHelp
 		},
 	}
 }
@@ -114,6 +116,102 @@ Examples:
 				Config:     template,
 			}
 			return asc.PrintJSON(result)
+		},
+	}
+}
+
+type authValidateResult struct {
+	Profile          string   `json:"profile,omitempty"`
+	KeyID            string   `json:"key_id,omitempty"`
+	IssuerID         string   `json:"issuer_id,omitempty"`
+	PrivateKeyPath   string   `json:"private_key_path,omitempty"`
+	Valid            bool     `json:"valid"`
+	NetworkRequested bool     `json:"network_requested"`
+	NetworkValid     *bool    `json:"network_valid,omitempty"`
+	Errors           []string `json:"errors,omitempty"`
+}
+
+// AuthValidate command factory
+func AuthValidateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("auth validate", flag.ExitOnError)
+
+	output := fs.String("output", "json", "Output format: json (default)")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	network := fs.Bool("network", false, "Validate credentials with a lightweight API request")
+
+	return &ffcli.Command{
+		Name:       "validate",
+		ShortUsage: "asc auth validate [flags]",
+		ShortHelp:  "Validate stored authentication credentials.",
+		LongHelp: `Validate stored authentication credentials.
+
+Checks the resolved credentials (profile/env/config) and validates the private key file.
+Add --network to verify credentials against a lightweight API request.
+
+Examples:
+  asc auth validate
+  asc --profile "Client" auth validate
+  asc auth validate --network`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			normalizedOutput := strings.ToLower(strings.TrimSpace(*output))
+			if normalizedOutput != "json" {
+				return fmt.Errorf("auth validate: unsupported format: %s (only json is supported)", *output)
+			}
+			result := authValidateResult{
+				Profile:          resolveProfileName(),
+				NetworkRequested: *network,
+			}
+
+			resolved, err := resolveCredentials()
+			if err != nil {
+				result.Valid = false
+				result.Errors = []string{err.Error()}
+				if printErr := printOutput(result, normalizedOutput, *pretty); printErr != nil {
+					return printErr
+				}
+				return NewReportedError(fmt.Errorf("auth validate: %w", err))
+			}
+
+			result.KeyID = resolved.keyID
+			result.IssuerID = resolved.issuerID
+			result.PrivateKeyPath = resolved.keyPath
+
+			if err := auth.ValidateKeyFile(resolved.keyPath); err != nil {
+				validationErr := fmt.Errorf("invalid private key: %w", err)
+				result.Valid = false
+				result.Errors = []string{validationErr.Error()}
+				if printErr := printOutput(result, normalizedOutput, *pretty); printErr != nil {
+					return printErr
+				}
+				return NewReportedError(fmt.Errorf("auth validate: %w", validationErr))
+			}
+
+			var validationErr error
+			if *network {
+				client, err := asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
+				if err != nil {
+					validationErr = err
+				} else if _, err := client.GetApps(ctx, asc.WithAppsLimit(1)); err != nil {
+					validationErr = fmt.Errorf("network validation failed: %w", err)
+				}
+
+				networkValid := validationErr == nil
+				result.NetworkValid = &networkValid
+				if validationErr != nil {
+					result.Errors = []string{validationErr.Error()}
+				}
+			}
+
+			result.Valid = validationErr == nil
+			if err := printOutput(result, normalizedOutput, *pretty); err != nil {
+				return err
+			}
+			if validationErr != nil {
+				return NewReportedError(fmt.Errorf("auth validate: %w", validationErr))
+			}
+			return nil
 		},
 	}
 }

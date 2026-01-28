@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
@@ -2927,6 +2928,108 @@ func TestAuthStatusProfileOverridesEnvNote(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `Profile "client" selected; environment credentials will be ignored.`) {
 		t.Fatalf("expected profile override note, got %q", stdout)
+	}
+}
+
+func TestAuthValidateSuccess(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "ENVKEY")
+	t.Setenv("ASC_ISSUER_ID", "ENVISS")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() {
+		selectedProfile = previousProfile
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"auth", "validate"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result authValidateResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("failed to parse json output: %v", err)
+	}
+	if !result.Valid {
+		t.Fatalf("expected valid true, got false")
+	}
+	if result.NetworkRequested {
+		t.Fatalf("expected network_requested false, got true")
+	}
+	if result.KeyID != "ENVKEY" {
+		t.Fatalf("expected key_id ENVKEY, got %q", result.KeyID)
+	}
+	if result.IssuerID != "ENVISS" {
+		t.Fatalf("expected issuer_id ENVISS, got %q", result.IssuerID)
+	}
+	if filepath.Clean(result.PrivateKeyPath) != filepath.Clean(keyPath) {
+		t.Fatalf("expected private_key_path %q, got %q", keyPath, result.PrivateKeyPath)
+	}
+}
+
+func TestAuthValidateMissingAuth(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() {
+		selectedProfile = previousProfile
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"auth", "validate"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err == nil {
+			t.Fatal("expected error, got nil")
+		} else {
+			var reported ReportedError
+			if !errors.As(err, &reported) {
+				t.Fatalf("expected reported error, got %v", err)
+			}
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result authValidateResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("failed to parse json output: %v", err)
+	}
+	if result.Valid {
+		t.Fatalf("expected valid false, got true")
+	}
+	if len(result.Errors) == 0 {
+		t.Fatalf("expected errors to be populated, got %#v", result.Errors)
 	}
 }
 

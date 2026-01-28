@@ -34,6 +34,8 @@ Follow idiomatic Go so the code is predictable to anyone who reads Go.
 - Never silently ignore flags
 - Data goes to stdout, errors to stderr
 - Keep JSON minified by default
+- If a command already prints structured output and must exit non-zero,
+  return `cmd.NewReportedError(err)` to avoid duplicate stderr logging
 
 ## Dependencies
 

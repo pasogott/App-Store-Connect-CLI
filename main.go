@@ -29,6 +29,10 @@ func main() {
 	}
 
 	if err := root.Run(context.Background()); err != nil {
+		var reported cmd.ReportedError
+		if errors.As(err, &reported) {
+			os.Exit(1)
+		}
 		if errors.Is(err, flag.ErrHelp) {
 			os.Exit(1)
 		}
