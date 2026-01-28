@@ -34,6 +34,7 @@ A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect
   - [Finance Reports](#finance-reports)
   - [Sandbox Testers](#sandbox-testers)
   - [Xcode Cloud](#xcode-cloud)
+  - [Game Center](#game-center)
   - [Apps & Builds](#apps--builds)
 - [App Setup](#app-setup)
   - [Categories](#categories)
@@ -90,6 +91,22 @@ asc auth login \
   --issuer-id "DEF456" \
   --private-key /path/to/AuthKey.p8
 
+# Validate credentials via network during login
+asc auth login \
+  --network \
+  --name "MyApp" \
+  --key-id "ABC123" \
+  --issuer-id "DEF456" \
+  --private-key /path/to/AuthKey.p8
+
+# Skip JWT + network validation (useful in CI)
+asc auth login \
+  --skip-validation \
+  --name "MyApp" \
+  --key-id "ABC123" \
+  --issuer-id "DEF456" \
+  --private-key /path/to/AuthKey.p8
+
 # Add another profile and switch defaults
 asc auth login \
   --name "ClientApp" \
@@ -101,6 +118,9 @@ asc auth switch --name "ClientApp"
 
 # Use a profile for a single command
 asc --profile "ClientApp" apps list
+
+# Fail if credentials resolve from mixed sources
+asc --strict-auth apps list
 
 # Create a template config.json (global, no secrets)
 asc auth init
@@ -147,6 +167,9 @@ Environment variable fallback:
 - `ASC_CONFIG_PATH`
 - `ASC_PROFILE`
 - `ASC_BYPASS_KEYCHAIN` (ignore keychain and use config/env auth)
+- `ASC_STRICT_AUTH` (fail when credentials resolve from multiple sources)
+
+Use `--strict-auth` or `ASC_STRICT_AUTH=1` to fail when credentials are resolved from multiple sources.
 
 App ID fallback:
 - `ASC_APP_ID`
@@ -183,7 +206,7 @@ Config.json keys (same semantics, snake_case):
 
 - JSON output is default for machine parsing; add `--pretty` when debugging.
 - Use `--paginate` to automatically fetch all pages (recommended for AI agents).
-- `--paginate` works on list commands including apps, builds list, app-tags list, app-tags territories, promo codes list, devices list, feedback, crashes, reviews, versions list, pre-release versions list, localizations list, build-localizations list, beta-groups list, beta-testers list, sandbox list, analytics requests/get, testflight apps list, and Xcode Cloud workflows/build-runs.
+- `--paginate` works on list commands including apps, builds list, app-tags list, app-tags territories, promo codes list, devices list, feedback, crashes, reviews, versions list, pre-release versions list, localizations list, build-localizations list, beta-groups list, beta-testers list, sandbox list, analytics requests/get, testflight apps list, game-center achievements/leaderboards/leaderboard-sets lists (including localizations/releases/members), and Xcode Cloud workflows/build-runs.
 - Use `--limit` + `--next "<links.next>"` for manual pagination control.
 - Sort with `--sort` (prefix `-` for descending):
   - Feedback/Crashes: `createdDate` / `-createdDate`
@@ -525,6 +548,81 @@ Notes:
 - Exit code is non-zero if the build fails, errors, or is canceled
 - Use `ASC_TIMEOUT` env var or `--timeout` flag for long-running builds
 
+### Game Center
+
+```bash
+# Achievements
+asc game-center achievements list --app "APP_ID"
+asc game-center achievements get --id "ACHIEVEMENT_ID"
+asc game-center achievements create --app "APP_ID" --reference-name "First Win" --vendor-id "com.example.firstwin" --points 10
+asc game-center achievements update --id "ACHIEVEMENT_ID" --points 20
+asc game-center achievements delete --id "ACHIEVEMENT_ID" --confirm
+
+# Achievement localizations
+asc game-center achievements localizations list --achievement-id "ACHIEVEMENT_ID"
+asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win" --before-earned-description "Win your first game" --after-earned-description "You won!"
+asc game-center achievements localizations update --id "LOC_ID" --name "New Name"
+asc game-center achievements localizations delete --id "LOC_ID" --confirm
+
+# Achievement images
+asc game-center achievements images upload --localization-id "LOC_ID" --file "path/to/image.png"
+asc game-center achievements images get --id "IMAGE_ID"
+asc game-center achievements images delete --id "IMAGE_ID" --confirm
+
+# Achievement releases
+asc game-center achievements releases list --achievement-id "ACHIEVEMENT_ID"
+asc game-center achievements releases create --app "APP_ID" --achievement-id "ACHIEVEMENT_ID"
+asc game-center achievements releases delete --id "RELEASE_ID" --confirm
+
+# Leaderboards
+asc game-center leaderboards list --app "APP_ID"
+asc game-center leaderboards get --id "LEADERBOARD_ID"
+asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
+asc game-center leaderboards update --id "LEADERBOARD_ID" --reference-name "New Name"
+asc game-center leaderboards delete --id "LEADERBOARD_ID" --confirm
+
+# Leaderboard localizations
+asc game-center leaderboards localizations list --leaderboard-id "LEADERBOARD_ID"
+asc game-center leaderboards localizations create --leaderboard-id "LEADERBOARD_ID" --locale en-US --name "High Score"
+asc game-center leaderboards localizations update --id "LOC_ID" --name "New Name"
+asc game-center leaderboards localizations delete --id "LOC_ID" --confirm
+
+# Leaderboard images
+asc game-center leaderboards images upload --localization-id "LOC_ID" --file "path/to/image.png"
+asc game-center leaderboards images delete --id "IMAGE_ID" --confirm
+
+# Leaderboard releases
+asc game-center leaderboards releases list --leaderboard-id "LEADERBOARD_ID"
+asc game-center leaderboards releases create --app "APP_ID" --leaderboard-id "LEADERBOARD_ID"
+asc game-center leaderboards releases delete --id "RELEASE_ID" --confirm
+
+# Leaderboard Sets
+asc game-center leaderboard-sets list --app "APP_ID"
+asc game-center leaderboard-sets get --id "SET_ID"
+asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"
+asc game-center leaderboard-sets update --id "SET_ID" --reference-name "Season 1 - Updated"
+asc game-center leaderboard-sets delete --id "SET_ID" --confirm
+
+# Leaderboard Set members
+asc game-center leaderboard-sets members list --set-id "SET_ID"
+asc game-center leaderboard-sets members set --set-id "SET_ID" --leaderboard-ids "id1,id2,id3"
+
+# Leaderboard Set localizations
+asc game-center leaderboard-sets localizations list --set-id "SET_ID"
+asc game-center leaderboard-sets localizations create --set-id "SET_ID" --locale en-US --name "Season 1"
+asc game-center leaderboard-sets localizations update --id "LOC_ID" --name "New Name"
+asc game-center leaderboard-sets localizations delete --id "LOC_ID" --confirm
+
+# Leaderboard Set images
+asc game-center leaderboard-sets images upload --localization-id "LOC_ID" --file "path/to/image.png"
+asc game-center leaderboard-sets images delete --id "IMAGE_ID" --confirm
+
+# Leaderboard Set releases
+asc game-center leaderboard-sets releases list --set-id "SET_ID"
+asc game-center leaderboard-sets releases create --app "APP_ID" --set-id "SET_ID"
+asc game-center leaderboard-sets releases delete --id "RELEASE_ID" --confirm
+```
+
 ### Apps & Builds
 
 ```bash
@@ -774,6 +872,13 @@ Note: When using `--paginate`, the response `links` field is cleared to avoid co
 ```bash
 # Check authentication status
 asc auth status
+asc auth status --verbose
+asc auth status --validate
+
+# Diagnose authentication issues
+asc auth doctor
+asc auth doctor --output json
+asc auth doctor --fix --confirm
 
 # Logout
 asc auth logout

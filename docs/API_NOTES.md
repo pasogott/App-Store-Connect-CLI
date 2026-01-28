@@ -39,6 +39,20 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 - List/get use the v2 API; create/delete use v1 endpoints (may be unavailable on some accounts)
 - Update/clear-history use the v2 API
 
+## Game Center
+
+- Most Game Center endpoints require a Game Center detail ID, resolved via `/v1/apps/{id}/gameCenterDetail`.
+- If Game Center is not enabled for the app, the detail lookup returns 404.
+- Releases are required to make achievements/leaderboards/leaderboard-sets live (create a release after creating the resource).
+- Image uploads follow a three-step flow: reserve upload slot → upload file → commit upload (using upload operations).
+
+## Authentication & Rate Limiting
+
+- JWTs issued for App Store Connect are valid for 10 minutes (handled internally).
+- Automatic retries apply only to GET/HEAD requests on 429/503 responses; POST/PATCH/DELETE are not retried.
+- Retry-After headers are honored when present; configure retry settings via `ASC_MAX_RETRIES`, `ASC_BASE_DELAY`, `ASC_MAX_DELAY`, `ASC_RETRY_LOG`.
+- Some endpoints return 403 when the API key role lacks permission (e.g., finance reports, reviews).
+
 ## Devices
 
 - No DELETE endpoint; devices can only be enabled/disabled via PATCH.
