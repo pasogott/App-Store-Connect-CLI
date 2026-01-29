@@ -440,6 +440,42 @@ func TestListCredentials_ConfigErrorWhenKeychainAvailable(t *testing.T) {
 	}
 }
 
+func TestGetCredentials_DefaultFallsBackToConfigWhenKeychainHasCreds(t *testing.T) {
+	newKr, _ := withSeparateKeyrings(t)
+	configPath := os.Getenv("ASC_CONFIG_PATH")
+	if configPath == "" {
+		t.Fatal("expected ASC_CONFIG_PATH to be set")
+	}
+
+	storeCredentialInKeyring(t, newKr, "keychain-only", "KC-KEY", "KC-ISSUER", "/tmp/kc.p8")
+
+	cfg := &config.Config{
+		DefaultKeyName: "config-default",
+		Keys: []config.Credential{
+			{
+				Name:           "config-default",
+				KeyID:          "CFG-KEY",
+				IssuerID:       "CFG-ISSUER",
+				PrivateKeyPath: "/tmp/cfg.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	creds, source, err := GetCredentialsWithSource("")
+	if err != nil {
+		t.Fatalf("GetCredentialsWithSource(default) error: %v", err)
+	}
+	if source != "config" {
+		t.Fatalf("expected config source, got %q", source)
+	}
+	if creds.KeyID != "CFG-KEY" {
+		t.Fatalf("expected KeyID CFG-KEY, got %q", creds.KeyID)
+	}
+}
+
 func TestGetCredentials_PrefersKeysOverLegacy(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")

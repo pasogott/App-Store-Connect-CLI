@@ -437,7 +437,17 @@ func GetCredentialsWithSource(profile string) (*config.Config, string, error) {
 
 	credentials, err := listFromKeychain()
 	if err == nil {
-		cfg, found, err := selectCredential(profile, credentials)
+		defaultKey := ""
+		resolvedProfile := profile
+		if profile == "" {
+			defaultKey, err = defaultName()
+			if err != nil {
+				return nil, "", err
+			}
+			defaultKey = strings.TrimSpace(defaultKey)
+			resolvedProfile = defaultKey
+		}
+		cfg, found, err := selectCredential(resolvedProfile, credentials)
 		if err != nil {
 			return nil, "", err
 		}
@@ -449,6 +459,13 @@ func GetCredentialsWithSource(profile string) (*config.Config, string, error) {
 				return cfg, "config", nil
 			}
 			return nil, "", fmt.Errorf("credentials not found for profile %q", profile)
+		}
+		if defaultKey != "" {
+			configCfg, configErr := getCredentialsFromConfig(defaultKey)
+			if configErr != nil {
+				return nil, "", configErr
+			}
+			return configCfg, "config", nil
 		}
 		if len(credentials) > 0 {
 			return nil, "", fmt.Errorf("default credentials not found")
@@ -477,14 +494,6 @@ func GetCredentials(profile string) (*config.Config, error) {
 
 func selectCredential(profile string, credentials []Credential) (*config.Config, bool, error) {
 	name := strings.TrimSpace(profile)
-	explicit := name != ""
-	if name == "" {
-		defaultKey, err := defaultName()
-		if err != nil {
-			return nil, false, err
-		}
-		name = strings.TrimSpace(defaultKey)
-	}
 	if name != "" {
 		for _, cred := range credentials {
 			if cred.Name == name {
@@ -495,15 +504,6 @@ func selectCredential(profile string, credentials []Credential) (*config.Config,
 					DefaultKeyName: cred.Name,
 				}, true, nil
 			}
-		}
-		if !explicit && len(credentials) == 1 {
-			cred := credentials[0]
-			return &config.Config{
-				KeyID:          cred.KeyID,
-				IssuerID:       cred.IssuerID,
-				PrivateKeyPath: cred.PrivateKeyPath,
-				DefaultKeyName: cred.Name,
-			}, true, nil
 		}
 		return nil, false, nil
 	}
