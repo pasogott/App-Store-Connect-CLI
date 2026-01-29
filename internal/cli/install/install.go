@@ -15,8 +15,6 @@ import (
 
 const defaultSkillsPackage = "rudrankriyam/asc-skills"
 
-type commandRunner func(ctx context.Context, name string, args ...string) error
-
 var (
 	lookupNpx  = exec.LookPath
 	runCommand = defaultRunCommand
