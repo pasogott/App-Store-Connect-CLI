@@ -27,6 +27,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/finance"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/gamecenter"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/iap"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/install"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/localizations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/migrate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/nominations"
@@ -68,6 +69,7 @@ func VersionCommand(version string) *ffcli.Command {
 func Subcommands(version string) []*ffcli.Command {
 	return []*ffcli.Command{
 		auth.AuthCommand(),
+		install.InstallCommand(),
 		feedback.FeedbackCommand(),
 		crashes.CrashesCommand(),
 		reviews.ReviewsCommand(),
