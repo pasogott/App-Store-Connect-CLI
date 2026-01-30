@@ -27,6 +27,22 @@ func TestValidateImageFileRejectsSymlink(t *testing.T) {
 	}
 }
 
+func TestValidateAssetFileRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.bin")
+	if err := os.WriteFile(target, []byte("data"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	link := filepath.Join(dir, "link.bin")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatalf("create symlink: %v", err)
+	}
+
+	if err := ValidateAssetFile(link); err == nil {
+		t.Fatalf("expected symlink error, got nil")
+	}
+}
+
 func TestValidateImageFileRejectsOversize(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "large.bin")
@@ -41,6 +57,24 @@ func TestValidateImageFileRejectsOversize(t *testing.T) {
 	}
 
 	if err := ValidateImageFile(path); err == nil {
+		t.Fatalf("expected size error, got nil")
+	}
+}
+
+func TestValidateAssetFileRejectsOversize(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "large.bin")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+	defer file.Close()
+
+	if err := file.Truncate(maxAssetFileSize + 1); err != nil {
+		t.Fatalf("truncate file: %v", err)
+	}
+
+	if err := ValidateAssetFile(path); err == nil {
 		t.Fatalf("expected size error, got nil")
 	}
 }

@@ -79,8 +79,8 @@ func UploadAssetFromFile(ctx context.Context, file *os.File, fileSize int64, ope
 	return nil
 }
 
-// ValidateImageFile validates that a file exists and is safe to read.
-func ValidateImageFile(path string) error {
+// ValidateAssetFile validates that a file exists and is safe to read.
+func ValidateAssetFile(path string) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -98,6 +98,11 @@ func ValidateImageFile(path string) error {
 		return fmt.Errorf("file size exceeds %d bytes: %q", maxAssetFileSize, path)
 	}
 	return nil
+}
+
+// ValidateImageFile validates that a file exists and is safe to read.
+func ValidateImageFile(path string) error {
+	return ValidateAssetFile(path)
 }
 
 // ComputeChecksum computes a checksum for a file on disk.

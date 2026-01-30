@@ -3456,6 +3456,30 @@ func TestPrintMarkdown_AppEvents(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppEvents_Empty(t *testing.T) {
+	resp := &AppEventsResponse{Data: []Resource[AppEventAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Reference Name") {
+		t.Fatalf("expected app events header, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEvents_Empty(t *testing.T) {
+	resp := &AppEventsResponse{Data: []Resource[AppEventAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Reference Name |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+}
+
 func TestPrintTable_AppEventLocalizations(t *testing.T) {
 	resp := &AppEventLocalizationsResponse{
 		Data: []Resource[AppEventLocalizationAttributes]{
@@ -3505,6 +3529,30 @@ func TestPrintMarkdown_AppEventLocalizations(t *testing.T) {
 	}
 	if !strings.Contains(output, "fr-FR") {
 		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppEventLocalizations_Empty(t *testing.T) {
+	resp := &AppEventLocalizationsResponse{Data: []Resource[AppEventLocalizationAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Short Description") {
+		t.Fatalf("expected localization header, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEventLocalizations_Empty(t *testing.T) {
+	resp := &AppEventLocalizationsResponse{Data: []Resource[AppEventLocalizationAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Locale |") {
+		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
 
@@ -3564,6 +3612,30 @@ func TestPrintTable_AppEventScreenshots(t *testing.T) {
 	}
 }
 
+func TestPrintMarkdown_AppEventScreenshots_Empty(t *testing.T) {
+	resp := &AppEventScreenshotsResponse{Data: []Resource[AppEventScreenshotAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | File Name |") {
+		t.Fatalf("expected screenshots markdown header, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppEventScreenshots_Empty(t *testing.T) {
+	resp := &AppEventScreenshotsResponse{Data: []Resource[AppEventScreenshotAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "File Name") {
+		t.Fatalf("expected screenshots header, got: %s", output)
+	}
+}
+
 func TestPrintTable_AppEventVideoClips(t *testing.T) {
 	state := "COMPLETE"
 	resp := &AppEventVideoClipsResponse{
@@ -3594,6 +3666,18 @@ func TestPrintTable_AppEventVideoClips(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppEventVideoClips_Empty(t *testing.T) {
+	resp := &AppEventVideoClipsResponse{Data: []Resource[AppEventVideoClipAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "File Name") {
+		t.Fatalf("expected video clips header, got: %s", output)
+	}
+}
+
 func TestPrintMarkdown_AppEventVideoClips(t *testing.T) {
 	state := "COMPLETE"
 	resp := &AppEventVideoClipsResponse{
@@ -3621,6 +3705,18 @@ func TestPrintMarkdown_AppEventVideoClips(t *testing.T) {
 	}
 	if !strings.Contains(output, "clip2.mov") {
 		t.Fatalf("expected file name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEventVideoClips_Empty(t *testing.T) {
+	resp := &AppEventVideoClipsResponse{Data: []Resource[AppEventVideoClipAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | File Name |") {
+		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
 

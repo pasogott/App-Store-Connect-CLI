@@ -131,7 +131,7 @@ func resolveAppEventLocalizationID(ctx context.Context, client *asc.Client, even
 }
 
 func openAssetFile(path string) (*os.File, os.FileInfo, error) {
-	if err := asc.ValidateImageFile(path); err != nil {
+	if err := asc.ValidateAssetFile(path); err != nil {
 		return nil, nil, err
 	}
 	file, err := shared.OpenExistingNoFollow(path)
