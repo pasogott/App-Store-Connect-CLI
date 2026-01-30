@@ -3402,3 +3402,300 @@ func TestPrintMarkdown_MarketplaceWebhookDeleteResult(t *testing.T) {
 		t.Fatalf("expected webhook id in output, got: %s", output)
 	}
 }
+
+func TestPrintTable_AppEvents(t *testing.T) {
+	resp := &AppEventsResponse{
+		Data: []Resource[AppEventAttributes]{
+			{
+				ID: "event-1",
+				Attributes: AppEventAttributes{
+					ReferenceName: "Summer Challenge",
+					Badge:         "CHALLENGE",
+					EventState:    "DRAFT",
+					Priority:      "HIGH",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Reference Name") {
+		t.Fatalf("expected app events header, got: %s", output)
+	}
+	if !strings.Contains(output, "event-1") {
+		t.Fatalf("expected event id in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEvents(t *testing.T) {
+	resp := &AppEventsResponse{
+		Data: []Resource[AppEventAttributes]{
+			{
+				ID: "event-2",
+				Attributes: AppEventAttributes{
+					ReferenceName: "Launch Party",
+					Badge:         "PREMIERE",
+					EventState:    "READY_FOR_REVIEW",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Reference Name |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "Launch Party") {
+		t.Fatalf("expected event name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppEventLocalizations(t *testing.T) {
+	resp := &AppEventLocalizationsResponse{
+		Data: []Resource[AppEventLocalizationAttributes]{
+			{
+				ID: "loc-1",
+				Attributes: AppEventLocalizationAttributes{
+					Locale:           "en-US",
+					Name:             "Summer Challenge",
+					ShortDescription: "Compete this week",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Short Description") {
+		t.Fatalf("expected localization header, got: %s", output)
+	}
+	if !strings.Contains(output, "en-US") {
+		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEventLocalizations(t *testing.T) {
+	resp := &AppEventLocalizationsResponse{
+		Data: []Resource[AppEventLocalizationAttributes]{
+			{
+				ID: "loc-2",
+				Attributes: AppEventLocalizationAttributes{
+					Locale:           "fr-FR",
+					Name:             "Evenement",
+					ShortDescription: "Court",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Locale |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "fr-FR") {
+		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEventScreenshots(t *testing.T) {
+	state := "COMPLETE"
+	resp := &AppEventScreenshotsResponse{
+		Data: []Resource[AppEventScreenshotAttributes]{
+			{
+				ID: "shot-1",
+				Attributes: AppEventScreenshotAttributes{
+					FileName:           "event.png",
+					FileSize:           1024,
+					AppEventAssetType:  "EVENT_CARD",
+					AssetDeliveryState: &AppMediaAssetState{State: &state},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | File Name |") {
+		t.Fatalf("expected screenshots markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "event.png") {
+		t.Fatalf("expected file name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppEventScreenshots(t *testing.T) {
+	state := "COMPLETE"
+	resp := &AppEventScreenshotsResponse{
+		Data: []Resource[AppEventScreenshotAttributes]{
+			{
+				ID: "shot-2",
+				Attributes: AppEventScreenshotAttributes{
+					FileName:           "event2.png",
+					FileSize:           2048,
+					AppEventAssetType:  "EVENT_DETAILS_PAGE",
+					AssetDeliveryState: &AppMediaAssetState{State: &state},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "File Name") {
+		t.Fatalf("expected screenshots header, got: %s", output)
+	}
+	if !strings.Contains(output, "event2.png") {
+		t.Fatalf("expected file name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppEventVideoClips(t *testing.T) {
+	state := "COMPLETE"
+	resp := &AppEventVideoClipsResponse{
+		Data: []Resource[AppEventVideoClipAttributes]{
+			{
+				ID: "clip-1",
+				Attributes: AppEventVideoClipAttributes{
+					FileName:          "clip.mov",
+					FileSize:          4096,
+					AppEventAssetType: "EVENT_CARD",
+					VideoDeliveryState: &AppMediaVideoState{
+						State: &state,
+					},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "File Name") {
+		t.Fatalf("expected video clips header, got: %s", output)
+	}
+	if !strings.Contains(output, "clip.mov") {
+		t.Fatalf("expected file name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEventVideoClips(t *testing.T) {
+	state := "COMPLETE"
+	resp := &AppEventVideoClipsResponse{
+		Data: []Resource[AppEventVideoClipAttributes]{
+			{
+				ID: "clip-2",
+				Attributes: AppEventVideoClipAttributes{
+					FileName:          "clip2.mov",
+					FileSize:          1024,
+					AppEventAssetType: "EVENT_DETAILS_PAGE",
+					VideoDeliveryState: &AppMediaVideoState{
+						State: &state,
+					},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | File Name |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "clip2.mov") {
+		t.Fatalf("expected file name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppEventSubmissionResult(t *testing.T) {
+	submittedDate := "2026-02-01T00:00:00Z"
+	result := &AppEventSubmissionResult{
+		SubmissionID:  "submit-1",
+		ItemID:        "item-1",
+		EventID:       "event-1",
+		AppID:         "app-1",
+		Platform:      "IOS",
+		SubmittedDate: &submittedDate,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Submission ID") {
+		t.Fatalf("expected submission header, got: %s", output)
+	}
+	if !strings.Contains(output, "event-1") {
+		t.Fatalf("expected event id in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEventSubmissionResult(t *testing.T) {
+	submittedDate := "2026-02-01T00:00:00Z"
+	result := &AppEventSubmissionResult{
+		SubmissionID:  "submit-2",
+		ItemID:        "item-2",
+		EventID:       "event-2",
+		AppID:         "app-2",
+		Platform:      "IOS",
+		SubmittedDate: &submittedDate,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| Submission ID |") {
+		t.Fatalf("expected submission markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "event-2") {
+		t.Fatalf("expected event id in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppEventDeleteResult(t *testing.T) {
+	result := &AppEventDeleteResult{ID: "event-3", Deleted: true}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected deleted header, got: %s", output)
+	}
+	if !strings.Contains(output, "event-3") {
+		t.Fatalf("expected event id in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppEventLocalizationDeleteResult(t *testing.T) {
+	result := &AppEventLocalizationDeleteResult{ID: "loc-3", Deleted: true}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| ID | Deleted |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "loc-3") {
+		t.Fatalf("expected localization id in output, got: %s", output)
+	}
+}

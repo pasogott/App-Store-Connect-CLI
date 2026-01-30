@@ -3763,3 +3763,360 @@ func TestVersionsPromotionsCreateRequiresTreatmentID(t *testing.T) {
 		t.Fatalf("expected missing treatment error, got %q", stderr)
 	}
 }
+
+func TestAppEventsListRequiresAppID(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"app-events", "list"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --app is required") {
+		t.Fatalf("expected missing app error, got %q", stderr)
+	}
+}
+
+func TestAppEventsCreateValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing app",
+			args:    []string{"app-events", "create", "--name", "Launch", "--event-type", "CHALLENGE", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
+			wantErr: "Error: --app is required",
+		},
+		{
+			name:    "missing name",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--event-type", "CHALLENGE", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
+			wantErr: "Error: --name is required",
+		},
+		{
+			name:    "missing event type",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
+			wantErr: "Error: --event-type is required",
+		},
+		{
+			name:    "missing end time",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--event-type", "CHALLENGE", "--start", "2026-01-01T00:00:00Z"},
+			wantErr: "Error: --end is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestAppEventsUpdateValidationErrors(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing event-id",
+			args:    []string{"app-events", "update", "--name", "Launch"},
+			wantErr: "Error: --event-id is required",
+		},
+		{
+			name:    "missing update fields",
+			args:    []string{"app-events", "update", "--event-id", "EVENT_ID"},
+			wantErr: "Error: at least one update flag is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestAppEventsDeleteRequiresConfirm(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"app-events", "delete", "--event-id", "EVENT_ID"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --confirm is required") {
+		t.Fatalf("expected confirm error, got %q", stderr)
+	}
+}
+
+func TestAppEventLocalizationsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "list missing event-id",
+			args:    []string{"app-events", "localizations", "list"},
+			wantErr: "Error: --event-id is required",
+		},
+		{
+			name:    "create missing locale",
+			args:    []string{"app-events", "localizations", "create", "--event-id", "EVENT_ID"},
+			wantErr: "Error: --locale is required",
+		},
+		{
+			name:    "update missing localization-id",
+			args:    []string{"app-events", "localizations", "update", "--name", "New Name"},
+			wantErr: "Error: --localization-id is required",
+		},
+		{
+			name:    "update missing fields",
+			args:    []string{"app-events", "localizations", "update", "--localization-id", "LOC_ID"},
+			wantErr: "Error: at least one update flag is required",
+		},
+		{
+			name:    "delete missing confirm",
+			args:    []string{"app-events", "localizations", "delete", "--localization-id", "LOC_ID"},
+			wantErr: "Error: --confirm is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestAppEventScreenshotsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "list missing localization",
+			args:    []string{"app-events", "screenshots", "list"},
+			wantErr: "Error: --event-id or --localization-id is required",
+		},
+		{
+			name:    "create missing path",
+			args:    []string{"app-events", "screenshots", "create", "--event-id", "EVENT_ID", "--asset-type", "EVENT_CARD"},
+			wantErr: "Error: --path is required",
+		},
+		{
+			name:    "create missing localization",
+			args:    []string{"app-events", "screenshots", "create", "--path", "./event.png", "--asset-type", "EVENT_CARD"},
+			wantErr: "Error: --event-id or --localization-id is required",
+		},
+		{
+			name:    "delete missing confirm",
+			args:    []string{"app-events", "screenshots", "delete", "--screenshot-id", "SHOT_ID"},
+			wantErr: "Error: --confirm is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestAppEventVideoClipsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "list missing localization",
+			args:    []string{"app-events", "video-clips", "list"},
+			wantErr: "Error: --event-id or --localization-id is required",
+		},
+		{
+			name:    "create missing path",
+			args:    []string{"app-events", "video-clips", "create", "--event-id", "EVENT_ID", "--asset-type", "EVENT_CARD"},
+			wantErr: "Error: --path is required",
+		},
+		{
+			name:    "create missing localization",
+			args:    []string{"app-events", "video-clips", "create", "--path", "./clip.mov", "--asset-type", "EVENT_CARD"},
+			wantErr: "Error: --event-id or --localization-id is required",
+		},
+		{
+			name:    "delete missing confirm",
+			args:    []string{"app-events", "video-clips", "delete", "--clip-id", "CLIP_ID"},
+			wantErr: "Error: --confirm is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestAppEventsSubmitValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing confirm",
+			args:    []string{"app-events", "submit", "--event-id", "EVENT_ID", "--app", "APP_ID"},
+			wantErr: "Error: --confirm is required",
+		},
+		{
+			name:    "missing event-id",
+			args:    []string{"app-events", "submit", "--app", "APP_ID", "--confirm"},
+			wantErr: "Error: --event-id is required",
+		},
+		{
+			name:    "missing app",
+			args:    []string{"app-events", "submit", "--event-id", "EVENT_ID", "--confirm"},
+			wantErr: "Error: --app is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
