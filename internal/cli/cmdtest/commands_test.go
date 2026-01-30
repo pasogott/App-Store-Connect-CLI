@@ -2840,6 +2840,121 @@ func TestAppTagsValidationErrors(t *testing.T) {
 	}
 }
 
+func TestAppClipsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "app-clips list missing app",
+			args:    []string{"app-clips", "list"},
+			wantErr: "Error: --app is required",
+		},
+		{
+			name:    "app-clips get missing id",
+			args:    []string{"app-clips", "get"},
+			wantErr: "Error: --id is required",
+		},
+		{
+			name:    "default experiences list missing app-clip-id",
+			args:    []string{"app-clips", "default-experiences", "list"},
+			wantErr: "Error: --app-clip-id is required",
+		},
+		{
+			name:    "default experiences update missing experience-id",
+			args:    []string{"app-clips", "default-experiences", "update"},
+			wantErr: "Error: --experience-id is required",
+		},
+		{
+			name:    "default experiences update missing updates",
+			args:    []string{"app-clips", "default-experiences", "update", "--experience-id", "EXP_ID"},
+			wantErr: "Error: at least one update flag is required",
+		},
+		{
+			name:    "default experiences delete missing confirm",
+			args:    []string{"app-clips", "default-experiences", "delete", "--experience-id", "EXP_ID"},
+			wantErr: "Error: --confirm is required to delete",
+		},
+		{
+			name:    "default experience localizations list missing experience",
+			args:    []string{"app-clips", "default-experiences", "localizations", "list"},
+			wantErr: "Error: --experience-id is required",
+		},
+		{
+			name:    "default experience localizations create missing locale",
+			args:    []string{"app-clips", "default-experiences", "localizations", "create", "--experience-id", "EXP_ID"},
+			wantErr: "Error: --locale is required",
+		},
+		{
+			name:    "advanced experiences create missing link",
+			args:    []string{"app-clips", "advanced-experiences", "create", "--app-clip-id", "CLIP_ID", "--default-language", "EN", "--is-powered-by"},
+			wantErr: "Error: --link is required",
+		},
+		{
+			name:    "advanced experiences create missing default language",
+			args:    []string{"app-clips", "advanced-experiences", "create", "--app-clip-id", "CLIP_ID", "--link", "https://example.com", "--is-powered-by"},
+			wantErr: "Error: --default-language is required",
+		},
+		{
+			name:    "advanced experiences create missing powered-by",
+			args:    []string{"app-clips", "advanced-experiences", "create", "--app-clip-id", "CLIP_ID", "--link", "https://example.com", "--default-language", "EN"},
+			wantErr: "Error: --is-powered-by is required",
+		},
+		{
+			name:    "advanced experience images create missing file",
+			args:    []string{"app-clips", "advanced-experiences", "images", "create", "--experience-id", "EXP_ID"},
+			wantErr: "Error: --file is required",
+		},
+		{
+			name:    "header images create missing localization",
+			args:    []string{"app-clips", "header-images", "create", "--file", "image.png"},
+			wantErr: "Error: --localization-id is required",
+		},
+		{
+			name:    "invocations list missing build bundle",
+			args:    []string{"app-clips", "invocations", "list"},
+			wantErr: "Error: --build-bundle-id is required",
+		},
+		{
+			name:    "invocations delete missing confirm",
+			args:    []string{"app-clips", "invocations", "delete", "--invocation-id", "INV_ID"},
+			wantErr: "Error: --confirm is required to delete",
+		},
+		{
+			name:    "invocation localizations list missing invocation",
+			args:    []string{"app-clips", "invocations", "localizations", "list"},
+			wantErr: "Error: --invocation-id is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
 func TestPreReleaseVersionsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 

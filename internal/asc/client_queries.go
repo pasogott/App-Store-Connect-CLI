@@ -52,6 +52,28 @@ type appsQuery struct {
 	skus      []string
 }
 
+type appClipsQuery struct {
+	listQuery
+	bundleIDs []string
+}
+
+type appClipDefaultExperiencesQuery struct {
+	listQuery
+	releaseWithVersionExists *bool
+}
+
+type appClipDefaultExperienceLocalizationsQuery struct {
+	listQuery
+	locales []string
+}
+
+type appClipAdvancedExperiencesQuery struct {
+	listQuery
+	actions      []string
+	statuses     []string
+	placeStatuses []string
+}
+
 type appTagsQuery struct {
 	listQuery
 	visibleInAppStore []string
@@ -91,6 +113,11 @@ type buildBundleFileSizesQuery struct {
 
 type betaAppClipInvocationsQuery struct {
 	listQuery
+}
+
+type betaAppClipInvocationQuery struct {
+	include              []string
+	localizationsLimit   int
 }
 
 type subscriptionOfferCodeOneTimeUseCodesQuery struct {
@@ -447,6 +474,47 @@ func buildAppsQuery(query *appsQuery) string {
 		values.Set("sort", query.sort)
 	}
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipsQuery(query *appClipsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[bundleId]", query.bundleIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipDefaultExperiencesQuery(query *appClipDefaultExperiencesQuery) string {
+	values := url.Values{}
+	if query.releaseWithVersionExists != nil {
+		values.Set("exists[releaseWithAppStoreVersion]", strconv.FormatBool(*query.releaseWithVersionExists))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipDefaultExperienceLocalizationsQuery(query *appClipDefaultExperienceLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipAdvancedExperiencesQuery(query *appClipAdvancedExperiencesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[action]", query.actions)
+	addCSV(values, "filter[status]", query.statuses)
+	addCSV(values, "filter[placeStatus]", query.placeStatuses)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBetaAppClipInvocationQuery(query *betaAppClipInvocationQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
+	if query.localizationsLimit > 0 {
+		values.Set("limit[betaAppClipInvocationLocalizations]", strconv.Itoa(query.localizationsLimit))
+	}
 	return values.Encode()
 }
 

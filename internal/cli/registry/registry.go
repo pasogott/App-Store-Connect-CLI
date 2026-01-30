@@ -13,6 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/analytics"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/androidiosmapping"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/backgroundassets"
@@ -87,6 +88,7 @@ func Subcommands(version string) []*ffcli.Command {
 		performance.PerformanceCommand(),
 		finance.FinanceCommand(),
 		apps.AppsCommand(),
+		appclips.AppClipsCommand(),
 		androidiosmapping.AndroidIosMappingCommand(),
 		apps.AppSetupCommand(),
 		apps.AppTagsCommand(),

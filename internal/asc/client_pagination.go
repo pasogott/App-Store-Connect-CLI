@@ -62,6 +62,14 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &ReviewsResponse{Links: Links{}}
 	case *AppsResponse:
 		result = &AppsResponse{Links: Links{}}
+	case *AppClipsResponse:
+		result = &AppClipsResponse{Links: Links{}}
+	case *AppClipDefaultExperiencesResponse:
+		result = &AppClipDefaultExperiencesResponse{Links: Links{}}
+	case *AppClipDefaultExperienceLocalizationsResponse:
+		result = &AppClipDefaultExperienceLocalizationsResponse{Links: Links{}}
+	case *AppClipAdvancedExperiencesResponse:
+		result = &AppClipAdvancedExperiencesResponse{Links: Links{}}
 	case *AppTagsResponse:
 		result = &AppTagsResponse{Links: Links{}}
 	case *LinkagesResponse:
@@ -90,6 +98,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BuildBundleFileSizesResponse{Links: Links{}}
 	case *BetaAppClipInvocationsResponse:
 		result = &BetaAppClipInvocationsResponse{Links: Links{}}
+	case *BetaAppClipInvocationLocalizationsResponse:
+		result = &BetaAppClipInvocationLocalizationsResponse{Links: Links{}}
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		result = &SubscriptionOfferCodeOneTimeUseCodesResponse{Links: Links{}}
 	case *WinBackOffersResponse:
@@ -274,6 +284,14 @@ func typeOf(p PaginatedResponse) string {
 		return "ReviewsResponse"
 	case *AppsResponse:
 		return "AppsResponse"
+	case *AppClipsResponse:
+		return "AppClipsResponse"
+	case *AppClipDefaultExperiencesResponse:
+		return "AppClipDefaultExperiencesResponse"
+	case *AppClipDefaultExperienceLocalizationsResponse:
+		return "AppClipDefaultExperienceLocalizationsResponse"
+	case *AppClipAdvancedExperiencesResponse:
+		return "AppClipAdvancedExperiencesResponse"
 	case *AppTagsResponse:
 		return "AppTagsResponse"
 	case *LinkagesResponse:
@@ -302,6 +320,8 @@ func typeOf(p PaginatedResponse) string {
 		return "BuildBundleFileSizesResponse"
 	case *BetaAppClipInvocationsResponse:
 		return "BetaAppClipInvocationsResponse"
+	case *BetaAppClipInvocationLocalizationsResponse:
+		return "BetaAppClipInvocationLocalizationsResponse"
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return "SubscriptionOfferCodeOneTimeUseCodesResponse"
 	case *WinBackOffersResponse:

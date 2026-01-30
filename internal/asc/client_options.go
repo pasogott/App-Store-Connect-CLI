@@ -14,6 +14,21 @@ type ReviewOption func(*reviewQuery)
 // AppsOption is a functional option for GetApps.
 type AppsOption func(*appsQuery)
 
+// AppClipsOption is a functional option for GetAppClips.
+type AppClipsOption func(*appClipsQuery)
+
+// AppClipDefaultExperiencesOption is a functional option for GetAppClipDefaultExperiences.
+type AppClipDefaultExperiencesOption func(*appClipDefaultExperiencesQuery)
+
+// AppClipDefaultExperienceLocalizationsOption is a functional option for GetAppClipDefaultExperienceLocalizations.
+type AppClipDefaultExperienceLocalizationsOption func(*appClipDefaultExperienceLocalizationsQuery)
+
+// AppClipAdvancedExperiencesOption is a functional option for GetAppClipAdvancedExperiences.
+type AppClipAdvancedExperiencesOption func(*appClipAdvancedExperiencesQuery)
+
+// BetaAppClipInvocationOption is a functional option for GetBetaAppClipInvocation.
+type BetaAppClipInvocationOption func(*betaAppClipInvocationQuery)
+
 // AppTagsOption is a functional option for GetAppTags.
 type AppTagsOption func(*appTagsQuery)
 
@@ -977,6 +992,136 @@ func WithAppsNames(names []string) AppsOption {
 func WithAppsSKUs(skus []string) AppsOption {
 	return func(q *appsQuery) {
 		q.skus = normalizeList(skus)
+	}
+}
+
+// WithAppClipsLimit sets the max number of App Clips to return.
+func WithAppClipsLimit(limit int) AppClipsOption {
+	return func(q *appClipsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppClipsNextURL uses a next page URL directly.
+func WithAppClipsNextURL(next string) AppClipsOption {
+	return func(q *appClipsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppClipsBundleIDs filters App Clips by bundle ID(s).
+func WithAppClipsBundleIDs(bundleIDs []string) AppClipsOption {
+	return func(q *appClipsQuery) {
+		q.bundleIDs = normalizeList(bundleIDs)
+	}
+}
+
+// WithAppClipDefaultExperiencesLimit sets the max number of default experiences to return.
+func WithAppClipDefaultExperiencesLimit(limit int) AppClipDefaultExperiencesOption {
+	return func(q *appClipDefaultExperiencesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppClipDefaultExperiencesNextURL uses a next page URL directly.
+func WithAppClipDefaultExperiencesNextURL(next string) AppClipDefaultExperiencesOption {
+	return func(q *appClipDefaultExperiencesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppClipDefaultExperiencesReleaseWithVersionExists filters by releaseWithAppStoreVersion existence.
+func WithAppClipDefaultExperiencesReleaseWithVersionExists(value bool) AppClipDefaultExperiencesOption {
+	return func(q *appClipDefaultExperiencesQuery) {
+		q.releaseWithVersionExists = &value
+	}
+}
+
+// WithAppClipDefaultExperienceLocalizationsLimit sets the max number of localizations to return.
+func WithAppClipDefaultExperienceLocalizationsLimit(limit int) AppClipDefaultExperienceLocalizationsOption {
+	return func(q *appClipDefaultExperienceLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppClipDefaultExperienceLocalizationsNextURL uses a next page URL directly.
+func WithAppClipDefaultExperienceLocalizationsNextURL(next string) AppClipDefaultExperienceLocalizationsOption {
+	return func(q *appClipDefaultExperienceLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppClipDefaultExperienceLocalizationsLocales filters localizations by locale(s).
+func WithAppClipDefaultExperienceLocalizationsLocales(locales []string) AppClipDefaultExperienceLocalizationsOption {
+	return func(q *appClipDefaultExperienceLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+// WithAppClipAdvancedExperiencesLimit sets the max number of advanced experiences to return.
+func WithAppClipAdvancedExperiencesLimit(limit int) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppClipAdvancedExperiencesNextURL uses a next page URL directly.
+func WithAppClipAdvancedExperiencesNextURL(next string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppClipAdvancedExperiencesActions filters advanced experiences by action(s).
+func WithAppClipAdvancedExperiencesActions(actions []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.actions = normalizeList(actions)
+	}
+}
+
+// WithAppClipAdvancedExperiencesStatuses filters advanced experiences by status(es).
+func WithAppClipAdvancedExperiencesStatuses(statuses []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.statuses = normalizeList(statuses)
+	}
+}
+
+// WithAppClipAdvancedExperiencesPlaceStatuses filters advanced experiences by place status(es).
+func WithAppClipAdvancedExperiencesPlaceStatuses(placeStatuses []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.placeStatuses = normalizeList(placeStatuses)
+	}
+}
+
+// WithBetaAppClipInvocationInclude sets include for beta App Clip invocation detail.
+func WithBetaAppClipInvocationInclude(include []string) BetaAppClipInvocationOption {
+	return func(q *betaAppClipInvocationQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithBetaAppClipInvocationLocalizationsLimit sets limit for included localizations.
+func WithBetaAppClipInvocationLocalizationsLimit(limit int) BetaAppClipInvocationOption {
+	return func(q *betaAppClipInvocationQuery) {
+		if limit > 0 {
+			q.localizationsLimit = limit
+		}
 	}
 }
 
