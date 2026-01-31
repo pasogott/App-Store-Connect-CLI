@@ -25,7 +25,7 @@ func TestFlightReviewCommand() *ffcli.Command {
 Examples:
   asc testflight review get --app "APP_ID"
   asc testflight review update --id "DETAIL_ID" --contact-email "dev@example.com"
-  asc testflight review submit --build "BUILD_ID" --confirm`,
+  asc testflight review submit --build "BUILD_ID" --confirm
   asc testflight review app get --id "DETAIL_ID"
   asc testflight review submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
