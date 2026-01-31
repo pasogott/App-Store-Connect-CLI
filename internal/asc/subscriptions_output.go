@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -14,6 +15,12 @@ type SubscriptionGroupDeleteResult struct {
 
 // SubscriptionDeleteResult represents CLI output for subscription deletions.
 type SubscriptionDeleteResult struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
+}
+
+// SubscriptionPriceDeleteResult represents CLI output for subscription price deletions.
+type SubscriptionPriceDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
 }
@@ -94,6 +101,44 @@ func printSubscriptionPriceMarkdown(resp *SubscriptionPriceResponse) error {
 	return nil
 }
 
+func printSubscriptionPricesTable(resp *SubscriptionPricesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tTerritory\tPrice Point\tStart Date\tPreserved")
+	for _, item := range resp.Data {
+		territoryID, pricePointID, err := subscriptionPriceRelationshipIDs(item.Relationships)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%t\n",
+			item.ID,
+			territoryID,
+			pricePointID,
+			item.Attributes.StartDate,
+			item.Attributes.Preserved,
+		)
+	}
+	return w.Flush()
+}
+
+func printSubscriptionPricesMarkdown(resp *SubscriptionPricesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Territory | Price Point | Start Date | Preserved |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		territoryID, pricePointID, err := subscriptionPriceRelationshipIDs(item.Relationships)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %t |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(territoryID),
+			escapeMarkdown(pricePointID),
+			escapeMarkdown(item.Attributes.StartDate),
+			item.Attributes.Preserved,
+		)
+	}
+	return nil
+}
+
 func printSubscriptionAvailabilityTable(resp *SubscriptionAvailabilityResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tAvailable In New Territories")
@@ -146,4 +191,40 @@ func printSubscriptionDeleteResultMarkdown(result *SubscriptionDeleteResult) err
 		result.Deleted,
 	)
 	return nil
+}
+
+func printSubscriptionPriceDeleteResultTable(result *SubscriptionPriceDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
+	return w.Flush()
+}
+
+func printSubscriptionPriceDeleteResultMarkdown(result *SubscriptionPriceDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Deleted,
+	)
+	return nil
+}
+
+func subscriptionPriceRelationshipIDs(raw json.RawMessage) (string, string, error) {
+	if len(raw) == 0 {
+		return "", "", nil
+	}
+	var relationships SubscriptionPriceRelationships
+	if err := json.Unmarshal(raw, &relationships); err != nil {
+		return "", "", fmt.Errorf("decode subscription price relationships: %w", err)
+	}
+	territoryID := ""
+	pricePointID := ""
+	if relationships.Territory != nil {
+		territoryID = relationships.Territory.Data.ID
+	}
+	if relationships.SubscriptionPricePoint != nil {
+		pricePointID = relationships.SubscriptionPricePoint.Data.ID
+	}
+	return territoryID, pricePointID, nil
 }

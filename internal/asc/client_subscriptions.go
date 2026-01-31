@@ -243,9 +243,10 @@ func (c *Client) DeleteSubscription(ctx context.Context, subID string) error {
 }
 
 // CreateSubscriptionPrice adds a price to a subscription.
-func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointID string, attrs SubscriptionPriceCreateAttributes) (*SubscriptionPriceResponse, error) {
+func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes) (*SubscriptionPriceResponse, error) {
 	subID = strings.TrimSpace(subID)
 	pricePointID = strings.TrimSpace(pricePointID)
+	territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
 	if subID == "" || pricePointID == "" {
 		return nil, fmt.Errorf("subscription ID and price point ID are required")
 	}
@@ -255,24 +256,34 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 		attributes = &attrs
 	}
 
+	relationships := &SubscriptionPriceRelationships{
+		Subscription: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeSubscriptions,
+				ID:   subID,
+			},
+		},
+		SubscriptionPricePoint: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeSubscriptionPricePoints,
+				ID:   pricePointID,
+			},
+		},
+	}
+	if territoryID != "" {
+		relationships.Territory = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeTerritories,
+				ID:   territoryID,
+			},
+		}
+	}
+
 	payload := SubscriptionPriceCreateRequest{
 		Data: SubscriptionPriceCreateData{
-			Type:       ResourceTypeSubscriptionPrices,
-			Attributes: attributes,
-			Relationships: &SubscriptionPriceRelationships{
-				Subscription: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeSubscriptions,
-						ID:   subID,
-					},
-				},
-				SubscriptionPricePoint: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeSubscriptionPricePoints,
-						ID:   pricePointID,
-					},
-				},
-			},
+			Type:          ResourceTypeSubscriptionPrices,
+			Attributes:    attributes,
+			Relationships: relationships,
 		},
 	}
 
@@ -292,6 +303,13 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 	}
 
 	return &response, nil
+}
+
+// DeleteSubscriptionPrice deletes a subscription price.
+func (c *Client) DeleteSubscriptionPrice(ctx context.Context, priceID string) error {
+	path := fmt.Sprintf("/v1/subscriptionPrices/%s", strings.TrimSpace(priceID))
+	_, err := c.do(ctx, http.MethodDelete, path, nil)
+	return err
 }
 
 // CreateSubscriptionAvailability sets subscription availability in territories.

@@ -826,6 +826,11 @@ func TestIAPValidationErrors(t *testing.T) {
 			wantErr: "--iap-id is required",
 		},
 		{
+			name:    "iap price-points equalizations missing id",
+			args:    []string{"iap", "price-points", "equalizations"},
+			wantErr: "--id is required",
+		},
+		{
 			name:    "iap price-schedules get missing iap-id",
 			args:    []string{"iap", "price-schedules", "get"},
 			wantErr: "--iap-id is required",
@@ -834,6 +839,16 @@ func TestIAPValidationErrors(t *testing.T) {
 			name:    "iap price-schedules create missing prices",
 			args:    []string{"iap", "price-schedules", "create", "--iap-id", "IAP_ID", "--base-territory", "USA"},
 			wantErr: "--prices is required",
+		},
+		{
+			name:    "iap price-schedules manual-prices missing schedule-id",
+			args:    []string{"iap", "price-schedules", "manual-prices"},
+			wantErr: "--schedule-id is required",
+		},
+		{
+			name:    "iap price-schedules automatic-prices missing schedule-id",
+			args:    []string{"iap", "price-schedules", "automatic-prices"},
+			wantErr: "--schedule-id is required",
 		},
 		{
 			name:    "iap offer-codes list missing iap-id",
@@ -1106,6 +1121,21 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			name:    "subscriptions prices add missing price-point",
 			args:    []string{"subscriptions", "prices", "add", "--id", "SUB_ID"},
 			wantErr: "--price-point is required",
+		},
+		{
+			name:    "subscriptions prices list missing id",
+			args:    []string{"subscriptions", "prices", "list"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions prices delete missing price-id",
+			args:    []string{"subscriptions", "prices", "delete", "--confirm"},
+			wantErr: "--price-id is required",
+		},
+		{
+			name:    "subscriptions prices delete missing confirm",
+			args:    []string{"subscriptions", "prices", "delete", "--price-id", "PRICE_ID"},
+			wantErr: "--confirm is required",
 		},
 		{
 			name:    "subscriptions availability set missing id",

@@ -336,6 +336,26 @@ func TestGetInAppPurchaseContent(t *testing.T) {
 	}
 }
 
+func TestGetInAppPurchasePricePoints_WithTerritory(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v2/inAppPurchases/iap-1/pricePoints" {
+			t.Fatalf("expected path /v2/inAppPurchases/iap-1/pricePoints, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("filter[territory]") != "USA" {
+			t.Fatalf("expected territory filter USA, got %q", req.URL.Query().Get("filter[territory]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchasePricePoints(context.Background(), "iap-1", WithIAPPricePointsTerritory("USA")); err != nil {
+		t.Fatalf("GetInAppPurchasePricePoints() error: %v", err)
+	}
+}
+
 func TestGetInAppPurchasePricePointEqualizations(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -350,6 +370,46 @@ func TestGetInAppPurchasePricePointEqualizations(t *testing.T) {
 
 	if _, err := client.GetInAppPurchasePricePointEqualizations(context.Background(), "price-1"); err != nil {
 		t.Fatalf("GetInAppPurchasePricePointEqualizations() error: %v", err)
+	}
+}
+
+func TestGetInAppPurchasePriceScheduleManualPrices_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices" {
+			t.Fatalf("expected path /v1/inAppPurchasePriceSchedules/schedule-1/manualPrices, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchasePriceScheduleManualPrices(context.Background(), "schedule-1", WithIAPPriceSchedulePricesLimit(5)); err != nil {
+		t.Fatalf("GetInAppPurchasePriceScheduleManualPrices() error: %v", err)
+	}
+}
+
+func TestGetInAppPurchasePriceScheduleAutomaticPrices_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices" {
+			t.Fatalf("expected path /v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(context.Background(), "schedule-1", WithIAPPriceSchedulePricesLimit(5)); err != nil {
+		t.Fatalf("GetInAppPurchasePriceScheduleAutomaticPrices() error: %v", err)
 	}
 }
 

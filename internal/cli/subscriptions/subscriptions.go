@@ -664,14 +664,94 @@ func SubscriptionsPricesCommand() *ffcli.Command {
 		LongHelp: `Manage subscription pricing.
 
 Examples:
-  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"`,
+  asc subscriptions prices list --id "SUB_ID"
+  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
+  asc subscriptions prices delete --price-id "PRICE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			SubscriptionsPricesListCommand(),
 			SubscriptionsPricesAddCommand(),
+			SubscriptionsPricesDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// SubscriptionsPricesListCommand returns the subscriptions prices list subcommand.
+func SubscriptionsPricesListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("prices list", flag.ExitOnError)
+
+	subID := fs.String("id", "", "Subscription ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc subscriptions prices list --id \"SUB_ID\"",
+		ShortHelp:  "List prices for a subscription.",
+		LongHelp: `List prices for a subscription.
+
+Examples:
+  asc subscriptions prices list --id "SUB_ID"
+  asc subscriptions prices list --id "SUB_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("subscriptions prices list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("subscriptions prices list: %w", err)
+			}
+
+			id := strings.TrimSpace(*subID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("subscriptions prices list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.SubscriptionPricesOption{
+				asc.WithSubscriptionPricesLimit(*limit),
+				asc.WithSubscriptionPricesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithSubscriptionPricesLimit(200))
+				firstPage, err := client.GetSubscriptionPrices(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("subscriptions prices list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetSubscriptionPrices(ctx, id, asc.WithSubscriptionPricesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("subscriptions prices list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetSubscriptionPrices(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("subscriptions prices list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -682,6 +762,7 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 
 	subID := fs.String("id", "", "Subscription ID")
 	pricePointID := fs.String("price-point", "", "Subscription price point ID")
+	territory := fs.String("territory", "", "Territory ID (e.g., USA)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
 	preserved := fs.Bool("preserved", false, "Preserve existing prices")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
@@ -694,7 +775,8 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 		LongHelp: `Add a subscription price.
 
 Examples:
-  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"`,
+  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
+  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "USA"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -725,12 +807,65 @@ Examples:
 				attrs.Preserved = preserved
 			}
 
-			resp, err := client.CreateSubscriptionPrice(requestCtx, id, pricePoint, attrs)
+			territoryID := strings.ToUpper(strings.TrimSpace(*territory))
+			resp, err := client.CreateSubscriptionPrice(requestCtx, id, pricePoint, territoryID, attrs)
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: failed to create: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// SubscriptionsPricesDeleteCommand returns the subscriptions prices delete subcommand.
+func SubscriptionsPricesDeleteCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("prices delete", flag.ExitOnError)
+
+	priceID := fs.String("price-id", "", "Subscription price ID")
+	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "delete",
+		ShortUsage: "asc subscriptions prices delete --price-id \"PRICE_ID\" --confirm",
+		ShortHelp:  "Delete a subscription price.",
+		LongHelp: `Delete a subscription price.
+
+Examples:
+  asc subscriptions prices delete --price-id "PRICE_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*priceID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --price-id is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("subscriptions prices delete: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.DeleteSubscriptionPrice(requestCtx, id); err != nil {
+				return fmt.Errorf("subscriptions prices delete: failed to delete: %w", err)
+			}
+
+			result := &asc.SubscriptionPriceDeleteResult{
+				ID:      id,
+				Deleted: true,
+			}
+
+			return printOutput(result, *output, *pretty)
 		},
 	}
 }

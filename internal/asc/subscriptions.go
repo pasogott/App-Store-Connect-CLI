@@ -127,6 +127,7 @@ type SubscriptionPriceCreateAttributes struct {
 type SubscriptionPriceRelationships struct {
 	Subscription           *Relationship `json:"subscription"`
 	SubscriptionPricePoint *Relationship `json:"subscriptionPricePoint"`
+	Territory              *Relationship `json:"territory,omitempty"`
 }
 
 // SubscriptionPriceCreateData is the data portion of a price create request.

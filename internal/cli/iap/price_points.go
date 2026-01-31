@@ -23,11 +23,13 @@ func IAPPricePointsCommand() *ffcli.Command {
 		LongHelp: `List in-app purchase price points.
 
 Examples:
-  asc iap price-points list --iap-id "IAP_ID"`,
+  asc iap price-points list --iap-id "IAP_ID"
+  asc iap price-points equalizations --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPPricePointsListCommand(),
+			IAPPricePointsEqualizationsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -40,6 +42,7 @@ func IAPPricePointsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points list", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
+	territory := fs.String("territory", "", "Territory ID (e.g., USA)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -54,6 +57,7 @@ func IAPPricePointsListCommand() *ffcli.Command {
 
 Examples:
   asc iap price-points list --iap-id "IAP_ID"
+  asc iap price-points list --iap-id "IAP_ID" --territory "USA"
   asc iap price-points list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
@@ -83,6 +87,10 @@ Examples:
 				asc.WithIAPPricePointsLimit(*limit),
 				asc.WithIAPPricePointsNextURL(*next),
 			}
+			territoryID := strings.ToUpper(strings.TrimSpace(*territory))
+			if territoryID != "" {
+				opts = append(opts, asc.WithIAPPricePointsTerritory(territoryID))
+			}
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithIAPPricePointsLimit(200))
@@ -104,6 +112,49 @@ Examples:
 			resp, err := client.GetInAppPurchasePricePoints(requestCtx, iapValue, opts...)
 			if err != nil {
 				return fmt.Errorf("iap price-points list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// IAPPricePointsEqualizationsCommand returns the price point equalizations subcommand.
+func IAPPricePointsEqualizationsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("price-points equalizations", flag.ExitOnError)
+
+	pricePointID := fs.String("id", "", "In-app purchase price point ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "equalizations",
+		ShortUsage: "asc iap price-points equalizations --id \"PRICE_POINT_ID\"",
+		ShortHelp:  "List equalized price points for an in-app purchase price point.",
+		LongHelp: `List equalized price points for an in-app purchase price point.
+
+Examples:
+  asc iap price-points equalizations --id "PRICE_POINT_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*pricePointID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("iap price-points equalizations: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetInAppPurchasePricePointEqualizations(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("iap price-points equalizations: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)

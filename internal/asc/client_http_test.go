@@ -6027,10 +6027,10 @@ func TestCreateSubscriptionPrice(t *testing.T) {
 		if payload.Data.Type != ResourceTypeSubscriptionPrices {
 			t.Fatalf("expected type subscriptionPrices, got %q", payload.Data.Type)
 		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.Subscription == nil || payload.Data.Relationships.SubscriptionPricePoint == nil {
-			t.Fatalf("expected subscription and price point relationships")
+		if payload.Data.Relationships == nil || payload.Data.Relationships.Subscription == nil || payload.Data.Relationships.SubscriptionPricePoint == nil || payload.Data.Relationships.Territory == nil {
+			t.Fatalf("expected subscription, price point, and territory relationships")
 		}
-		if payload.Data.Relationships.Subscription.Data.ID != "sub-1" || payload.Data.Relationships.SubscriptionPricePoint.Data.ID != "price-point-1" {
+		if payload.Data.Relationships.Subscription.Data.ID != "sub-1" || payload.Data.Relationships.SubscriptionPricePoint.Data.ID != "price-point-1" || payload.Data.Relationships.Territory.Data.ID != "USA" {
 			t.Fatalf("unexpected relationships: %+v", payload.Data.Relationships)
 		}
 		assertAuthorized(t, req)
@@ -6041,7 +6041,7 @@ func TestCreateSubscriptionPrice(t *testing.T) {
 		StartDate: "2026-01-01",
 		Preserved: &preserved,
 	}
-	if _, err := client.CreateSubscriptionPrice(context.Background(), "sub-1", "price-point-1", priceAttrs); err != nil {
+	if _, err := client.CreateSubscriptionPrice(context.Background(), "sub-1", "price-point-1", "USA", priceAttrs); err != nil {
 		t.Fatalf("CreateSubscriptionPrice() error: %v", err)
 	}
 }

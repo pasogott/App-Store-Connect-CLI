@@ -223,6 +223,8 @@ func PrintMarkdown(data interface{}) error {
 		return printInAppPurchaseImagesMarkdown(&InAppPurchaseImagesResponse{Data: []Resource[InAppPurchaseImageAttributes]{v.Data}})
 	case *InAppPurchasePricePointsResponse:
 		return printInAppPurchasePricePointsMarkdown(v)
+	case *InAppPurchasePricesResponse:
+		return printInAppPurchasePricesMarkdown(v)
 	case *InAppPurchaseOfferCodesResponse:
 		return printInAppPurchaseOfferCodesMarkdown(v)
 	case *InAppPurchaseOfferCodeResponse:
@@ -263,6 +265,8 @@ func PrintMarkdown(data interface{}) error {
 		return printPromotedPurchasesMarkdown(v)
 	case *PromotedPurchaseResponse:
 		return printPromotedPurchasesMarkdown(&PromotedPurchasesResponse{Data: []Resource[PromotedPurchaseAttributes]{v.Data}})
+	case *SubscriptionPricesResponse:
+		return printSubscriptionPricesMarkdown(v)
 	case *SubscriptionPriceResponse:
 		return printSubscriptionPriceMarkdown(v)
 	case *SubscriptionAvailabilityResponse:
@@ -323,6 +327,8 @@ func PrintMarkdown(data interface{}) error {
 		return printOfferCodeCustomCodesMarkdown(&SubscriptionOfferCodeCustomCodesResponse{Data: []Resource[SubscriptionOfferCodeCustomCodeAttributes]{v.Data}})
 	case *WinBackOfferDeleteResult:
 		return printWinBackOfferDeleteResultMarkdown(v)
+	case *SubscriptionPriceDeleteResult:
+		return printSubscriptionPriceDeleteResultMarkdown(v)
 	case *SubscriptionOfferCodePricesResponse:
 		return printOfferCodePricesMarkdown(v)
 	case *AppAvailabilityV2Response:
@@ -1077,6 +1083,8 @@ func PrintTable(data interface{}) error {
 		return printInAppPurchaseImagesTable(&InAppPurchaseImagesResponse{Data: []Resource[InAppPurchaseImageAttributes]{v.Data}})
 	case *InAppPurchasePricePointsResponse:
 		return printInAppPurchasePricePointsTable(v)
+	case *InAppPurchasePricesResponse:
+		return printInAppPurchasePricesTable(v)
 	case *InAppPurchaseOfferCodesResponse:
 		return printInAppPurchaseOfferCodesTable(v)
 	case *InAppPurchaseOfferCodeResponse:
@@ -1117,6 +1125,8 @@ func PrintTable(data interface{}) error {
 		return printPromotedPurchasesTable(v)
 	case *PromotedPurchaseResponse:
 		return printPromotedPurchasesTable(&PromotedPurchasesResponse{Data: []Resource[PromotedPurchaseAttributes]{v.Data}})
+	case *SubscriptionPricesResponse:
+		return printSubscriptionPricesTable(v)
 	case *SubscriptionPriceResponse:
 		return printSubscriptionPriceTable(v)
 	case *SubscriptionAvailabilityResponse:
@@ -1177,6 +1187,8 @@ func PrintTable(data interface{}) error {
 		return printOfferCodeCustomCodesTable(&SubscriptionOfferCodeCustomCodesResponse{Data: []Resource[SubscriptionOfferCodeCustomCodeAttributes]{v.Data}})
 	case *WinBackOfferDeleteResult:
 		return printWinBackOfferDeleteResultTable(v)
+	case *SubscriptionPriceDeleteResult:
+		return printSubscriptionPriceDeleteResultTable(v)
 	case *SubscriptionOfferCodePricesResponse:
 		return printOfferCodePricesTable(v)
 	case *AppAvailabilityV2Response:

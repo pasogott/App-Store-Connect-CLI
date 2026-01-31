@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -141,6 +142,46 @@ func printInAppPurchasePricePointsMarkdown(resp *InAppPurchasePricePointsRespons
 	return nil
 }
 
+func printInAppPurchasePricesTable(resp *InAppPurchasePricesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tTerritory\tPrice Point\tStart Date\tEnd Date\tManual")
+	for _, item := range resp.Data {
+		territoryID, pricePointID, err := inAppPurchasePriceRelationshipIDs(item.Relationships)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%t\n",
+			item.ID,
+			territoryID,
+			pricePointID,
+			item.Attributes.StartDate,
+			item.Attributes.EndDate,
+			item.Attributes.Manual,
+		)
+	}
+	return w.Flush()
+}
+
+func printInAppPurchasePricesMarkdown(resp *InAppPurchasePricesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Territory | Price Point | Start Date | End Date | Manual |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		territoryID, pricePointID, err := inAppPurchasePriceRelationshipIDs(item.Relationships)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %t |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(territoryID),
+			escapeMarkdown(pricePointID),
+			escapeMarkdown(item.Attributes.StartDate),
+			escapeMarkdown(item.Attributes.EndDate),
+			item.Attributes.Manual,
+		)
+	}
+	return nil
+}
+
 func printInAppPurchaseOfferCodesTable(resp *InAppPurchaseOfferCodesResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tActive\tProd Codes\tSandbox Codes")
@@ -226,6 +267,28 @@ func printInAppPurchasePriceScheduleMarkdown(resp *InAppPurchasePriceScheduleRes
 	fmt.Fprintln(os.Stdout, "| --- |")
 	fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(resp.Data.ID))
 	return nil
+}
+
+func inAppPurchasePriceRelationshipIDs(raw json.RawMessage) (string, string, error) {
+	if len(raw) == 0 {
+		return "", "", nil
+	}
+	var relationships struct {
+		Territory               *Relationship `json:"territory"`
+		InAppPurchasePricePoint *Relationship `json:"inAppPurchasePricePoint"`
+	}
+	if err := json.Unmarshal(raw, &relationships); err != nil {
+		return "", "", fmt.Errorf("decode in-app purchase price relationships: %w", err)
+	}
+	territoryID := ""
+	pricePointID := ""
+	if relationships.Territory != nil {
+		territoryID = relationships.Territory.Data.ID
+	}
+	if relationships.InAppPurchasePricePoint != nil {
+		pricePointID = relationships.InAppPurchasePricePoint.Data.ID
+	}
+	return territoryID, pricePointID, nil
 }
 
 func printInAppPurchaseReviewScreenshotTable(resp *InAppPurchaseAppStoreReviewScreenshotResponse) error {

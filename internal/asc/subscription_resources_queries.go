@@ -32,6 +32,9 @@ type SubscriptionOfferCodePricesOption func(*subscriptionOfferCodePricesQuery)
 // SubscriptionPricePointsOption is a functional option for subscription price point list endpoints.
 type SubscriptionPricePointsOption func(*subscriptionPricePointsQuery)
 
+// SubscriptionPricesOption is a functional option for subscription price list endpoints.
+type SubscriptionPricesOption func(*subscriptionPricesQuery)
+
 // SubscriptionGroupLocalizationsOption is a functional option for subscription group localization list endpoints.
 type SubscriptionGroupLocalizationsOption func(*subscriptionGroupLocalizationsQuery)
 
@@ -68,6 +71,10 @@ type subscriptionOfferCodePricesQuery struct {
 }
 
 type subscriptionPricePointsQuery struct {
+	listQuery
+}
+
+type subscriptionPricesQuery struct {
 	listQuery
 }
 
@@ -237,6 +244,24 @@ func WithSubscriptionPricePointsNextURL(next string) SubscriptionPricePointsOpti
 	}
 }
 
+// WithSubscriptionPricesLimit sets the max number of prices to return.
+func WithSubscriptionPricesLimit(limit int) SubscriptionPricesOption {
+	return func(q *subscriptionPricesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithSubscriptionPricesNextURL uses a next page URL directly.
+func WithSubscriptionPricesNextURL(next string) SubscriptionPricesOption {
+	return func(q *subscriptionPricesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 // WithSubscriptionGroupLocalizationsLimit sets the max number of group localizations to return.
 func WithSubscriptionGroupLocalizationsLimit(limit int) SubscriptionGroupLocalizationsOption {
 	return func(q *subscriptionGroupLocalizationsQuery) {
@@ -304,6 +329,12 @@ func buildSubscriptionOfferCodePricesQuery(query *subscriptionOfferCodePricesQue
 }
 
 func buildSubscriptionPricePointsQuery(query *subscriptionPricePointsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildSubscriptionPricesQuery(query *subscriptionPricesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()

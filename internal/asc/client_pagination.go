@@ -82,6 +82,10 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &PassTypeIDsResponse{Links: Links{}}
 	case *InAppPurchasesV2Response:
 		result = &InAppPurchasesV2Response{Links: Links{}}
+	case *InAppPurchasePricePointsResponse:
+		result = &InAppPurchasePricePointsResponse{Links: Links{}}
+	case *InAppPurchasePricesResponse:
+		result = &InAppPurchasePricesResponse{Links: Links{}}
 	case *AppEventsResponse:
 		result = &AppEventsResponse{Links: Links{}}
 	case *AppEventLocalizationsResponse:
@@ -126,6 +130,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &SubscriptionOfferCodeCustomCodesResponse{Links: Links{}}
 	case *SubscriptionOfferCodePricesResponse:
 		result = &SubscriptionOfferCodePricesResponse{Links: Links{}}
+	case *SubscriptionPricesResponse:
+		result = &SubscriptionPricesResponse{Links: Links{}}
 	case *SubscriptionPricePointsResponse:
 		result = &SubscriptionPricePointsResponse{Links: Links{}}
 	case *SubscriptionGroupLocalizationsResponse:

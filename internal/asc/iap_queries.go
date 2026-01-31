@@ -24,6 +24,7 @@ type iapOfferCodesQuery struct {
 
 type iapPricePointsQuery struct {
 	listQuery
+	territory string
 }
 
 type iapOfferCodeCustomCodesQuery struct {
@@ -90,6 +91,14 @@ func WithIAPPricePointsNextURL(next string) IAPPricePointsOption {
 	return func(q *iapPricePointsQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+func WithIAPPricePointsTerritory(territory string) IAPPricePointsOption {
+	return func(q *iapPricePointsQuery) {
+		if strings.TrimSpace(territory) != "" {
+			q.territory = strings.TrimSpace(territory)
 		}
 	}
 }
@@ -188,6 +197,9 @@ func buildIAPOfferCodesQuery(query *iapOfferCodesQuery) string {
 
 func buildIAPPricePointsQuery(query *iapPricePointsQuery) string {
 	values := url.Values{}
+	if strings.TrimSpace(query.territory) != "" {
+		values.Set("filter[territory]", strings.TrimSpace(query.territory))
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

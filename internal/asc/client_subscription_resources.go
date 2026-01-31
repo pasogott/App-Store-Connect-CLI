@@ -773,6 +773,35 @@ func (c *Client) GetSubscriptionOfferCodePrices(ctx context.Context, offerCodeID
 	return &response, nil
 }
 
+// GetSubscriptionPrices retrieves prices for a subscription.
+func (c *Client) GetSubscriptionPrices(ctx context.Context, subscriptionID string, opts ...SubscriptionPricesOption) (*SubscriptionPricesResponse, error) {
+	query := &subscriptionPricesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/prices", strings.TrimSpace(subscriptionID))
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPrices: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildSubscriptionPricesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionPricesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &response, nil
+}
+
 // GetSubscriptionPricePoints retrieves price points for a subscription.
 func (c *Client) GetSubscriptionPricePoints(ctx context.Context, subscriptionID string, opts ...SubscriptionPricePointsOption) (*SubscriptionPricePointsResponse, error) {
 	query := &subscriptionPricePointsQuery{}

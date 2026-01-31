@@ -503,6 +503,23 @@ func TestDeleteSubscriptionPromotionalOffer(t *testing.T) {
 	}
 }
 
+func TestDeleteSubscriptionPrice(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, `{}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionPrices/price-1" {
+			t.Fatalf("expected path /v1/subscriptionPrices/price-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteSubscriptionPrice(context.Background(), "price-1"); err != nil {
+		t.Fatalf("DeleteSubscriptionPrice() error: %v", err)
+	}
+}
+
 func TestGetSubscriptionPromotionalOfferPrices_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPromotionalOfferPrices","id":"price-1"}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -682,6 +699,41 @@ func TestGetSubscriptionOfferCodePrices_WithLimit(t *testing.T) {
 
 	if _, err := client.GetSubscriptionOfferCodePrices(context.Background(), "code-1", WithSubscriptionOfferCodePricesLimit(5)); err != nil {
 		t.Fatalf("GetSubscriptionOfferCodePrices() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionPrices_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1/prices" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/prices, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionPrices(context.Background(), "sub-1", WithSubscriptionPricesLimit(5)); err != nil {
+		t.Fatalf("GetSubscriptionPrices() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionPrices_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/prices?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionPrices(context.Background(), "sub-1", WithSubscriptionPricesNextURL(next)); err != nil {
+		t.Fatalf("GetSubscriptionPrices() error: %v", err)
 	}
 }
 

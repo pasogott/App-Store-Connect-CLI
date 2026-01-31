@@ -24,12 +24,15 @@ func IAPPriceSchedulesCommand() *ffcli.Command {
 
 Examples:
   asc iap price-schedules get --iap-id "IAP_ID"
-  asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --prices "PRICE_POINT_ID:2024-03-01"`,
+  asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --prices "PRICE_POINT_ID:2024-03-01"
+  asc iap price-schedules manual-prices --schedule-id "SCHEDULE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPPriceSchedulesGetCommand(),
 			IAPPriceSchedulesCreateCommand(),
+			IAPPriceSchedulesManualPricesCommand(),
+			IAPPriceSchedulesAutomaticPricesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -136,6 +139,158 @@ Examples:
 			})
 			if err != nil {
 				return fmt.Errorf("iap price-schedules create: failed to create: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// IAPPriceSchedulesManualPricesCommand returns the price schedules manual prices subcommand.
+func IAPPriceSchedulesManualPricesCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("price-schedules manual-prices", flag.ExitOnError)
+
+	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "manual-prices",
+		ShortUsage: "asc iap price-schedules manual-prices --schedule-id \"SCHEDULE_ID\"",
+		ShortHelp:  "List manual prices for an in-app purchase price schedule.",
+		LongHelp: `List manual prices for an in-app purchase price schedule.
+
+Examples:
+  asc iap price-schedules manual-prices --schedule-id "SCHEDULE_ID"
+  asc iap price-schedules manual-prices --schedule-id "SCHEDULE_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("iap price-schedules manual-prices: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("iap price-schedules manual-prices: %w", err)
+			}
+
+			id := strings.TrimSpace(*scheduleID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("iap price-schedules manual-prices: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.IAPPriceSchedulePricesOption{
+				asc.WithIAPPriceSchedulePricesLimit(*limit),
+				asc.WithIAPPriceSchedulePricesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithIAPPriceSchedulePricesLimit(200))
+				firstPage, err := client.GetInAppPurchasePriceScheduleManualPrices(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("iap price-schedules manual-prices: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetInAppPurchasePriceScheduleManualPrices(ctx, id, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("iap price-schedules manual-prices: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetInAppPurchasePriceScheduleManualPrices(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("iap price-schedules manual-prices: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// IAPPriceSchedulesAutomaticPricesCommand returns the price schedules automatic prices subcommand.
+func IAPPriceSchedulesAutomaticPricesCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("price-schedules automatic-prices", flag.ExitOnError)
+
+	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "automatic-prices",
+		ShortUsage: "asc iap price-schedules automatic-prices --schedule-id \"SCHEDULE_ID\"",
+		ShortHelp:  "List automatic prices for an in-app purchase price schedule.",
+		LongHelp: `List automatic prices for an in-app purchase price schedule.
+
+Examples:
+  asc iap price-schedules automatic-prices --schedule-id "SCHEDULE_ID"
+  asc iap price-schedules automatic-prices --schedule-id "SCHEDULE_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("iap price-schedules automatic-prices: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("iap price-schedules automatic-prices: %w", err)
+			}
+
+			id := strings.TrimSpace(*scheduleID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("iap price-schedules automatic-prices: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.IAPPriceSchedulePricesOption{
+				asc.WithIAPPriceSchedulePricesLimit(*limit),
+				asc.WithIAPPriceSchedulePricesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithIAPPriceSchedulePricesLimit(200))
+				firstPage, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("iap price-schedules automatic-prices: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetInAppPurchasePriceScheduleAutomaticPrices(ctx, id, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("iap price-schedules automatic-prices: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("iap price-schedules automatic-prices: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
