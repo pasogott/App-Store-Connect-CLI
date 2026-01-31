@@ -31,6 +31,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			BetaAppLocalizationsListCommand(),
 			BetaAppLocalizationsGetCommand(),
+			BetaAppLocalizationsAppCommand(),
 			BetaAppLocalizationsCreateCommand(),
 			BetaAppLocalizationsUpdateCommand(),
 			BetaAppLocalizationsDeleteCommand(),

@@ -58,6 +58,27 @@ func (c *Client) GetBetaAppLocalization(ctx context.Context, localizationID stri
 	return &response, nil
 }
 
+// GetBetaAppLocalizationApp retrieves the app for a beta app localization.
+func (c *Client) GetBetaAppLocalizationApp(ctx context.Context, localizationID string) (*AppResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+
+	path := fmt.Sprintf("/v1/betaAppLocalizations/%s/app", localizationID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateBetaAppLocalization creates a beta app localization for an app.
 func (c *Client) CreateBetaAppLocalization(ctx context.Context, appID string, attrs BetaAppLocalizationAttributes) (*BetaAppLocalizationResponse, error) {
 	appID = strings.TrimSpace(appID)

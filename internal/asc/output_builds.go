@@ -96,6 +96,43 @@ func printBuildsMarkdown(resp *BuildsResponse) error {
 	return nil
 }
 
+func buildIconAssetURL(attr BuildIconAttributes) string {
+	if attr.IconAsset == nil {
+		return ""
+	}
+	return attr.IconAsset.TemplateURL
+}
+
+func printBuildIconsTable(resp *BuildIconsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tName\tType\tMasked\tAsset URL")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%t\t%s\n",
+			item.ID,
+			compactWhitespace(item.Attributes.Name),
+			string(item.Attributes.IconType),
+			item.Attributes.Masked,
+			sanitizeTerminal(buildIconAssetURL(item.Attributes)),
+		)
+	}
+	return w.Flush()
+}
+
+func printBuildIconsMarkdown(resp *BuildIconsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Name | Type | Masked | Asset URL |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %t | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.Name),
+			escapeMarkdown(string(item.Attributes.IconType)),
+			item.Attributes.Masked,
+			escapeMarkdown(buildIconAssetURL(item.Attributes)),
+		)
+	}
+	return nil
+}
+
 func buildUploadState(attr BuildUploadAttributes) string {
 	if attr.State == nil || attr.State.State == nil {
 		return ""

@@ -2432,13 +2432,13 @@ func TestTestFlightRecruitmentValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "recruitment set missing group",
-			args:    []string{"testflight", "recruitment", "set", "--criteria-id", "OPTION_ID"},
+			args:    []string{"testflight", "recruitment", "set", "--os-version-filter", "IPHONE=26"},
 			wantErr: "--group is required",
 		},
 		{
 			name:    "recruitment set missing criteria",
 			args:    []string{"testflight", "recruitment", "set", "--group", "GROUP_ID"},
-			wantErr: "--criteria-id is required",
+			wantErr: "--os-version-filter is required",
 		},
 	}
 

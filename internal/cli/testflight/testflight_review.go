@@ -25,13 +25,17 @@ func TestFlightReviewCommand() *ffcli.Command {
 Examples:
   asc testflight review get --app "APP_ID"
   asc testflight review update --id "DETAIL_ID" --contact-email "dev@example.com"
-  asc testflight review submit --build "BUILD_ID" --confirm`,
+  asc testflight review submit --build "BUILD_ID" --confirm
+  asc testflight review app get --id "DETAIL_ID"
+  asc testflight review submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightReviewGetCommand(),
+			TestFlightReviewAppCommand(),
 			TestFlightReviewUpdateCommand(),
 			TestFlightReviewSubmitCommand(),
+			TestFlightReviewSubmissionsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -247,6 +251,183 @@ Examples:
 	}
 }
 
+// TestFlightReviewAppCommand returns the review app command group.
+func TestFlightReviewAppCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("app", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "app",
+		ShortUsage: "asc testflight review app <subcommand> [flags]",
+		ShortHelp:  "View the app for a beta app review detail.",
+		LongHelp: `View the app for a beta app review detail.
+
+Examples:
+  asc testflight review app get --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			TestFlightReviewAppGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// TestFlightReviewAppGetCommand retrieves the app for a beta app review detail.
+func TestFlightReviewAppGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("app get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta app review detail ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc testflight review app get --id \"DETAIL_ID\"",
+		ShortHelp:  "Get the app for a beta app review detail.",
+		LongHelp: `Get the app for a beta app review detail.
+
+Examples:
+  asc testflight review app get --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight review app get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetBetaAppReviewDetailApp(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("testflight review app get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// TestFlightReviewSubmissionsCommand returns the review submissions command group.
+func TestFlightReviewSubmissionsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "submissions",
+		ShortUsage: "asc testflight review submissions <subcommand> [flags]",
+		ShortHelp:  "View beta app review submissions.",
+		LongHelp: `View beta app review submissions.
+
+Examples:
+  asc testflight review submissions get --id "SUBMISSION_ID"
+  asc testflight review submissions build --id "SUBMISSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			TestFlightReviewSubmissionsGetCommand(),
+			TestFlightReviewSubmissionsBuildCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// TestFlightReviewSubmissionsGetCommand retrieves a beta app review submission by ID.
+func TestFlightReviewSubmissionsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta app review submission ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc testflight review submissions get --id \"SUBMISSION_ID\"",
+		ShortHelp:  "Get a beta app review submission by ID.",
+		LongHelp: `Get a beta app review submission by ID.
+
+Examples:
+  asc testflight review submissions get --id "SUBMISSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight review submissions get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetBetaAppReviewSubmission(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("testflight review submissions get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// TestFlightReviewSubmissionsBuildCommand retrieves the build for a beta app review submission.
+func TestFlightReviewSubmissionsBuildCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions build", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta app review submission ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "build",
+		ShortUsage: "asc testflight review submissions build --id \"SUBMISSION_ID\"",
+		ShortHelp:  "Get the build for a beta app review submission.",
+		LongHelp: `Get the build for a beta app review submission.
+
+Examples:
+  asc testflight review submissions build --id "SUBMISSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight review submissions build: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetBetaAppReviewSubmissionBuild(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("testflight review submissions build: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
 // TestFlightBetaDetailsCommand returns the testflight beta-details command with subcommands.
 func TestFlightBetaDetailsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("beta-details", flag.ExitOnError)
@@ -264,6 +445,7 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightBetaDetailsGetCommand(),
+			TestFlightBetaDetailsBuildCommand(),
 			TestFlightBetaDetailsUpdateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -326,6 +508,72 @@ Examples:
 			}
 
 			return printOutput(details, *output, *pretty)
+		},
+	}
+}
+
+// TestFlightBetaDetailsBuildCommand returns the beta-details build command group.
+func TestFlightBetaDetailsBuildCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("build", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "build",
+		ShortUsage: "asc testflight beta-details build <subcommand> [flags]",
+		ShortHelp:  "View the build for a build beta detail.",
+		LongHelp: `View the build for a build beta detail.
+
+Examples:
+  asc testflight beta-details build get --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			TestFlightBetaDetailsBuildGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// TestFlightBetaDetailsBuildGetCommand retrieves the build for a build beta detail.
+func TestFlightBetaDetailsBuildGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("build get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Build beta detail ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc testflight beta-details build get --id \"DETAIL_ID\"",
+		ShortHelp:  "Get the build for a build beta detail.",
+		LongHelp: `Get the build for a build beta detail.
+
+Examples:
+  asc testflight beta-details build get --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight beta-details build get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetBuildBetaDetailBuild(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("testflight beta-details build get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -417,7 +665,7 @@ func TestFlightRecruitmentCommand() *ffcli.Command {
 
 Examples:
   asc testflight recruitment options
-  asc testflight recruitment set --group "GROUP_ID" --criteria-id "OPTION_ID"`,
+  asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -438,6 +686,7 @@ func TestFlightRecruitmentOptionsCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	fields := fs.String("fields", "deviceFamilyOsVersions", "Fields to include: deviceFamilyOsVersions")
 
 	return &ffcli.Command{
 		Name:       "options",
@@ -457,6 +706,11 @@ Examples:
 				return fmt.Errorf("testflight recruitment options: %w", err)
 			}
 
+			fieldsValue, err := normalizeBetaRecruitmentCriterionOptionsFields(*fields)
+			if err != nil {
+				return fmt.Errorf("testflight recruitment options: %w", err)
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight recruitment options: %w", err)
@@ -466,6 +720,7 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaRecruitmentCriterionOptionsOption{
+				asc.WithBetaRecruitmentCriterionOptionsFields(fieldsValue),
 				asc.WithBetaRecruitmentCriterionOptionsLimit(*limit),
 				asc.WithBetaRecruitmentCriterionOptionsNextURL(*next),
 			}
@@ -485,18 +740,18 @@ func TestFlightRecruitmentSetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("set", flag.ExitOnError)
 
 	groupID := fs.String("group", "", "Beta group ID")
-	criteriaID := fs.String("criteria-id", "", "Comma-separated criteria option IDs")
+	filters := fs.String("os-version-filter", "", "Device family OS filters (e.g., IPHONE=26,IPAD=26)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "set",
-		ShortUsage: "asc testflight recruitment set --group GROUP_ID --criteria-id OPTION_ID[,OPTION_ID...]",
+		ShortUsage: "asc testflight recruitment set --group GROUP_ID --os-version-filter FILTERS",
 		ShortHelp:  "Set beta recruitment criteria for a group.",
 		LongHelp: `Set beta recruitment criteria for a group.
 
 Examples:
-  asc testflight recruitment set --group "GROUP_ID" --criteria-id "OPTION_ID"`,
+  asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -506,9 +761,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			optionIDs := parseCommaSeparatedIDs(*criteriaID)
-			if len(optionIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --criteria-id is required")
+			filterValues, err := parseDeviceFamilyOsVersionFilters(*filters)
+			if err != nil {
+				return fmt.Errorf("testflight recruitment set: %w", err)
+			}
+			if len(filterValues) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --os-version-filter is required")
 				return flag.ErrHelp
 			}
 
@@ -520,13 +778,108 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			criteria, err := client.CreateBetaRecruitmentCriteria(requestCtx, trimmedGroupID, optionIDs)
-			if err != nil {
-				return fmt.Errorf("testflight recruitment set: failed to set: %w", err)
+			existing, err := client.GetBetaGroupBetaRecruitmentCriteria(requestCtx, trimmedGroupID)
+			if err == nil {
+				criteriaID := strings.TrimSpace(existing.Data.ID)
+				if criteriaID == "" {
+					return fmt.Errorf("testflight recruitment set: criteria id is empty")
+				}
+				criteria, err := client.UpdateBetaRecruitmentCriteria(requestCtx, criteriaID, filterValues)
+				if err != nil {
+					return fmt.Errorf("testflight recruitment set: failed to update: %w", err)
+				}
+				return printOutput(criteria, *output, *pretty)
+			}
+
+			criteria, createErr := client.CreateBetaRecruitmentCriteria(requestCtx, trimmedGroupID, filterValues)
+			if createErr != nil {
+				return fmt.Errorf("testflight recruitment set: failed to set: %w", createErr)
 			}
 
 			return printOutput(criteria, *output, *pretty)
 		},
+	}
+}
+
+func normalizeBetaRecruitmentCriterionOptionsFields(value string) ([]string, error) {
+	fields := splitCSV(value)
+	if len(fields) == 0 {
+		return nil, nil
+	}
+
+	allowed := map[string]struct{}{
+		"deviceFamilyOsVersions": {},
+	}
+	for _, field := range fields {
+		if _, ok := allowed[field]; !ok {
+			return nil, fmt.Errorf("--fields must be one of: deviceFamilyOsVersions")
+		}
+	}
+	return fields, nil
+}
+
+func parseDeviceFamilyOsVersionFilters(value string) ([]asc.DeviceFamilyOsVersionFilter, error) {
+	entries := splitCSV(value)
+	if len(entries) == 0 {
+		return nil, nil
+	}
+
+	filters := make([]asc.DeviceFamilyOsVersionFilter, 0, len(entries))
+	for _, entry := range entries {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("--os-version-filter must use DEVICE_FAMILY=MIN_OS (e.g., IPHONE=26)")
+		}
+		familyValue := strings.TrimSpace(parts[0])
+		versionValue := strings.TrimSpace(parts[1])
+		if familyValue == "" || versionValue == "" {
+			return nil, fmt.Errorf("--os-version-filter must use DEVICE_FAMILY=MIN_OS (e.g., IPHONE=26)")
+		}
+
+		family, err := normalizeBetaRecruitmentDeviceFamily(familyValue)
+		if err != nil {
+			return nil, err
+		}
+
+		minVersion := versionValue
+		maxVersion := ""
+		if strings.Contains(versionValue, "..") {
+			rangeParts := strings.SplitN(versionValue, "..", 2)
+			minVersion = strings.TrimSpace(rangeParts[0])
+			maxVersion = strings.TrimSpace(rangeParts[1])
+			if minVersion == "" || maxVersion == "" {
+				return nil, fmt.Errorf("--os-version-filter must use DEVICE_FAMILY=MIN_OS[..MAX_OS]")
+			}
+		}
+
+		filters = append(filters, asc.DeviceFamilyOsVersionFilter{
+			DeviceFamily:       family,
+			MinimumOsInclusive: minVersion,
+			MaximumOsInclusive: maxVersion,
+		})
+	}
+
+	return filters, nil
+}
+
+func normalizeBetaRecruitmentDeviceFamily(value string) (asc.DeviceFamily, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	for _, family := range betaRecruitmentDeviceFamilyList() {
+		if normalized == family {
+			return asc.DeviceFamily(normalized), nil
+		}
+	}
+	return "", fmt.Errorf("--os-version-filter device family must be one of: %s", strings.Join(betaRecruitmentDeviceFamilyList(), ", "))
+}
+
+func betaRecruitmentDeviceFamilyList() []string {
+	return []string{
+		string(asc.DeviceFamilyIPhone),
+		string(asc.DeviceFamilyIPad),
+		string(asc.DeviceFamilyMac),
+		string(asc.DeviceFamilyVision),
+		string(asc.DeviceFamilyAppleTV),
+		string(asc.DeviceFamilyAppleWatch),
 	}
 }
 

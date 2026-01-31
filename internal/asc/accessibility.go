@@ -12,6 +12,24 @@ const (
 	DeviceFamilyVision     DeviceFamily = "VISION"
 )
 
+// DeviceConnectionType represents the network connection type.
+type DeviceConnectionType string
+
+const (
+	DeviceConnectionTypeWiFi       DeviceConnectionType = "WIFI"
+	DeviceConnectionTypeMobileData DeviceConnectionType = "MOBILE_DATA"
+	DeviceConnectionTypeWire       DeviceConnectionType = "WIRE"
+	DeviceConnectionTypeUnknown    DeviceConnectionType = "UNKNOWN"
+	DeviceConnectionTypeNone       DeviceConnectionType = "NONE"
+)
+
+// DeviceFamilyOsVersionFilter represents device family OS constraints.
+type DeviceFamilyOsVersionFilter struct {
+	DeviceFamily        DeviceFamily `json:"deviceFamily,omitempty"`
+	MinimumOsInclusive  string       `json:"minimumOsInclusive,omitempty"`
+	MaximumOsInclusive  string       `json:"maximumOsInclusive,omitempty"`
+}
+
 // AccessibilityDeclarationState represents the publishing state of a declaration.
 type AccessibilityDeclarationState string
 

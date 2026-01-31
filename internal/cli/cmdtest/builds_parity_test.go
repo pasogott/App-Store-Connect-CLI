@@ -332,3 +332,106 @@ func TestPreReleaseRelationshipsValidationErrors(t *testing.T) {
 
 	runValidationTests(t, tests)
 }
+
+func TestParityRelatedCommandsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "builds app get missing build",
+			args:    []string{"builds", "app", "get"},
+			wantErr: "--build is required",
+		},
+		{
+			name:    "builds pre-release-version get missing build",
+			args:    []string{"builds", "pre-release-version", "get"},
+			wantErr: "--build is required",
+		},
+		{
+			name:    "builds icons list missing build",
+			args:    []string{"builds", "icons", "list"},
+			wantErr: "--build is required",
+		},
+		{
+			name:    "builds beta-app-review-submission get missing build",
+			args:    []string{"builds", "beta-app-review-submission", "get"},
+			wantErr: "--build is required",
+		},
+		{
+			name:    "builds build-beta-detail get missing build",
+			args:    []string{"builds", "build-beta-detail", "get"},
+			wantErr: "--build is required",
+		},
+		{
+			name:    "beta-groups app get missing group-id",
+			args:    []string{"testflight", "beta-groups", "app", "get"},
+			wantErr: "--group-id is required",
+		},
+		{
+			name:    "beta-groups recruitment-criteria get missing group-id",
+			args:    []string{"testflight", "beta-groups", "beta-recruitment-criteria", "get"},
+			wantErr: "--group-id is required",
+		},
+		{
+			name:    "beta-groups compatible-build-check get missing group-id",
+			args:    []string{"testflight", "beta-groups", "beta-recruitment-criterion-compatible-build-check", "get"},
+			wantErr: "--group-id is required",
+		},
+		{
+			name:    "beta-testers apps list missing tester-id",
+			args:    []string{"testflight", "beta-testers", "apps", "list"},
+			wantErr: "--tester-id is required",
+		},
+		{
+			name:    "beta-testers beta-groups list missing tester-id",
+			args:    []string{"testflight", "beta-testers", "beta-groups", "list"},
+			wantErr: "--tester-id is required",
+		},
+		{
+			name:    "beta-testers builds list missing tester-id",
+			args:    []string{"testflight", "beta-testers", "builds", "list"},
+			wantErr: "--tester-id is required",
+		},
+		{
+			name:    "beta-feedback crash-submissions get missing id",
+			args:    []string{"testflight", "beta-feedback", "crash-submissions", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-feedback screenshot-submissions get missing id",
+			args:    []string{"testflight", "beta-feedback", "screenshot-submissions", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-feedback crash-log get missing id",
+			args:    []string{"testflight", "beta-feedback", "crash-log", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-app-localizations app get missing id",
+			args:    []string{"beta-app-localizations", "app", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-build-localizations build get missing id",
+			args:    []string{"beta-build-localizations", "build", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "pre-release-versions app get missing id",
+			args:    []string{"pre-release-versions", "app", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "pre-release-versions builds list missing id",
+			args:    []string{"pre-release-versions", "builds", "list"},
+			wantErr: "--id is required",
+		},
+	}
+
+	runValidationTests(t, tests)
+}

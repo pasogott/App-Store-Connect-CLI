@@ -1803,6 +1803,64 @@ func TestPrintMarkdown_Builds(t *testing.T) {
 	}
 }
 
+func TestPrintTable_BuildIcons(t *testing.T) {
+	resp := &BuildIconsResponse{
+		Data: []Resource[BuildIconAttributes]{
+			{
+				ID: "icon-1",
+				Attributes: BuildIconAttributes{
+					Name:     "AppIcon",
+					IconType: IconAssetTypeAppStore,
+					Masked:   true,
+					IconAsset: &ImageAsset{
+						TemplateURL: "https://example.com/icon.png",
+					},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Asset URL") {
+		t.Fatalf("expected build icons header, got: %s", output)
+	}
+	if !strings.Contains(output, "AppIcon") {
+		t.Fatalf("expected icon name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_BuildIcons(t *testing.T) {
+	resp := &BuildIconsResponse{
+		Data: []Resource[BuildIconAttributes]{
+			{
+				ID: "icon-1",
+				Attributes: BuildIconAttributes{
+					Name:     "AppIcon",
+					IconType: IconAssetTypeAppStore,
+					Masked:   true,
+					IconAsset: &ImageAsset{
+						TemplateURL: "https://example.com/icon.png",
+					},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Name | Type | Masked | Asset URL |") {
+		t.Fatalf("expected build icons markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "AppIcon") {
+		t.Fatalf("expected icon name in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_BuildBundles(t *testing.T) {
 	bundleID := "com.example.app"
 	bundleType := BuildBundleTypeApp

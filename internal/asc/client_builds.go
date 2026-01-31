@@ -20,11 +20,34 @@ type BuildAttributes struct {
 	Expired                 bool   `json:"expired,omitempty"`
 }
 
+// IconAssetType represents the icon type for build icons.
+type IconAssetType string
+
+const (
+	IconAssetTypeAppStore         IconAssetType = "APP_STORE"
+	IconAssetTypeMessagesAppStore IconAssetType = "MESSAGES_APP_STORE"
+	IconAssetTypeWatchAppStore    IconAssetType = "WATCH_APP_STORE"
+	IconAssetTypeTVOSHomeScreen   IconAssetType = "TV_OS_HOME_SCREEN"
+	IconAssetTypeTVOSTopShelf     IconAssetType = "TV_OS_TOP_SHELF"
+	IconAssetTypeAlternateExperiment IconAssetType = "ALTERNATE_EXPERIMENT"
+)
+
+// BuildIconAttributes describes a build icon resource.
+type BuildIconAttributes struct {
+	IconAsset *ImageAsset   `json:"iconAsset,omitempty"`
+	IconType  IconAssetType `json:"iconType,omitempty"`
+	Masked    bool          `json:"masked,omitempty"`
+	Name      string        `json:"name,omitempty"`
+}
+
 // BuildsResponse is the response from builds endpoint.
 type BuildsResponse = Response[BuildAttributes]
 
 // BuildResponse is the response from build detail/updates.
 type BuildResponse = SingleResponse[BuildAttributes]
+
+// BuildIconsResponse is the response from build icons endpoint.
+type BuildIconsResponse = Response[BuildIconAttributes]
 
 // BuildUploadAttributes describes a build upload resource.
 type BuildUploadAttributes struct {

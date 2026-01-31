@@ -6711,13 +6711,22 @@ func TestCreateBetaRecruitmentCriteria_SendsRequest(t *testing.T) {
 		if payload.Data.Relationships.BetaGroup.Data.ID != "group-1" {
 			t.Fatalf("expected group id group-1, got %q", payload.Data.Relationships.BetaGroup.Data.ID)
 		}
-		if payload.Data.Relationships.BetaRecruitmentCriterionOptions == nil || len(payload.Data.Relationships.BetaRecruitmentCriterionOptions.Data) != 2 {
-			t.Fatalf("expected 2 option relationships")
+		if payload.Data.Attributes.DeviceFamilyOsVersionFilters == nil || len(payload.Data.Attributes.DeviceFamilyOsVersionFilters) != 2 {
+			t.Fatalf("expected 2 device family filters")
+		}
+		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily != DeviceFamilyIPhone {
+			t.Fatalf("expected device family IPHONE, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily)
+		}
+		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].MinimumOsInclusive != "26" {
+			t.Fatalf("expected min os 26, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].MinimumOsInclusive)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.CreateBetaRecruitmentCriteria(context.Background(), "group-1", []string{"opt-1", "opt-2"}); err != nil {
+	if _, err := client.CreateBetaRecruitmentCriteria(context.Background(), "group-1", []DeviceFamilyOsVersionFilter{
+		{DeviceFamily: DeviceFamilyIPhone, MinimumOsInclusive: "26"},
+		{DeviceFamily: DeviceFamilyIPad, MinimumOsInclusive: "26"},
+	}); err != nil {
 		t.Fatalf("CreateBetaRecruitmentCriteria() error: %v", err)
 	}
 }
@@ -6741,13 +6750,18 @@ func TestUpdateBetaRecruitmentCriteria_SendsRequest(t *testing.T) {
 		if payload.Data.ID != "criteria-1" {
 			t.Fatalf("expected id criteria-1, got %q", payload.Data.ID)
 		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.BetaRecruitmentCriterionOptions == nil {
-			t.Fatalf("expected option relationships")
+		if payload.Data.Attributes == nil || len(payload.Data.Attributes.DeviceFamilyOsVersionFilters) != 1 {
+			t.Fatalf("expected 1 device family filter")
+		}
+		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily != DeviceFamilyMac {
+			t.Fatalf("expected device family MAC, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.UpdateBetaRecruitmentCriteria(context.Background(), "criteria-1", []string{"opt-1"}); err != nil {
+	if _, err := client.UpdateBetaRecruitmentCriteria(context.Background(), "criteria-1", []DeviceFamilyOsVersionFilter{
+		{DeviceFamily: DeviceFamilyMac, MinimumOsInclusive: "26"},
+	}); err != nil {
 		t.Fatalf("UpdateBetaRecruitmentCriteria() error: %v", err)
 	}
 }

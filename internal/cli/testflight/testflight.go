@@ -26,13 +26,16 @@ Examples:
   asc testflight apps list
   asc testflight apps get --app "APP_ID"
   asc testflight beta-groups list --app "APP_ID"
-  asc testflight beta-testers list --app "APP_ID"`,
+  asc testflight beta-groups app get --group-id "GROUP_ID"
+  asc testflight beta-testers list --app "APP_ID"
+  asc testflight beta-feedback crash-submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightAppsCommand(),
 			BetaGroupsCommand(),
 			BetaTestersCommand(),
+			BetaFeedbackCommand(),
 			BetaLicenseAgreementsCommand(),
 			BetaNotificationsCommand(),
 			TestFlightReviewCommand(),

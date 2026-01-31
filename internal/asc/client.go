@@ -9,14 +9,27 @@ import (
 
 // FeedbackAttributes describes beta feedback screenshot submissions.
 type FeedbackAttributes struct {
-	CreatedDate    string                    `json:"createdDate"`
-	Comment        string                    `json:"comment"`
-	Email          string                    `json:"email"`
-	DeviceModel    string                    `json:"deviceModel,omitempty"`
-	OSVersion      string                    `json:"osVersion,omitempty"`
-	AppPlatform    string                    `json:"appPlatform,omitempty"`
-	DevicePlatform string                    `json:"devicePlatform,omitempty"`
-	Screenshots    []FeedbackScreenshotImage `json:"screenshots,omitempty"`
+	CreatedDate              string                    `json:"createdDate"`
+	Comment                  string                    `json:"comment"`
+	Email                    string                    `json:"email"`
+	DeviceModel              string                    `json:"deviceModel,omitempty"`
+	OSVersion                string                    `json:"osVersion,omitempty"`
+	Locale                   string                    `json:"locale,omitempty"`
+	TimeZone                 string                    `json:"timeZone,omitempty"`
+	Architecture             string                    `json:"architecture,omitempty"`
+	ConnectionType           DeviceConnectionType      `json:"connectionType,omitempty"`
+	PairedAppleWatch         string                    `json:"pairedAppleWatch,omitempty"`
+	AppUptimeInMilliseconds  int64                     `json:"appUptimeInMilliseconds,omitempty"`
+	DiskBytesAvailable       int64                     `json:"diskBytesAvailable,omitempty"`
+	DiskBytesTotal           int64                     `json:"diskBytesTotal,omitempty"`
+	BatteryPercentage        int                       `json:"batteryPercentage,omitempty"`
+	ScreenWidthInPoints      int                       `json:"screenWidthInPoints,omitempty"`
+	ScreenHeightInPoints     int                       `json:"screenHeightInPoints,omitempty"`
+	AppPlatform              string                    `json:"appPlatform,omitempty"`
+	DevicePlatform           string                    `json:"devicePlatform,omitempty"`
+	DeviceFamily             DeviceFamily              `json:"deviceFamily,omitempty"`
+	BuildBundleID            string                    `json:"buildBundleId,omitempty"`
+	Screenshots              []FeedbackScreenshotImage `json:"screenshots,omitempty"`
 }
 
 // FeedbackScreenshotImage describes a screenshot attached to feedback.
@@ -29,14 +42,27 @@ type FeedbackScreenshotImage struct {
 
 // CrashAttributes describes beta feedback crash submissions.
 type CrashAttributes struct {
-	CreatedDate    string `json:"createdDate"`
-	Comment        string `json:"comment"`
-	Email          string `json:"email"`
-	DeviceModel    string `json:"deviceModel,omitempty"`
-	OSVersion      string `json:"osVersion,omitempty"`
-	AppPlatform    string `json:"appPlatform,omitempty"`
-	DevicePlatform string `json:"devicePlatform,omitempty"`
-	CrashLog       string `json:"crashLog,omitempty"`
+	CreatedDate              string               `json:"createdDate"`
+	Comment                  string               `json:"comment"`
+	Email                    string               `json:"email"`
+	DeviceModel              string               `json:"deviceModel,omitempty"`
+	OSVersion                string               `json:"osVersion,omitempty"`
+	Locale                   string               `json:"locale,omitempty"`
+	TimeZone                 string               `json:"timeZone,omitempty"`
+	Architecture             string               `json:"architecture,omitempty"`
+	ConnectionType           DeviceConnectionType `json:"connectionType,omitempty"`
+	PairedAppleWatch         string               `json:"pairedAppleWatch,omitempty"`
+	AppUptimeInMilliseconds  int64                `json:"appUptimeInMilliseconds,omitempty"`
+	DiskBytesAvailable       int64                `json:"diskBytesAvailable,omitempty"`
+	DiskBytesTotal           int64                `json:"diskBytesTotal,omitempty"`
+	BatteryPercentage        int                  `json:"batteryPercentage,omitempty"`
+	ScreenWidthInPoints      int                  `json:"screenWidthInPoints,omitempty"`
+	ScreenHeightInPoints     int                  `json:"screenHeightInPoints,omitempty"`
+	AppPlatform              string               `json:"appPlatform,omitempty"`
+	DevicePlatform           string               `json:"devicePlatform,omitempty"`
+	DeviceFamily             DeviceFamily         `json:"deviceFamily,omitempty"`
+	BuildBundleID            string               `json:"buildBundleId,omitempty"`
+	CrashLog                 string               `json:"crashLog,omitempty"`
 }
 
 // ReviewAttributes describes App Store customer reviews.
@@ -1088,6 +1114,27 @@ func (c *Client) GetBetaBuildLocalization(ctx context.Context, localizationID st
 	}
 
 	var response BetaBuildLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBetaBuildLocalizationBuild retrieves the build for a beta build localization.
+func (c *Client) GetBetaBuildLocalizationBuild(ctx context.Context, localizationID string) (*BuildResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+
+	path := fmt.Sprintf("/v1/betaBuildLocalizations/%s/build", localizationID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

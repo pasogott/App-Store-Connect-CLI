@@ -330,6 +330,11 @@ Examples:
   asc builds individual-testers list --build "BUILD_ID"
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
   asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
+  asc builds app get --build "BUILD_ID"
+  asc builds pre-release-version get --build "BUILD_ID"
+  asc builds icons list --build "BUILD_ID"
+  asc builds beta-app-review-submission get --build "BUILD_ID"
+  asc builds build-beta-detail get --build "BUILD_ID"
   asc builds relationships get --build "BUILD_ID" --type "app"
   asc builds metrics beta-usages --build "BUILD_ID"`,
 		FlagSet:   fs,
@@ -346,6 +351,11 @@ Examples:
 			BuildsAddGroupsCommand(),
 			BuildsRemoveGroupsCommand(),
 			BuildsIndividualTestersCommand(),
+			BuildsAppCommand(),
+			BuildsPreReleaseVersionCommand(),
+			BuildsIconsCommand(),
+			BuildsBetaAppReviewSubmissionCommand(),
+			BuildsBuildBetaDetailCommand(),
 			BuildsRelationshipsCommand(),
 			BuildsMetricsCommand(),
 		},

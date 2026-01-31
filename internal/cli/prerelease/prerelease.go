@@ -28,6 +28,8 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			PreReleaseVersionsListCommand(),
 			PreReleaseVersionsGetCommand(),
+			PreReleaseVersionsAppCommand(),
+			PreReleaseVersionsBuildsCommand(),
 			PreReleaseVersionsRelationshipsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {

@@ -149,27 +149,23 @@ func printBuildBetaDetailMarkdown(resp *BuildBetaDetailResponse) error {
 
 func printBetaRecruitmentCriterionOptionsTable(resp *BetaRecruitmentCriterionOptionsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tIdentifier\tName\tCategory")
+	fmt.Fprintln(w, "ID\tDevice Family OS Versions")
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\n",
 			item.ID,
-			compactWhitespace(item.Attributes.Identifier),
-			compactWhitespace(item.Attributes.Name),
-			compactWhitespace(item.Attributes.Category),
+			compactWhitespace(formatDeviceFamilyOsVersions(item.Attributes.DeviceFamilyOsVersions)),
 		)
 	}
 	return w.Flush()
 }
 
 func printBetaRecruitmentCriterionOptionsMarkdown(resp *BetaRecruitmentCriterionOptionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Identifier | Name | Category |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	fmt.Fprintln(os.Stdout, "| ID | Device Family OS Versions |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
 	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
+		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
 			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Identifier),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.Category),
+			escapeMarkdown(formatDeviceFamilyOsVersions(item.Attributes.DeviceFamilyOsVersions)),
 		)
 	}
 	return nil
@@ -177,22 +173,66 @@ func printBetaRecruitmentCriterionOptionsMarkdown(resp *BetaRecruitmentCriterion
 
 func printBetaRecruitmentCriteriaTable(resp *BetaRecruitmentCriteriaResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLast Modified")
-	fmt.Fprintf(w, "%s\t%s\n",
+	fmt.Fprintln(w, "ID\tLast Modified\tFilters")
+	fmt.Fprintf(w, "%s\t%s\t%s\n",
 		resp.Data.ID,
 		compactWhitespace(resp.Data.Attributes.LastModifiedDate),
+		compactWhitespace(formatDeviceFamilyOsVersionFilters(resp.Data.Attributes.DeviceFamilyOsVersionFilters)),
 	)
 	return w.Flush()
 }
 
 func printBetaRecruitmentCriteriaMarkdown(resp *BetaRecruitmentCriteriaResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Last Modified |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
+	fmt.Fprintln(os.Stdout, "| ID | Last Modified | Filters |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
 		escapeMarkdown(resp.Data.ID),
 		escapeMarkdown(resp.Data.Attributes.LastModifiedDate),
+		escapeMarkdown(formatDeviceFamilyOsVersionFilters(resp.Data.Attributes.DeviceFamilyOsVersionFilters)),
 	)
 	return nil
+}
+
+func formatDeviceFamilyOsVersions(items []BetaRecruitmentCriterionOptionDeviceFamily) string {
+	if len(items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(items))
+	for _, item := range items {
+		family := string(item.DeviceFamily)
+		versions := strings.Join(item.OSVersions, ",")
+		if versions == "" {
+			parts = append(parts, family)
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s:%s", family, versions))
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, "; ")
+}
+
+func formatDeviceFamilyOsVersionFilters(filters []DeviceFamilyOsVersionFilter) string {
+	if len(filters) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(filters))
+	for _, filter := range filters {
+		family := string(filter.DeviceFamily)
+		min := strings.TrimSpace(filter.MinimumOsInclusive)
+		max := strings.TrimSpace(filter.MaximumOsInclusive)
+		switch {
+		case min != "" && max != "":
+			parts = append(parts, fmt.Sprintf("%s:%s-%s", family, min, max))
+		case min != "":
+			parts = append(parts, fmt.Sprintf("%s:%s+", family, min))
+		case max != "":
+			parts = append(parts, fmt.Sprintf("%s:<=%s", family, max))
+		default:
+			parts = append(parts, family)
+		}
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, "; ")
 }
 
 func formatMetricAttributes(attrs BetaGroupMetricAttributes) string {

@@ -59,6 +59,9 @@ type BuildUploadFilesOption func(*buildUploadFilesQuery)
 // BuildIndividualTestersOption is a functional option for GetBuildIndividualTesters.
 type BuildIndividualTestersOption func(*buildIndividualTestersQuery)
 
+// BuildIconsOption is a functional option for GetBuildIcons.
+type BuildIconsOption func(*listQuery)
+
 // BetaAppClipInvocationsOption is a functional option for GetBuildBundleBetaAppClipInvocations.
 type BetaAppClipInvocationsOption func(*betaAppClipInvocationsQuery)
 
@@ -86,6 +89,12 @@ type ReviewSubmissionItemsOption func(*reviewSubmissionItemsQuery)
 // PreReleaseVersionsOption is a functional option for GetPreReleaseVersions.
 type PreReleaseVersionsOption func(*preReleaseVersionsQuery)
 
+// AppPreReleaseVersionsOption is a functional option for GetAppPreReleaseVersions.
+type AppPreReleaseVersionsOption func(*listQuery)
+
+// PreReleaseVersionBuildsOption is a functional option for GetPreReleaseVersionBuilds.
+type PreReleaseVersionBuildsOption func(*listQuery)
+
 // BetaGroupsOption is a functional option for GetBetaGroups.
 type BetaGroupsOption func(*betaGroupsQuery)
 
@@ -97,6 +106,15 @@ type BetaGroupTestersOption func(*betaGroupTestersQuery)
 
 // BetaTestersOption is a functional option for GetBetaTesters.
 type BetaTestersOption func(*betaTestersQuery)
+
+// BetaTesterAppsOption is a functional option for GetBetaTesterApps.
+type BetaTesterAppsOption func(*listQuery)
+
+// BetaTesterBetaGroupsOption is a functional option for GetBetaTesterBetaGroups.
+type BetaTesterBetaGroupsOption func(*listQuery)
+
+// BetaTesterBuildsOption is a functional option for GetBetaTesterBuilds.
+type BetaTesterBuildsOption func(*listQuery)
 
 // BetaTesterUsagesOption is a functional option for beta tester usage metrics.
 type BetaTesterUsagesOption func(*betaTesterUsagesQuery)
@@ -175,6 +193,9 @@ type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
 
 // BetaAppLocalizationsOption is a functional option for beta app localizations.
 type BetaAppLocalizationsOption func(*betaAppLocalizationsQuery)
+
+// AppBetaAppLocalizationsOption is a functional option for GetAppBetaAppLocalizations.
+type AppBetaAppLocalizationsOption func(*listQuery)
 
 // BetaBuildLocalizationsOption is a functional option for beta build localizations.
 type BetaBuildLocalizationsOption func(*betaBuildLocalizationsQuery)
@@ -2726,6 +2747,13 @@ func WithBetaRecruitmentCriterionOptionsLimit(limit int) BetaRecruitmentCriterio
 	}
 }
 
+// WithBetaRecruitmentCriterionOptionsFields sets fields for criterion options.
+func WithBetaRecruitmentCriterionOptionsFields(fields []string) BetaRecruitmentCriterionOptionsOption {
+	return func(q *betaRecruitmentCriterionOptionsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
 // WithBetaRecruitmentCriterionOptionsNextURL uses a next page URL directly.
 func WithBetaRecruitmentCriterionOptionsNextURL(next string) BetaRecruitmentCriterionOptionsOption {
 	return func(q *betaRecruitmentCriterionOptionsQuery) {
@@ -3302,6 +3330,132 @@ func WithAppStoreVersionExperimentTreatmentLocalizationsLimit(limit int) AppStor
 // WithAppStoreVersionExperimentTreatmentLocalizationsNextURL uses a next page URL directly.
 func WithAppStoreVersionExperimentTreatmentLocalizationsNextURL(next string) AppStoreVersionExperimentTreatmentLocalizationsOption {
 	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBuildIconsLimit sets the max number of build icons to return.
+func WithBuildIconsLimit(limit int) BuildIconsOption {
+	return func(q *listQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBuildIconsNextURL uses a next page URL directly.
+func WithBuildIconsNextURL(next string) BuildIconsOption {
+	return func(q *listQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppBetaAppLocalizationsLimit sets the max number of beta app localizations to return.
+func WithAppBetaAppLocalizationsLimit(limit int) AppBetaAppLocalizationsOption {
+	return func(q *listQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppBetaAppLocalizationsNextURL uses a next page URL directly.
+func WithAppBetaAppLocalizationsNextURL(next string) AppBetaAppLocalizationsOption {
+	return func(q *listQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppPreReleaseVersionsLimit sets the max number of pre-release versions to return.
+func WithAppPreReleaseVersionsLimit(limit int) AppPreReleaseVersionsOption {
+	return func(q *listQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppPreReleaseVersionsNextURL uses a next page URL directly.
+func WithAppPreReleaseVersionsNextURL(next string) AppPreReleaseVersionsOption {
+	return func(q *listQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithPreReleaseVersionBuildsLimit sets the max number of builds to return.
+func WithPreReleaseVersionBuildsLimit(limit int) PreReleaseVersionBuildsOption {
+	return func(q *listQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithPreReleaseVersionBuildsNextURL uses a next page URL directly.
+func WithPreReleaseVersionBuildsNextURL(next string) PreReleaseVersionBuildsOption {
+	return func(q *listQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBetaTesterAppsLimit sets the max number of apps to return.
+func WithBetaTesterAppsLimit(limit int) BetaTesterAppsOption {
+	return func(q *listQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaTesterAppsNextURL uses a next page URL directly.
+func WithBetaTesterAppsNextURL(next string) BetaTesterAppsOption {
+	return func(q *listQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBetaTesterBetaGroupsLimit sets the max number of beta groups to return.
+func WithBetaTesterBetaGroupsLimit(limit int) BetaTesterBetaGroupsOption {
+	return func(q *listQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaTesterBetaGroupsNextURL uses a next page URL directly.
+func WithBetaTesterBetaGroupsNextURL(next string) BetaTesterBetaGroupsOption {
+	return func(q *listQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBetaTesterBuildsLimit sets the max number of builds to return.
+func WithBetaTesterBuildsLimit(limit int) BetaTesterBuildsOption {
+	return func(q *listQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaTesterBuildsNextURL uses a next page URL directly.
+func WithBetaTesterBuildsNextURL(next string) BetaTesterBuildsOption {
+	return func(q *listQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
