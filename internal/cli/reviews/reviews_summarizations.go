@@ -18,7 +18,7 @@ func ReviewsSummarizationsCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	platforms := fs.String("platform", "", "Filter by platform(s), comma-separated: "+strings.Join(reviewSummarizationPlatformList(), ", "))
-	territories := fs.String("territory", "", "Filter by territory code(s), comma-separated (e.g., US, GBR)")
+	territories := fs.String("territory", "", "Filter by 3-letter territory code(s), comma-separated (e.g., USA, GBR)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(reviewSummarizationFieldsList(), ", "))
 	territoryFields := fs.String("territory-fields", "", "Territory fields to include, comma-separated")
 	include := fs.String("include", "", "Include related resources (e.g., territory), comma-separated")
@@ -36,7 +36,7 @@ func ReviewsSummarizationsCommand() *ffcli.Command {
 
 Examples:
   asc reviews summarizations --app "APP_ID"
-  asc reviews summarizations --app "APP_ID" --platform IOS --territory US
+  asc reviews summarizations --app "APP_ID" --platform IOS --territory USA
   asc reviews summarizations --app "APP_ID" --limit 50
   asc reviews summarizations --next "<links.next>"`,
 		FlagSet:   fs,
