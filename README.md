@@ -53,6 +53,7 @@ A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect
   - [No Interactive Prompts](#no-interactive-prompts)
 - [Installation](#installation)
 - [Documentation](#documentation)
+- [How to test in <10 minutes](#how-to-test-in-10-minutes)
 - [Security](#security)
 - [Contributing](#contributing)
 - [License](#license)
@@ -836,6 +837,17 @@ make install  # Installs to /usr/local/bin
 - [CLAUDE.md](CLAUDE.md) - Development guidelines for AI assistants
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [docs/openapi/README.md](docs/openapi/README.md) - Offline OpenAPI snapshot + update steps
+
+## How to test in <10 minutes>
+
+```bash
+make tools   # optional: installs gofumpt + golangci-lint
+make format
+make lint
+make test
+make build
+./asc --help
+```
 
 ## Security
 
