@@ -25,6 +25,8 @@ func TestFlightMetricsBetaTesterUsagesCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	period := fs.String("period", "", "Reporting period: "+strings.Join(betaTesterUsagePeriodList(), ", "))
+	groupBy := fs.String("group-by", "betaTesters", "Group results by dimension (betaTesters)")
+	filterTester := fs.String("filter-tester", "", "Filter by beta tester ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -37,9 +39,12 @@ func TestFlightMetricsBetaTesterUsagesCommand() *ffcli.Command {
 		ShortHelp:  "Fetch TestFlight beta tester usage metrics for an app.",
 		LongHelp: `Fetch TestFlight beta tester usage metrics for an app.
 
+Requires either --group-by or --filter-tester (or both).
+
 Examples:
   asc testflight metrics beta-tester-usages --app "APP_ID"
-  asc testflight metrics beta-tester-usages --app "APP_ID" --period "P30D"`,
+  asc testflight metrics beta-tester-usages --app "APP_ID" --period "P30D"
+  asc testflight metrics beta-tester-usages --app "APP_ID" --filter-tester "TESTER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -76,6 +81,8 @@ Examples:
 				asc.WithBetaTesterUsagesLimit(*limit),
 				asc.WithBetaTesterUsagesNextURL(*next),
 				asc.WithBetaTesterUsagesPeriod(periodValue),
+				asc.WithBetaTesterUsagesGroupBy(*groupBy),
+				asc.WithBetaTesterUsagesFilterBetaTesters(*filterTester),
 			}
 
 			if *paginate {

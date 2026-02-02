@@ -1867,6 +1867,24 @@ func WithBetaTesterUsagesAppID(appID string) BetaTesterUsagesOption {
 	}
 }
 
+// WithBetaTesterUsagesGroupBy sets the groupBy dimension for beta tester usage metrics.
+func WithBetaTesterUsagesGroupBy(groupBy string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(groupBy) != "" {
+			q.groupBy = strings.TrimSpace(groupBy)
+		}
+	}
+}
+
+// WithBetaTesterUsagesFilterBetaTesters filters beta tester usage metrics by beta tester ID.
+func WithBetaTesterUsagesFilterBetaTesters(testerID string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(testerID) != "" {
+			q.filterBetaTesters = strings.TrimSpace(testerID)
+		}
+	}
+}
+
 // WithBundleIDsLimit sets the max number of bundle IDs to return.
 func WithBundleIDsLimit(limit int) BundleIDsOption {
 	return func(q *bundleIDsQuery) {

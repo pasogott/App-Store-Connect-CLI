@@ -278,8 +278,10 @@ type betaBuildUsagesQuery struct {
 
 type betaTesterUsagesQuery struct {
 	listQuery
-	period string
-	appID  string
+	period            string
+	appID             string
+	groupBy           string
+	filterBetaTesters string
 }
 
 type appInfoLocalizationsQuery struct {
@@ -1347,6 +1349,12 @@ func buildBetaTesterUsagesQuery(query *betaTesterUsagesQuery) string {
 	}
 	if strings.TrimSpace(query.appID) != "" {
 		values.Set("filter[apps]", strings.TrimSpace(query.appID))
+	}
+	if strings.TrimSpace(query.groupBy) != "" {
+		values.Set("groupBy", strings.TrimSpace(query.groupBy))
+	}
+	if strings.TrimSpace(query.filterBetaTesters) != "" {
+		values.Set("filter[betaTesters]", strings.TrimSpace(query.filterBetaTesters))
 	}
 	addLimit(values, query.limit)
 	return values.Encode()
