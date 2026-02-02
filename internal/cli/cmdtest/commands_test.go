@@ -1229,6 +1229,11 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--product-id is required",
 		},
 		{
+			name:    "subscriptions create invalid subscription period",
+			args:    []string{"subscriptions", "create", "--group", "GROUP_ID", "--ref-name", "Monthly", "--product-id", "com.example.sub", "--subscription-period", "BAD"},
+			wantErr: "--subscription-period must be one of",
+		},
+		{
 			name:    "subscriptions get missing id",
 			args:    []string{"subscriptions", "get"},
 			wantErr: "--id is required",
@@ -1242,6 +1247,11 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			name:    "subscriptions update missing update flags",
 			args:    []string{"subscriptions", "update", "--id", "SUB_ID"},
 			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "subscriptions update invalid subscription period",
+			args:    []string{"subscriptions", "update", "--id", "SUB_ID", "--subscription-period", "BAD"},
+			wantErr: "--subscription-period must be one of",
 		},
 		{
 			name:    "subscriptions delete missing confirm",
@@ -1307,6 +1317,26 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			name:    "subscriptions grace-periods get missing id",
 			args:    []string{"subscriptions", "grace-periods", "get"},
 			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions grace-periods update missing id",
+			args:    []string{"subscriptions", "grace-periods", "update"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions grace-periods update missing update flags",
+			args:    []string{"subscriptions", "grace-periods", "update", "--id", "GRACE_ID"},
+			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "subscriptions grace-periods update invalid duration",
+			args:    []string{"subscriptions", "grace-periods", "update", "--id", "GRACE_ID", "--duration", "BAD"},
+			wantErr: "--duration must be one of",
+		},
+		{
+			name:    "subscriptions grace-periods update invalid renewal type",
+			args:    []string{"subscriptions", "grace-periods", "update", "--id", "GRACE_ID", "--renewal-type", "BAD"},
+			wantErr: "--renewal-type must be one of",
 		},
 		{
 			name:    "subscriptions localizations list missing subscription-id",

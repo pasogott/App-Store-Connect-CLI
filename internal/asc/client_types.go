@@ -117,6 +117,7 @@ const (
 	ResourceTypeSubscriptionOfferCodePrices                     ResourceType = "subscriptionOfferCodePrices"
 	ResourceTypeSubscriptionSubmissions                         ResourceType = "subscriptionSubmissions"
 	ResourceTypeSubscriptionAppStoreReviewScreenshots           ResourceType = "subscriptionAppStoreReviewScreenshots"
+	ResourceTypeSubscriptionGracePeriods                        ResourceType = "subscriptionGracePeriods"
 	ResourceTypePromotedPurchases                               ResourceType = "promotedPurchases"
 	ResourceTypeSubscriptionPrices                              ResourceType = "subscriptionPrices"
 	ResourceTypeSubscriptionAvailabilities                      ResourceType = "subscriptionAvailabilities"

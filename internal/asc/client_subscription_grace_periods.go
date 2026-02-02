@@ -28,3 +28,32 @@ func (c *Client) GetSubscriptionGracePeriod(ctx context.Context, gracePeriodID s
 
 	return &response, nil
 }
+
+// UpdateSubscriptionGracePeriod updates a subscription grace period by ID.
+func (c *Client) UpdateSubscriptionGracePeriod(ctx context.Context, gracePeriodID string, attrs SubscriptionGracePeriodUpdateAttributes) (*SubscriptionGracePeriodResponse, error) {
+	payload := SubscriptionGracePeriodUpdateRequest{
+		Data: SubscriptionGracePeriodUpdateData{
+			Type:       ResourceTypeSubscriptionGracePeriods,
+			ID:         strings.TrimSpace(gracePeriodID),
+			Attributes: attrs,
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionGracePeriods/%s", strings.TrimSpace(gracePeriodID))
+	data, err := c.do(ctx, http.MethodPatch, path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionGracePeriodResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}

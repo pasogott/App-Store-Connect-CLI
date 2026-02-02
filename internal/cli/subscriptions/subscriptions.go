@@ -452,6 +452,7 @@ func SubscriptionsCreateCommand() *ffcli.Command {
 	groupID := fs.String("group", "", "Subscription group ID")
 	refName := fs.String("ref-name", "", "Reference name")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.sub)")
+	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -462,7 +463,8 @@ func SubscriptionsCreateCommand() *ffcli.Command {
 		LongHelp: `Create a subscription.
 
 Examples:
-  asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly"`,
+  asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly"
+  asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly" --subscription-period ONE_MONTH`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -484,6 +486,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			period, err := normalizeSubscriptionPeriod(*subscriptionPeriod, false)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				return flag.ErrHelp
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions create: %w", err)
@@ -495,6 +503,9 @@ Examples:
 			attrs := asc.SubscriptionCreateAttributes{
 				Name:      name,
 				ProductID: product,
+			}
+			if period != "" {
+				attrs.SubscriptionPeriod = string(period)
 			}
 
 			resp, err := client.CreateSubscription(requestCtx, group, attrs)
@@ -556,6 +567,7 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 
 	subID := fs.String("id", "", "Subscription ID")
 	refName := fs.String("ref-name", "", "Reference name")
+	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -566,7 +578,8 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 		LongHelp: `Update a subscription.
 
 Examples:
-  asc subscriptions update --id "SUB_ID" --ref-name "New Name"`,
+  asc subscriptions update --id "SUB_ID" --ref-name "New Name"
+  asc subscriptions update --id "SUB_ID" --subscription-period ONE_YEAR`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -577,7 +590,12 @@ Examples:
 			}
 
 			name := strings.TrimSpace(*refName)
-			if name == "" {
+			period, err := normalizeSubscriptionPeriod(*subscriptionPeriod, false)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				return flag.ErrHelp
+			}
+			if name == "" && period == "" {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
 			}
@@ -590,8 +608,13 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			attrs := asc.SubscriptionUpdateAttributes{
-				Name: &name,
+			attrs := asc.SubscriptionUpdateAttributes{}
+			if name != "" {
+				attrs.Name = &name
+			}
+			if period != "" {
+				periodValue := string(period)
+				attrs.SubscriptionPeriod = &periodValue
 			}
 
 			resp, err := client.UpdateSubscription(requestCtx, id, attrs)

@@ -9,6 +9,49 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var subscriptionPeriodValues = []string{
+	string(asc.SubscriptionPeriodOneWeek),
+	string(asc.SubscriptionPeriodOneMonth),
+	string(asc.SubscriptionPeriodTwoMonths),
+	string(asc.SubscriptionPeriodThreeMonths),
+	string(asc.SubscriptionPeriodSixMonths),
+	string(asc.SubscriptionPeriodOneYear),
+}
+
+var subscriptionPeriodMap = map[string]asc.SubscriptionPeriod{
+	string(asc.SubscriptionPeriodOneWeek):     asc.SubscriptionPeriodOneWeek,
+	string(asc.SubscriptionPeriodOneMonth):    asc.SubscriptionPeriodOneMonth,
+	string(asc.SubscriptionPeriodTwoMonths):   asc.SubscriptionPeriodTwoMonths,
+	string(asc.SubscriptionPeriodThreeMonths): asc.SubscriptionPeriodThreeMonths,
+	string(asc.SubscriptionPeriodSixMonths):   asc.SubscriptionPeriodSixMonths,
+	string(asc.SubscriptionPeriodOneYear):     asc.SubscriptionPeriodOneYear,
+}
+
+var subscriptionGracePeriodDurationValues = []string{
+	string(asc.SubscriptionGracePeriodDurationThreeDays),
+	string(asc.SubscriptionGracePeriodDurationSixteenDays),
+	string(asc.SubscriptionGracePeriodDurationTwentyEightDays),
+}
+
+var subscriptionGracePeriodDurationMap = map[string]string{
+	string(asc.SubscriptionGracePeriodDurationThreeDays):      string(asc.SubscriptionGracePeriodDurationThreeDays),
+	string(asc.SubscriptionGracePeriodDurationSixteenDays):    string(asc.SubscriptionGracePeriodDurationSixteenDays),
+	string(asc.SubscriptionGracePeriodDurationTwentyEightDays): string(asc.SubscriptionGracePeriodDurationTwentyEightDays),
+	"DAY_3":  "DAY_3",
+	"DAY_16": "DAY_16",
+	"DAY_28": "DAY_28",
+}
+
+var subscriptionGracePeriodRenewalTypeValues = []string{
+	string(asc.SubscriptionGracePeriodRenewalTypeAllRenewals),
+	string(asc.SubscriptionGracePeriodRenewalTypePaidToPaidOnly),
+}
+
+var subscriptionGracePeriodRenewalTypeMap = map[string]asc.SubscriptionGracePeriodRenewalType{
+	string(asc.SubscriptionGracePeriodRenewalTypeAllRenewals):    asc.SubscriptionGracePeriodRenewalTypeAllRenewals,
+	string(asc.SubscriptionGracePeriodRenewalTypePaidToPaidOnly): asc.SubscriptionGracePeriodRenewalTypePaidToPaidOnly,
+}
+
 var subscriptionOfferDurationValues = []string{
 	string(asc.SubscriptionOfferDurationThreeDays),
 	string(asc.SubscriptionOfferDurationOneWeek),
@@ -77,6 +120,48 @@ func normalizeSubscriptionOfferDuration(value string, required bool) (asc.Subscr
 		return duration, nil
 	}
 	return "", fmt.Errorf("--offer-duration must be one of: %s", strings.Join(subscriptionOfferDurationValues, ", "))
+}
+
+func normalizeSubscriptionPeriod(value string, required bool) (asc.SubscriptionPeriod, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if normalized == "" {
+		if required {
+			return "", fmt.Errorf("--subscription-period is required")
+		}
+		return "", nil
+	}
+	if period, ok := subscriptionPeriodMap[normalized]; ok {
+		return period, nil
+	}
+	return "", fmt.Errorf("--subscription-period must be one of: %s", strings.Join(subscriptionPeriodValues, ", "))
+}
+
+func normalizeSubscriptionGracePeriodDuration(value string, required bool) (string, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if normalized == "" {
+		if required {
+			return "", fmt.Errorf("--duration is required")
+		}
+		return "", nil
+	}
+	if duration, ok := subscriptionGracePeriodDurationMap[normalized]; ok {
+		return duration, nil
+	}
+	return "", fmt.Errorf("--duration must be one of: %s", strings.Join(subscriptionGracePeriodDurationValues, ", "))
+}
+
+func normalizeSubscriptionGracePeriodRenewalType(value string, required bool) (asc.SubscriptionGracePeriodRenewalType, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if normalized == "" {
+		if required {
+			return "", fmt.Errorf("--renewal-type is required")
+		}
+		return "", nil
+	}
+	if renewalType, ok := subscriptionGracePeriodRenewalTypeMap[normalized]; ok {
+		return renewalType, nil
+	}
+	return "", fmt.Errorf("--renewal-type must be one of: %s", strings.Join(subscriptionGracePeriodRenewalTypeValues, ", "))
 }
 
 func normalizeSubscriptionOfferMode(value string, required bool) (asc.SubscriptionOfferMode, error) {
