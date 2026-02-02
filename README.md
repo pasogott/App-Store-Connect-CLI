@@ -84,6 +84,10 @@ make build
 ./asc --help
 ```
 
+### Updates
+
+`asc` checks for updates on startup and auto-updates when installed via the GitHub release install script. Homebrew installs will show a `brew upgrade` hint instead. Disable update checks with `--no-update` or `ASC_NO_UPDATE=1`.
+
 ### Authenticate
 
 ```bash

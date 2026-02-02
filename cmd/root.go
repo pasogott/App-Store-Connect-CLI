@@ -14,8 +14,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/suggest"
 )
 
+var versionRequested bool
+
 // RootCommand returns the root command
 func RootCommand(version string) *ffcli.Command {
+	versionRequested = false
 	root := &ffcli.Command{
 		Name:        "asc",
 		ShortUsage:  "asc <subcommand> [flags]",
@@ -26,7 +29,7 @@ func RootCommand(version string) *ffcli.Command {
 		Subcommands: registry.Subcommands(version),
 	}
 
-	versionFlag := root.FlagSet.Bool("version", false, "Print version and exit")
+	root.FlagSet.BoolVar(&versionRequested, "version", false, "Print version and exit")
 	shared.BindRootFlags(root.FlagSet)
 
 	rootSubcommandNames := make([]string, 0, len(root.Subcommands))
@@ -35,7 +38,7 @@ func RootCommand(version string) *ffcli.Command {
 	}
 
 	root.Exec = func(ctx context.Context, args []string) error {
-		if *versionFlag {
+		if versionRequested {
 			fmt.Fprintln(os.Stdout, version)
 			return nil
 		}
