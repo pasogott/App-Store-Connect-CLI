@@ -374,12 +374,11 @@ func waitForNotarization(ctx context.Context, client *asc.Client, submissionID s
 		switch resp.Data.Attributes.Status {
 		case asc.NotaryStatusAccepted, asc.NotaryStatusInvalid, asc.NotaryStatusRejected:
 			return resp, nil
-		case asc.NotaryStatusInProgress:
+		default:
+			// Treat unknown statuses (including InProgress) as non-terminal and continue polling
 			if shared.ProgressEnabled() {
 				fmt.Fprintf(os.Stderr, "Status: %s (checking again in %s)\n", resp.Data.Attributes.Status, pollInterval)
 			}
-		default:
-			return resp, nil
 		}
 
 		select {
