@@ -2285,6 +2285,28 @@ func TestUpdateAppStoreVersionLocalization_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestUpdateAppStoreVersionLocalization_OmitsLocale(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Updated"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		if strings.Contains(string(body), `"locale"`) {
+			t.Fatalf("expected request body to omit locale, got: %s", string(body))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := AppStoreVersionLocalizationAttributes{
+		Locale:      "en-US",
+		Description: "Updated",
+	}
+	if _, err := client.UpdateAppStoreVersionLocalization(context.Background(), "loc-1", attrs); err != nil {
+		t.Fatalf("UpdateAppStoreVersionLocalization() error: %v", err)
+	}
+}
+
 func TestDeleteAppStoreVersionLocalization_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
@@ -2685,6 +2707,28 @@ func TestUpdateAppInfoLocalization_SendsRequest(t *testing.T) {
 
 	attrs := AppInfoLocalizationAttributes{
 		Locale: "en-US", // should be ignored/omitted on update
+		Name:   "Updated",
+	}
+	if _, err := client.UpdateAppInfoLocalization(context.Background(), "loc-1", attrs); err != nil {
+		t.Fatalf("UpdateAppInfoLocalization() error: %v", err)
+	}
+}
+
+func TestUpdateAppInfoLocalization_OmitsLocale(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"name":"Updated"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		if strings.Contains(string(body), `"locale"`) {
+			t.Fatalf("expected request body to omit locale, got: %s", string(body))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := AppInfoLocalizationAttributes{
+		Locale: "en-US",
 		Name:   "Updated",
 	}
 	if _, err := client.UpdateAppInfoLocalization(context.Background(), "loc-1", attrs); err != nil {
