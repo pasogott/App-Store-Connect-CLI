@@ -242,11 +242,13 @@ func resolveIAPPriceSummary(
 	if err != nil {
 		return iapPriceSummary{}, err
 	}
-	if len(entries) == 0 {
+	fetchedAllScheduleEntries := false
+	if scheduleEntriesRequireFullFetch(entries) {
 		entries, err = fetchAllSchedulePriceEntries(ctx, client, scheduleResp.Data.ID)
 		if err != nil {
-			return iapPriceSummary{}, err
+			return iapPriceSummary{}, fmt.Errorf("fetch full price schedule entries: %w", err)
 		}
+		fetchedAllScheduleEntries = true
 	}
 
 	targetTerritory := territoryFilter
@@ -254,11 +256,12 @@ func resolveIAPPriceSummary(
 		targetTerritory = baseTerritoryID
 	}
 
-	if territoryFilter != "" && !entriesContainTerritory(entries, territoryFilter) {
+	if territoryFilter != "" && !entriesContainTerritory(entries, territoryFilter) && !fetchedAllScheduleEntries {
 		fallbackEntries, fallbackErr := fetchAllSchedulePriceEntries(ctx, client, scheduleResp.Data.ID)
-		if fallbackErr == nil && len(fallbackEntries) > 0 {
-			entries = fallbackEntries
+		if fallbackErr != nil {
+			return iapPriceSummary{}, fmt.Errorf("fetch full price schedule entries: %w", fallbackErr)
 		}
+		entries = fallbackEntries
 	}
 
 	currentEntry, hasCurrent := findActivePriceEntry(entries, targetTerritory, now)
@@ -340,26 +343,37 @@ func fetchSchedulePriceEntries(ctx context.Context, fetch schedulePriceFetcher) 
 
 	entries := make([]iapPriceEntry, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		decodedTerritoryID, decodedPricePointID, _ := decodeIAPPriceResourceID(item.ID)
+		decodedMeta, decodedOK := decodeIAPPriceResourceMetadata(item.ID)
 
 		territoryID, err := relationshipID(item.Relationships, "territory")
 		if err != nil || strings.TrimSpace(territoryID) == "" {
-			territoryID = decodedTerritoryID
+			territoryID = decodedMeta.TerritoryID
 		}
 		pricePointID, err := relationshipID(item.Relationships, "inAppPurchasePricePoint")
 		if err != nil || strings.TrimSpace(pricePointID) == "" {
-			pricePointID = decodedPricePointID
-		} else if strings.TrimSpace(decodedPricePointID) != "" {
-			pricePointID = decodedPricePointID
+			pricePointID = decodedMeta.PricePointID
+		} else if strings.TrimSpace(decodedMeta.PricePointID) != "" {
+			pricePointID = decodedMeta.PricePointID
 		}
 		if strings.TrimSpace(territoryID) == "" || strings.TrimSpace(pricePointID) == "" {
 			continue
 		}
+
+		startDate := strings.TrimSpace(item.Attributes.StartDate)
+		endDate := strings.TrimSpace(item.Attributes.EndDate)
+		if decodedOK {
+			if startDate == "" {
+				startDate = decodedMeta.StartDate
+			}
+			if endDate == "" {
+				endDate = decodedMeta.EndDate
+			}
+		}
 		entries = append(entries, newIAPPriceEntry(
 			territoryID,
 			pricePointID,
-			item.Attributes.StartDate,
-			item.Attributes.EndDate,
+			startDate,
+			endDate,
 			item.Attributes.Manual,
 		))
 	}
@@ -451,25 +465,36 @@ func parseIAPPriceScheduleIncluded(raw json.RawMessage) ([]iapPriceEntry, map[st
 			if err := json.Unmarshal(item.Attributes, &attrs); err != nil {
 				return nil, nil, fmt.Errorf("parse in-app purchase price attributes: %w", err)
 			}
-			decodedTerritoryID, decodedPricePointID, _ := decodeIAPPriceResourceID(item.ID)
+			decodedMeta, decodedOK := decodeIAPPriceResourceMetadata(item.ID)
 			territoryID, err := relationshipID(item.Relationships, "territory")
 			if err != nil || strings.TrimSpace(territoryID) == "" {
-				territoryID = decodedTerritoryID
+				territoryID = decodedMeta.TerritoryID
 			}
 			pricePointID, err := relationshipID(item.Relationships, "inAppPurchasePricePoint")
 			if err != nil || strings.TrimSpace(pricePointID) == "" {
-				pricePointID = decodedPricePointID
-			} else if strings.TrimSpace(decodedPricePointID) != "" {
-				pricePointID = decodedPricePointID
+				pricePointID = decodedMeta.PricePointID
+			} else if strings.TrimSpace(decodedMeta.PricePointID) != "" {
+				pricePointID = decodedMeta.PricePointID
 			}
 			if strings.TrimSpace(territoryID) == "" || strings.TrimSpace(pricePointID) == "" {
 				continue
 			}
+
+			startDate := strings.TrimSpace(attrs.StartDate)
+			endDate := strings.TrimSpace(attrs.EndDate)
+			if decodedOK {
+				if startDate == "" {
+					startDate = decodedMeta.StartDate
+				}
+				if endDate == "" {
+					endDate = decodedMeta.EndDate
+				}
+			}
 			entries = append(entries, newIAPPriceEntry(
 				territoryID,
 				pricePointID,
-				attrs.StartDate,
-				attrs.EndDate,
+				startDate,
+				endDate,
 				attrs.Manual,
 			))
 		}
@@ -521,6 +546,24 @@ func entriesContainTerritory(entries []iapPriceEntry, territoryID string) bool {
 		}
 	}
 	return false
+}
+
+func scheduleEntriesRequireFullFetch(entries []iapPriceEntry) bool {
+	if len(entries) == 0 {
+		return true
+	}
+
+	manualCount := 0
+	automaticCount := 0
+	for _, entry := range entries {
+		if entry.Manual {
+			manualCount++
+			continue
+		}
+		automaticCount++
+	}
+
+	return manualCount >= maxIncludedScheduleLimit || automaticCount >= maxIncludedScheduleLimit
 }
 
 func buildScheduledChanges(entries []iapPriceEntry, now time.Time, territoryFilter string) []iapScheduledChange {
@@ -660,33 +703,59 @@ func parseScheduleDate(value string) *time.Time {
 }
 
 func decodeIAPPriceResourceID(resourceID string) (string, string, bool) {
+	decodedMeta, ok := decodeIAPPriceResourceMetadata(resourceID)
+	territoryID := decodedMeta.TerritoryID
+	pricePointID := decodedMeta.PricePointID
+	if territoryID == "" || pricePointID == "" {
+		return "", "", false
+	}
+	return territoryID, pricePointID, ok
+}
+
+type iapPriceResourceMetadata struct {
+	TerritoryID  string
+	PricePointID string
+	StartDate    string
+	EndDate      string
+}
+
+func decodeIAPPriceResourceMetadata(resourceID string) (iapPriceResourceMetadata, bool) {
 	resourceID = strings.TrimSpace(resourceID)
 	if resourceID == "" {
-		return "", "", false
+		return iapPriceResourceMetadata{}, false
 	}
 
 	decoded, err := base64.RawURLEncoding.DecodeString(resourceID)
 	if err != nil {
 		decoded, err = base64.URLEncoding.DecodeString(resourceID)
 		if err != nil {
-			return "", "", false
+			return iapPriceResourceMetadata{}, false
 		}
 	}
 
 	var payload struct {
-		TerritoryID  string `json:"t"`
-		PricePointID string `json:"p"`
+		TerritoryID      string  `json:"t"`
+		PricePointID     string  `json:"p"`
+		StartDateSeconds float64 `json:"sd"`
+		EndDateSeconds   float64 `json:"ed"`
 	}
 	if err := json.Unmarshal(decoded, &payload); err != nil {
-		return "", "", false
+		return iapPriceResourceMetadata{}, false
 	}
 
-	territoryID := strings.ToUpper(strings.TrimSpace(payload.TerritoryID))
-	pricePointID := strings.TrimSpace(payload.PricePointID)
-	if territoryID == "" || pricePointID == "" {
-		return "", "", false
+	return iapPriceResourceMetadata{
+		TerritoryID:  strings.ToUpper(strings.TrimSpace(payload.TerritoryID)),
+		PricePointID: strings.TrimSpace(payload.PricePointID),
+		StartDate:    scheduleDateFromUnixSeconds(payload.StartDateSeconds),
+		EndDate:      scheduleDateFromUnixSeconds(payload.EndDateSeconds),
+	}, true
+}
+
+func scheduleDateFromUnixSeconds(seconds float64) string {
+	if seconds <= 0 {
+		return ""
 	}
-	return territoryID, pricePointID, true
+	return time.Unix(int64(seconds), 0).UTC().Format(iapPricesDateLayout)
 }
 
 func relationshipID(relationships json.RawMessage, key string) (string, error) {

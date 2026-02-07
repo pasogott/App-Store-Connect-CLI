@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -269,4 +270,166 @@ func TestIAPPricesTableOutput(t *testing.T) {
 	if !strings.Contains(stdout, "9.99 USD") {
 		t.Fatalf("expected formatted current price in output, got %q", stdout)
 	}
+}
+
+func TestIAPPricesFetchesAllScheduleEntriesWhenIncludedHitsLimit(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	scheduleBody := buildIAPPriceScheduleWithAutomaticIncludedCount(50)
+	manualSubresourceCalls := 0
+	automaticSubresourceCalls := 0
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v2/inAppPurchases/iap-1":
+			body := `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v2/inAppPurchases/iap-1/iapPriceSchedule":
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(scheduleBody)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices":
+			manualSubresourceCalls++
+			body := `{
+				"data":[
+					{
+						"type":"inAppPurchasePrices",
+						"id":"manual-current",
+						"attributes":{"startDate":"2024-01-01","manual":true},
+						"relationships":{
+							"territory":{"data":{"type":"territories","id":"USA"}},
+							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-current"}}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices":
+			automaticSubresourceCalls++
+			body := `{
+				"data":[
+					{
+						"type":"inAppPurchasePrices",
+						"id":"mus-old",
+						"attributes":{"startDate":"2024-01-01","endDate":"2098-12-31"},
+						"relationships":{
+							"territory":{"data":{"type":"territories","id":"MUS"}},
+							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-mus-old"}}
+						}
+					},
+					{
+						"type":"inAppPurchasePrices",
+						"id":"mus-new",
+						"attributes":{"startDate":"2099-01-01"},
+						"relationships":{
+							"territory":{"data":{"type":"territories","id":"MUS"}},
+							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-mus-new"}}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v2/inAppPurchases/iap-1/pricePoints":
+			body := `{
+				"data":[
+					{"type":"inAppPurchasePricePoints","id":"pp-current","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}
+				],
+				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected path: %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"iap", "prices", "--iap-id", "iap-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if manualSubresourceCalls == 0 {
+		t.Fatalf("expected manualPrices subresource to be requested when included hits limit")
+	}
+	if automaticSubresourceCalls == 0 {
+		t.Fatalf("expected automaticPrices subresource to be requested when included hits limit")
+	}
+	if !strings.Contains(stdout, `"scheduledChanges":[{"territory":"MUS","fromPricePoint":"pp-mus-old","toPricePoint":"pp-mus-new","effectiveDate":"2099-01-01"}]`) {
+		t.Fatalf("expected MUS scheduled change in output, got %q", stdout)
+	}
+}
+
+func buildIAPPriceScheduleWithAutomaticIncludedCount(automaticCount int) string {
+	included := make([]string, 0, automaticCount+2)
+	for i := 0; i < automaticCount; i++ {
+		included = append(included, fmt.Sprintf(`{
+			"type":"inAppPurchasePrices",
+			"id":"auto-%d",
+			"attributes":{"startDate":"2024-01-01"},
+			"relationships":{
+				"territory":{"data":{"type":"territories","id":"USA"}},
+				"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-auto-%d"}}
+			}
+		}`, i, i))
+	}
+
+	included = append(included, `{
+		"type":"inAppPurchasePrices",
+		"id":"manual-current",
+		"attributes":{"startDate":"2024-01-01","manual":true},
+		"relationships":{
+			"territory":{"data":{"type":"territories","id":"USA"}},
+			"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-current"}}
+		}
+	}`)
+	included = append(included, `{
+		"type":"territories",
+		"id":"USA",
+		"attributes":{"currency":"USD"}
+	}`)
+
+	return fmt.Sprintf(`{
+		"data":{
+			"type":"inAppPurchasePriceSchedules",
+			"id":"schedule-1",
+			"relationships":{"baseTerritory":{"data":{"type":"territories","id":"USA"}}}
+		},
+		"included":[%s]
+	}`, strings.Join(included, ","))
 }
