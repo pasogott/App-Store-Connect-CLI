@@ -33,6 +33,7 @@ const (
 	privateKeyBase64EnvVar = "ASC_PRIVATE_KEY_B64"
 	profileEnvVar          = "ASC_PROFILE"
 	strictAuthEnvVar       = "ASC_STRICT_AUTH"
+	defaultOutputEnvVar    = "ASC_DEFAULT_OUTPUT"
 )
 
 const (
@@ -108,6 +109,13 @@ func SetNoProgress(value bool) {
 // SetSelectedProfile sets the current profile override (tests only).
 func SetSelectedProfile(value string) {
 	selectedProfile = value
+}
+
+// ResetDefaultOutputFormat clears the cached default output format so that
+// DefaultOutputFormat() re-reads ASC_DEFAULT_OUTPUT on its next call. Tests only.
+func ResetDefaultOutputFormat() {
+	defaultOutputOnce = sync.Once{}
+	defaultOutputValue = ""
 }
 
 // CleanupTempPrivateKey removes any temporary private key created from env values.
@@ -202,11 +210,15 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 			tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
 			c.FlagSet.VisitAll(func(f *flag.Flag) {
 				def := f.DefValue
+				usage := f.Usage
+				if f.Name == "output" {
+					usage = strings.Replace(usage, "json (default),", "json,", 1)
+				}
 				if def != "" {
-					fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, f.Usage, def)
+					fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, usage, def)
 					return
 				}
-				fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, f.Usage)
+				fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, usage)
 			})
 			tw.Flush()
 			b.WriteString("\n")
@@ -568,6 +580,36 @@ func isAppAvailabilityMissing(err error) bool {
 		}
 	}
 	return false
+}
+
+var (
+	defaultOutputOnce  sync.Once
+	defaultOutputValue string
+)
+
+// DefaultOutputFormat returns the default output format for CLI commands.
+// It checks the ASC_DEFAULT_OUTPUT environment variable first, falling back to "json".
+// Valid values are "json", "table", "markdown", and "md".
+func DefaultOutputFormat() string {
+	defaultOutputOnce.Do(func() {
+		defaultOutputValue = resolveDefaultOutput()
+	})
+	return defaultOutputValue
+}
+
+func resolveDefaultOutput() string {
+	env := strings.TrimSpace(os.Getenv(defaultOutputEnvVar))
+	if env == "" {
+		return "json"
+	}
+	normalized := strings.ToLower(env)
+	switch normalized {
+	case "json", "table", "markdown", "md":
+		return normalized
+	default:
+		fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, markdown, or md); using json\n", defaultOutputEnvVar, env)
+		return "json"
+	}
 }
 
 func resolveAppID(appID string) string {
