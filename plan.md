@@ -155,6 +155,16 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/versions` (`versions list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
 - [x] Commit Phase 15
 
+## Phase 16 - `--next` Parity for Users Nested Lists and Version Relationship Surfaces
+
+- [x] `internal/cli/users` (`users invites list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/users` (`users visible-apps list/get` invalid-path `--next` handling + `--paginate --next` without `--id`)
+- [x] `internal/cli/users` (`users invites visible-apps list --paginate --next` without `--id`)
+- [x] `internal/cli/versions` (`versions relationships --type appStoreVersionExperiments` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
+- [x] `internal/cli/versions` (`versions experiments-v2 list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
+- [x] `internal/cli/versions` (`versions customer-reviews list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
+- [x] Commit Phase 16
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
