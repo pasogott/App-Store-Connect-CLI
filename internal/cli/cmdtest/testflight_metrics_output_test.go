@@ -121,6 +121,53 @@ func TestTestFlightMetricsTestersOutput(t *testing.T) {
 	}
 }
 
+func TestTestFlightMetricsTestersTableOutput(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/group-1/metrics/betaTesterUsages" {
+			t.Fatalf("expected path /v1/betaGroups/group-1/metrics/betaTesterUsages, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("groupBy") != "betaTesters" {
+			t.Fatalf("expected groupBy=betaTesters, got %q", req.URL.Query().Get("groupBy"))
+		}
+		body := `{"data":[{"type":"betaGroupTesterUsages","id":"tester-table-1","attributes":{"betaTesters":42}}]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "metrics", "testers", "--group", "group-1", "--output", "table"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "tester-table-1") {
+		t.Fatalf("expected table output to contain tester usage id, got %q", stdout)
+	}
+}
+
 func TestTestFlightMetricsPublicLinkReturnsFetchFailure(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

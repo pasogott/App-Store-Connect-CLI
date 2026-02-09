@@ -122,6 +122,15 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/subscriptions` (`offer-codes list` unsupported `--output` and `--pretty` non-JSON failures)
 - [x] Commit Phase 11
 
+## Phase 12 - `--next`/`--paginate` Combinatorics and Human Output Paths
+
+- [x] `internal/cli/builds` (`builds latest --output table` success rendering path)
+- [x] `internal/cli/apps` (`app-tags list --paginate --next` without `--app` + markdown rendering path)
+- [x] `internal/cli/testflight` (`metrics testers --output table` success rendering path)
+- [x] `internal/cli/iap` (`offer-codes list --paginate --next` without `--iap-id` + table rendering path)
+- [x] `internal/cli/subscriptions` (`offer-codes list --paginate --next` without `--subscription-id` + markdown rendering path)
+- [x] Commit Phase 12
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`

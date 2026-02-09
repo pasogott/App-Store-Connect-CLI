@@ -330,3 +330,59 @@ func TestBuildsLatestOutputErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildsLatestTableOutput(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds" {
+			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		}
+		query := req.URL.Query()
+		if query.Get("filter[app]") != "app-1" {
+			t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+		}
+		if query.Get("sort") != "-uploadedDate" {
+			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
+		}
+		if query.Get("limit") != "1" {
+			t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+		}
+		body := `{
+			"data":[{"type":"builds","id":"build-table","attributes":{"uploadedDate":"2026-03-01T00:00:00Z"}}]
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--output", "table"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "2026-03-01T00:00:00Z") {
+		t.Fatalf("expected table output to contain uploaded timestamp, got %q", stdout)
+	}
+}
