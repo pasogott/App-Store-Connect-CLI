@@ -552,6 +552,32 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/subscriptions` (`subscriptions promotional-offers prices` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
 - [x] Commit Phase 62
 
+## Phase 63 - `--next` Parity for Remaining CLI Surfaces
+
+- [x] `internal/cli/apps` (`app-info get` invalid/malformed `--next` validation)
+- [x] `internal/cli/builds` (`builds list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/productpages` (`experiments list` invalid/malformed `--next` validation + `--paginate --next` with `--version-id`)
+- [x] `internal/cli/productpages` (`experiments treatments list` invalid/malformed `--next` validation + `--paginate --next` with `--experiment-id`)
+- [x] `internal/cli/productpages` (`experiments treatments localizations list` invalid/malformed `--next` validation + `--paginate --next` with `--treatment-id`)
+- [x] `internal/cli/productpages` (`experiments treatments localizations preview-sets list` invalid/malformed `--next` validation + `--paginate --next`)
+- [x] `internal/cli/productpages` (`experiments treatments localizations screenshot-sets list` invalid/malformed `--next` validation + `--paginate --next`)
+- [x] `internal/cli/localizations` (`localizations download` invalid/malformed `--next` validation)
+- [x] `internal/cli/marketplace` (`marketplace webhooks list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/pricing` (`pricing price-points` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/pricing` (`pricing territories list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/reviews` (`review attachments-list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/reviews` (`review items-list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/reviews` (`review submissions-items-ids` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/reviews` (`review submissions-list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/users` (`users invites visible-apps list` invalid/malformed `--next` validation + `--paginate --next` with invite ID derived from URL)
+- [x] `internal/cli/users` (`users visible-apps get` invalid/malformed `--next` validation + `--paginate --next` with user ID derived from URL)
+- [x] `internal/cli/winbackoffers` (`win-back-offers list` invalid/malformed `--next` validation + `--paginate --next` without `--subscription`)
+- [x] `internal/cli/winbackoffers` (`win-back-offers prices` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/winbackoffers` (`win-back-offers prices-relationships` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/winbackoffers` (`win-back-offers relationships` invalid/malformed `--next` validation + `--paginate --next` without `--subscription`)
+- [x] Recomputed `--next` coverage check: `0` uncovered prefixes remaining (`225/225` covered)
+- [x] Commit Phase 63
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
