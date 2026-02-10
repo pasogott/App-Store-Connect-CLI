@@ -521,6 +521,20 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/gamecenter` (`game-center matchmaking teams list` invalid/malformed `--next` validation + `--paginate --next` without `--rule-set-id`)
 - [x] Commit Phase 60
 
+## Phase 61 - `--next` Parity for IAP List Surfaces
+
+- [x] `internal/cli/iap` (`iap list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/iap` (`iap images list` invalid/malformed `--next` validation + `--paginate --next` without `--iap-id`)
+- [x] `internal/cli/iap` (`iap localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--iap-id`)
+- [x] `internal/cli/iap` (`iap offer-codes custom-codes list` invalid/malformed `--next` validation + `--paginate --next` without `--offer-code-id`)
+- [x] `internal/cli/iap` (`iap offer-codes one-time-codes list` invalid/malformed `--next` validation + `--paginate --next` without `--offer-code-id`)
+- [x] `internal/cli/iap` (`iap offer-codes prices` invalid/malformed `--next` validation + `--paginate --next` without `--offer-code-id`)
+- [x] `internal/cli/iap` (`iap price-points list` invalid/malformed `--next` validation + `--paginate --next` without `--iap-id`)
+- [x] `internal/cli/iap` (`iap price-schedules automatic-prices` invalid/malformed `--next` validation + `--paginate --next` without `--schedule-id`)
+- [x] `internal/cli/iap` (`iap price-schedules manual-prices` invalid/malformed `--next` validation + `--paginate --next` without `--schedule-id`)
+- [x] `internal/cli/iap` (`iap availabilities available-territories` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] Commit Phase 61
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
