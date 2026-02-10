@@ -168,10 +168,7 @@ func resolveIAPPriceSummaries(
 		return []iapPriceSummary{}, nil
 	}
 
-	workers := min(len(iaps), defaultIAPPricesWorkers)
-	if workers < 1 {
-		workers = 1
-	}
+	workers := max(min(len(iaps), defaultIAPPricesWorkers), 1)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

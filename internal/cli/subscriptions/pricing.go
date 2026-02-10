@@ -186,10 +186,7 @@ func resolveSubscriptionPriceSummaries(
 		return []subscriptionPriceSummary{}, nil
 	}
 
-	workers := min(len(subs), defaultSubscriptionPricingWorkers)
-	if workers < 1 {
-		workers = 1
-	}
+	workers := max(min(len(subs), defaultSubscriptionPricingWorkers), 1)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
