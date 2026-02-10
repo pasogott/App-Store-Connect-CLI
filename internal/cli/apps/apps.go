@@ -41,6 +41,8 @@ func AppsCommand() *ffcli.Command {
 Examples:
   asc apps
   asc apps list --bundle-id "com.example.app"
+  asc apps wall
+  asc apps wall --output markdown
   asc apps get --id "APP_ID"
   asc apps ci-product get --id "APP_ID"
   asc apps update --id "APP_ID" --bundle-id "com.example.app"
@@ -55,6 +57,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppsListCommand(),
+			AppsWallCommand(),
 			AppsGetCommand(),
 			AppsCIProductCommand(),
 			AppsUpdateCommand(),

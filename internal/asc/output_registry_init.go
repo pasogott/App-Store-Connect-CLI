@@ -10,6 +10,7 @@ func init() {
 		return reviewsRows(&ReviewsResponse{Data: []Resource[ReviewAttributes]{v.Data}})
 	})
 	registerRows(appsRows)
+	registerRows(appsWallRows)
 	registerRows(appClipsRows)
 	registerRows(appCategoriesRows)
 	registerRows(func(v *AppCategoryResponse) ([]string, [][]string) {

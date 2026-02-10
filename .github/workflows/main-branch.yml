@@ -25,6 +25,11 @@ jobs:
           make format
           git diff --exit-code
 
+      - name: Check Wall of Apps generation
+        run: |
+          make update-wall-of-apps
+          git diff --exit-code -- README.md docs/generated/app-wall.md
+
       - name: Run lint
         run: |
           export PATH="$(go env GOPATH)/bin:$PATH"

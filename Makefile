@@ -130,6 +130,12 @@ update-openapi:
 	@echo "$(BLUE)Updating OpenAPI paths index...$(NC)"
 	python3 scripts/update-openapi-index.py
 
+# Update Wall of Apps docs snippet
+.PHONY: update-wall-of-apps
+update-wall-of-apps:
+	@echo "$(BLUE)Updating Wall of Apps snippets...$(NC)"
+	$(GO) run ./tools/update-wall-of-apps
+
 # Clean build artifacts
 .PHONY: clean
 clean:
@@ -183,6 +189,7 @@ help:
 	@echo "  deps           Install dependencies"
 	@echo "  update-deps    Update dependencies"
 	@echo "  update-openapi Update OpenAPI paths index"
+	@echo "  update-wall-of-apps Update Wall of Apps snippets"
 	@echo "  clean          Clean build artifacts"
 	@echo "  install        Install binary"
 	@echo "  uninstall      Uninstall binary"

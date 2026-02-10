@@ -16,13 +16,17 @@ A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Autom
 | Slow, heavy tooling | Single Go binary, instant startup |
 | Poor scripting support | JSON output, explicit flags, clean exit codes |
 
+<!-- WALL-OF-APPS:START -->
 ## Wall of Apps
 
 Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls)!
 
-- [CodexMonitor](https://github.com/Dimillian/CodexMonitor)
-- [MileIO](https://apps.apple.com/app/id6758225631)
-- [DoubleMemory](https://doublememory.com)
+| App | Link | Creator | Platform |
+|:----|:-----|:--------|:---------|
+| CodexMonitor | [Open](https://github.com/Dimillian/CodexMonitor) | Dimillian | macOS, iOS |
+| DoubleMemory | [Open](https://doublememory.com) | Shaomeng Zhang | iOS |
+| MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | iOS |
+<!-- WALL-OF-APPS:END -->
 
 ## ASC Skills
 
@@ -1226,6 +1230,15 @@ Notes:
 ```bash
 # List apps (useful for finding app IDs)
 asc apps
+
+# Generate a wall of your apps (app/link/creator/platform, table by default)
+asc apps wall
+
+# Generate markdown for README/docs embedding
+asc apps wall --output markdown
+
+# Filter and sort wall output
+asc apps wall --include-platforms IOS,MAC_OS --sort -releaseDate --limit 20
 
 # Sort apps by name or bundle ID
 asc apps --sort name
