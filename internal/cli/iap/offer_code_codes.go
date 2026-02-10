@@ -25,12 +25,14 @@ func IAPOfferCodesCustomCodesCommand() *ffcli.Command {
 
 Examples:
   asc iap offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
-  asc iap offer-codes custom-codes get --custom-code-id "CUSTOM_CODE_ID"`,
+  asc iap offer-codes custom-codes get --custom-code-id "CUSTOM_CODE_ID"
+  asc iap offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "SUMMER26"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPOfferCodesCustomCodesListCommand(),
 			IAPOfferCodesCustomCodesGetCommand(),
+			IAPOfferCodesCustomCodesCreateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -157,6 +159,93 @@ Examples:
 	}
 }
 
+// IAPOfferCodesCustomCodesCreateCommand returns the custom codes create subcommand.
+func IAPOfferCodesCustomCodesCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("offer-codes custom-codes create", flag.ExitOnError)
+
+	offerCodeID := fs.String("offer-code-id", "", "Offer code ID (required)")
+	customCode := fs.String("custom-code", "", "Custom code value (required)")
+	quantity := fs.Int("quantity", 0, "Number of codes to create (required, positive integer)")
+	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD)")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc iap offer-codes custom-codes create --offer-code-id \"OFFER_CODE_ID\" --custom-code \"CODE\" --quantity N [flags]",
+		ShortHelp:  "Create custom codes for an in-app purchase offer code.",
+		LongHelp: `Create custom codes for an in-app purchase offer code.
+
+Examples:
+  asc iap offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "SUMMER26" --quantity 100
+  asc iap offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "HOLIDAY2026" --quantity 50 --expiration-date "2026-12-31"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*offerCodeID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
+				return flag.ErrHelp
+			}
+
+			code := strings.TrimSpace(*customCode)
+			if code == "" {
+				fmt.Fprintln(os.Stderr, "Error: --custom-code is required")
+				return flag.ErrHelp
+			}
+
+			if *quantity <= 0 {
+				fmt.Fprintln(os.Stderr, "Error: --quantity must be a positive integer")
+				return flag.ErrHelp
+			}
+
+			var normalizedExpiration *string
+			if strings.TrimSpace(*expirationDate) != "" {
+				normalized, err := shared.NormalizeDate(*expirationDate, "--expiration-date")
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err)
+					return flag.ErrHelp
+				}
+				normalizedExpiration = &normalized
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("iap offer-codes custom-codes create: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			req := asc.InAppPurchaseOfferCodeCustomCodeCreateRequest{
+				Data: asc.InAppPurchaseOfferCodeCustomCodeCreateData{
+					Type: asc.ResourceTypeInAppPurchaseOfferCodeCustomCodes,
+					Attributes: asc.InAppPurchaseOfferCodeCustomCodeCreateAttributes{
+						CustomCode:     code,
+						NumberOfCodes:  *quantity,
+						ExpirationDate: normalizedExpiration,
+					},
+					Relationships: asc.InAppPurchaseOfferCodeCustomCodeCreateRelationships{
+						OfferCode: asc.Relationship{
+							Data: asc.ResourceData{
+								Type: asc.ResourceTypeInAppPurchaseOfferCodes,
+								ID:   id,
+							},
+						},
+					},
+				},
+			}
+
+			resp, err := client.CreateInAppPurchaseOfferCodeCustomCode(requestCtx, req)
+			if err != nil {
+				return fmt.Errorf("iap offer-codes custom-codes create: failed to create: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
 // IAPOfferCodesOneTimeCodesCommand returns the one-time codes command group.
 func IAPOfferCodesOneTimeCodesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes", flag.ExitOnError)
@@ -170,12 +259,14 @@ func IAPOfferCodesOneTimeCodesCommand() *ffcli.Command {
 Examples:
   asc iap offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes one-time-codes get --one-time-code-id "ONE_TIME_USE_CODE_ID"
+  asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 100 --expiration-date "2026-12-31"
   asc iap offer-codes one-time-codes values --one-time-code-id "ONE_TIME_USE_CODE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPOfferCodesOneTimeCodesListCommand(),
 			IAPOfferCodesOneTimeCodesGetCommand(),
+			IAPOfferCodesOneTimeCodesCreateCommand(),
 			IAPOfferCodesOneTimeCodesValuesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -296,6 +387,81 @@ Examples:
 			resp, err := client.GetInAppPurchaseOfferCodeOneTimeUseCode(requestCtx, id)
 			if err != nil {
 				return fmt.Errorf("iap offer-codes one-time-codes get: failed to fetch: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// IAPOfferCodesOneTimeCodesCreateCommand returns the one-time codes create subcommand.
+func IAPOfferCodesOneTimeCodesCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("offer-codes one-time-codes create", flag.ExitOnError)
+
+	offerCodeID := fs.String("offer-code-id", "", "Offer code ID (required)")
+	quantity := fs.Int("quantity", 0, "Number of codes to generate (required, positive integer)")
+	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD) (required)")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc iap offer-codes one-time-codes create --offer-code-id \"OFFER_CODE_ID\" --quantity N --expiration-date \"YYYY-MM-DD\" [flags]",
+		ShortHelp:  "Generate one-time use codes for an in-app purchase offer code.",
+		LongHelp: `Generate one-time use codes for an in-app purchase offer code.
+
+Examples:
+  asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 100 --expiration-date "2026-12-31"
+  asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 500 --expiration-date "2026-09-30"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*offerCodeID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
+				return flag.ErrHelp
+			}
+
+			if *quantity <= 0 {
+				fmt.Fprintln(os.Stderr, "Error: --quantity must be a positive integer")
+				return flag.ErrHelp
+			}
+
+			normalizedExpiration, err := shared.NormalizeDate(*expirationDate, "--expiration-date")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("iap offer-codes one-time-codes create: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			req := asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest{
+				Data: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateData{
+					Type: asc.ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes,
+					Attributes: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes{
+						NumberOfCodes:  *quantity,
+						ExpirationDate: normalizedExpiration,
+					},
+					Relationships: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships{
+						OfferCode: asc.Relationship{
+							Data: asc.ResourceData{
+								Type: asc.ResourceTypeInAppPurchaseOfferCodes,
+								ID:   id,
+							},
+						},
+					},
+				},
+			}
+
+			resp, err := client.CreateInAppPurchaseOfferCodeOneTimeUseCode(requestCtx, req)
+			if err != nil {
+				return fmt.Errorf("iap offer-codes one-time-codes create: failed to create: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output, *pretty)
