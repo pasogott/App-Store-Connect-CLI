@@ -420,6 +420,15 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/encryption` (`encryption declarations list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
 - [x] Commit Phase 49
 
+## Phase 50 - `--next` Parity for Custom Product Page Lists, Localizations, and Media Sets
+
+- [x] `internal/cli/productpages` (`custom-pages list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/productpages` (`custom-pages versions list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/productpages` (`custom-pages localizations list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/productpages` (`custom-pages localizations preview-sets list` invalid/malformed `--next` validation + `--paginate --next` without `--localization-id`)
+- [x] `internal/cli/productpages` (`custom-pages localizations screenshot-sets list` invalid/malformed `--next` validation + `--paginate --next` without `--localization-id`)
+- [x] Commit Phase 50
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
