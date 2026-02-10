@@ -436,6 +436,13 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/gamecenter` (`game-center achievements releases list` invalid/malformed `--next` validation + `--paginate --next` without `--achievement-id`)
 - [x] Commit Phase 51
 
+## Phase 52 - `--next` Parity for Game Center Achievement V2 Lists, Versions, and Localizations
+
+- [x] `internal/cli/gamecenter` (`game-center achievements v2 list` invalid/malformed `--next` validation + `--paginate --next` without `--app`/`--group-id`)
+- [x] `internal/cli/gamecenter` (`game-center achievements v2 versions list` invalid/malformed `--next` validation + `--paginate --next` without `--achievement-id`)
+- [x] `internal/cli/gamecenter` (`game-center achievements v2 localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
+- [x] Commit Phase 52
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
