@@ -40,9 +40,10 @@ type DoctorSummary struct {
 }
 
 type DoctorReport struct {
-	Sections        []DoctorSection `json:"sections"`
-	Summary         DoctorSummary   `json:"summary"`
-	Recommendations []string        `json:"recommendations,omitempty"`
+	Sections        []DoctorSection       `json:"sections"`
+	Summary         DoctorSummary         `json:"summary"`
+	Recommendations []string              `json:"recommendations,omitempty"`
+	Migration       *DoctorMigrationHints `json:"migration,omitempty"`
 }
 
 type DoctorOptions struct {
@@ -50,15 +51,17 @@ type DoctorOptions struct {
 }
 
 func Doctor(options DoctorOptions) DoctorReport {
+	migrationSection, migrationHints := inspectMigrationHints()
 	sections := []DoctorSection{
 		inspectStorage(options),
 		inspectProfiles(),
 		inspectPrivateKeys(options),
 		inspectEnvironment(),
 		inspectTempKeys(options),
+		migrationSection,
 	}
 
-	report := DoctorReport{Sections: sections}
+	report := DoctorReport{Sections: sections, Migration: migrationHints}
 	report.Summary, report.Recommendations = summarizeDoctorReport(sections)
 	return report
 }

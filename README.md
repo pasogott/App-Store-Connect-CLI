@@ -1590,7 +1590,7 @@ asc auth status
 asc auth status --verbose
 asc auth status --validate
 
-# Diagnose authentication issues
+# Diagnose authentication issues (includes migration hints when fastlane files are detected)
 asc auth doctor
 asc auth doctor --output json --pretty
 asc auth doctor --fix --confirm
