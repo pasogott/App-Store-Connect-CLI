@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -60,11 +61,24 @@ func TestBuildsLatestCommand_ValidPlatforms(t *testing.T) {
 	}
 }
 
+func TestBuildsLatestCommand_InvalidInitialBuildNumber(t *testing.T) {
+	cmd := BuildsLatestCommand()
+
+	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--next", "--initial-build-number", "0"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if err != flag.ErrHelp {
+		t.Errorf("expected flag.ErrHelp for invalid initial build number, got %v", err)
+	}
+}
+
 func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
 	cmd := BuildsLatestCommand()
 
 	// Verify all expected flags exist
-	expectedFlags := []string{"app", "version", "platform", "output", "pretty"}
+	expectedFlags := []string{"app", "version", "platform", "output", "pretty", "next", "initial-build-number"}
 	for _, name := range expectedFlags {
 		f := cmd.FlagSet.Lookup(name)
 		if f == nil {
@@ -78,6 +92,12 @@ func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
 	}
 	if f := cmd.FlagSet.Lookup("pretty"); f != nil && f.DefValue != "false" {
 		t.Errorf("expected --pretty default to be 'false', got %q", f.DefValue)
+	}
+	if f := cmd.FlagSet.Lookup("next"); f != nil && f.DefValue != "false" {
+		t.Errorf("expected --next default to be 'false', got %q", f.DefValue)
+	}
+	if f := cmd.FlagSet.Lookup("initial-build-number"); f != nil && f.DefValue != "1" {
+		t.Errorf("expected --initial-build-number default to be '1', got %q", f.DefValue)
 	}
 }
 
@@ -185,5 +205,57 @@ func TestSelectNewestBuild_OlderVersionCanBeNewer(t *testing.T) {
 	// The 1.0 hotfix should be selected because it was uploaded more recently
 	if newestBuild.ID != "build-v1-hotfix" {
 		t.Errorf("expected build-v1-hotfix (newer upload) to be selected, got %s", newestBuild.ID)
+	}
+}
+
+func TestParseBuildNumberRejectsNonNumeric(t *testing.T) {
+	_, err := parseBuildNumber("1a", "processed build")
+	if err == nil {
+		t.Fatal("expected error for non-numeric build number")
+	}
+	if !strings.Contains(err.Error(), "processed build") {
+		t.Fatalf("expected error to mention source, got %v", err)
+	}
+}
+
+func TestParseBuildNumberRejectsEmpty(t *testing.T) {
+	_, err := parseBuildNumber(" ", "build upload")
+	if err == nil {
+		t.Fatal("expected error for empty build number")
+	}
+}
+
+func TestParseBuildNumberAllowsNumeric(t *testing.T) {
+	got, err := parseBuildNumber("42", "processed build")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.String() != "42" {
+		t.Fatalf("expected 42, got %q", got.String())
+	}
+}
+
+func TestParseBuildNumberAllowsDotSeparatedNumeric(t *testing.T) {
+	got, err := parseBuildNumber("1.2.3", "build upload")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.String() != "1.2.3" {
+		t.Fatalf("expected 1.2.3, got %q", got.String())
+	}
+}
+
+func TestBuildNumberNextIncrementsLastSegment(t *testing.T) {
+	parsed, err := parseBuildNumber("1.2.3", "processed build")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	next, err := parsed.Next()
+	if err != nil {
+		t.Fatalf("unexpected error incrementing build number: %v", err)
+	}
+	if next.String() != "1.2.4" {
+		t.Fatalf("expected next build number 1.2.4, got %q", next.String())
 	}
 }

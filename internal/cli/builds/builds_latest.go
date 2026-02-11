@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,6 +25,8 @@ func BuildsLatestCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	next := fs.Bool("next", false, "Return next build number using processed builds and in-flight uploads")
+	initialBuildNumber := fs.Int("initial-build-number", 1, "Initial build number when none exist (used with --next)")
 
 	return &ffcli.Command{
 		Name:       "latest",
@@ -41,6 +45,11 @@ Platform and version filtering:
   --version alone     Returns latest build for that version (may be any platform)
   --platform + --version  Returns latest build matching both (recommended)
 
+Next build number mode:
+  --next              Returns the next build number (latest + 1) using
+                      processed builds and in-flight uploads
+  --initial-build-number  Starting build number when no history exists (default: 1)
+
 Examples:
   # Get latest build (JSON output for AI agents)
   asc builds latest --app "123456789"
@@ -55,7 +64,10 @@ Examples:
   asc builds latest --app "123456789" --version "1.2.3"
 
   # Human-readable output
-  asc builds latest --app "123456789" --output table`,
+  asc builds latest --app "123456789" --output table
+
+  # Collision-safe next build number for CI
+  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -78,6 +90,12 @@ Examples:
 			}
 
 			normalizedVersion := strings.TrimSpace(*version)
+			if *initialBuildNumber < 1 {
+				fmt.Fprintf(os.Stderr, "Error: --initial-build-number must be >= 1\n\n")
+				return flag.ErrHelp
+			}
+
+			hasPreReleaseFilters := normalizedVersion != "" || normalizedPlatform != ""
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -90,19 +108,21 @@ Examples:
 			// Determine which preReleaseVersion(s) to filter by
 			var preReleaseVersionIDs []string
 
-			if normalizedVersion != "" || normalizedPlatform != "" {
+			if hasPreReleaseFilters {
 				// Need to look up preReleaseVersions with the specified filters
 				preReleaseVersionIDs, err = findPreReleaseVersionIDs(requestCtx, client, resolvedAppID, normalizedVersion, normalizedPlatform)
 				if err != nil {
 					return fmt.Errorf("builds latest: %w", err)
 				}
 				if len(preReleaseVersionIDs) == 0 {
-					if normalizedVersion != "" && normalizedPlatform != "" {
-						return fmt.Errorf("builds latest: no pre-release version found for version %q on platform %s", normalizedVersion, normalizedPlatform)
-					} else if normalizedVersion != "" {
-						return fmt.Errorf("builds latest: no pre-release version found for version %q", normalizedVersion)
-					} else {
-						return fmt.Errorf("builds latest: no pre-release version found for platform %s", normalizedPlatform)
+					if !*next {
+						if normalizedVersion != "" && normalizedPlatform != "" {
+							return fmt.Errorf("builds latest: no pre-release version found for version %q on platform %s", normalizedVersion, normalizedPlatform)
+						} else if normalizedVersion != "" {
+							return fmt.Errorf("builds latest: no pre-release version found for version %q", normalizedVersion)
+						} else {
+							return fmt.Errorf("builds latest: no pre-release version found for platform %s", normalizedPlatform)
+						}
 					}
 				}
 			}
@@ -111,7 +131,7 @@ Examples:
 			// If we have preReleaseVersion filter(s), we need to find the latest across them
 			var latestBuild *asc.BuildResponse
 
-			if len(preReleaseVersionIDs) == 0 {
+			if !hasPreReleaseFilters {
 				// No filters - just get the latest build for the app
 				opts := []asc.BuildsOption{
 					asc.WithBuildsSort("-uploadedDate"),
@@ -122,11 +142,14 @@ Examples:
 					return fmt.Errorf("builds latest: failed to fetch: %w", err)
 				}
 				if len(builds.Data) == 0 {
-					return fmt.Errorf("builds latest: no builds found for app %s", resolvedAppID)
-				}
-				latestBuild = &asc.BuildResponse{
-					Data:  builds.Data[0],
-					Links: builds.Links,
+					if !*next {
+						return fmt.Errorf("builds latest: no builds found for app %s", resolvedAppID)
+					}
+				} else {
+					latestBuild = &asc.BuildResponse{
+						Data:  builds.Data[0],
+						Links: builds.Links,
+					}
 				}
 			} else if len(preReleaseVersionIDs) == 1 {
 				// Single preReleaseVersion - straightforward query
@@ -140,13 +163,16 @@ Examples:
 					return fmt.Errorf("builds latest: failed to fetch: %w", err)
 				}
 				if len(builds.Data) == 0 {
-					return fmt.Errorf("builds latest: no builds found matching filters")
+					if !*next {
+						return fmt.Errorf("builds latest: no builds found matching filters")
+					}
+				} else {
+					latestBuild = &asc.BuildResponse{
+						Data:  builds.Data[0],
+						Links: builds.Links,
+					}
 				}
-				latestBuild = &asc.BuildResponse{
-					Data:  builds.Data[0],
-					Links: builds.Links,
-				}
-			} else {
+			} else if len(preReleaseVersionIDs) > 1 {
 				// Multiple preReleaseVersions (platform filter without version filter)
 				// Query each and find the one with the most recent uploadedDate
 				var newestBuild *asc.Resource[asc.BuildAttributes]
@@ -171,14 +197,93 @@ Examples:
 				}
 
 				if newestBuild == nil {
-					return fmt.Errorf("builds latest: no builds found matching filters")
-				}
-				latestBuild = &asc.BuildResponse{
-					Data: *newestBuild,
+					if !*next {
+						return fmt.Errorf("builds latest: no builds found matching filters")
+					}
+				} else {
+					latestBuild = &asc.BuildResponse{
+						Data: *newestBuild,
+					}
 				}
 			}
 
-			return shared.PrintOutput(latestBuild, *output, *pretty)
+			if !*next {
+				return shared.PrintOutput(latestBuild, *output, *pretty)
+			}
+
+			var latestProcessedNumber *string
+			var latestUploadNumber *string
+			var latestObservedNumber *string
+			sourcesConsidered := make([]string, 0, 2)
+
+			var latestProcessedValue buildNumber
+			hasProcessed := false
+			if latestBuild != nil {
+				parsed, err := parseBuildNumber(latestBuild.Data.Attributes.Version, fmt.Sprintf("processed build %s", latestBuild.Data.ID))
+				if err != nil {
+					return fmt.Errorf("builds latest: %w", err)
+				}
+				latestProcessedValue = parsed
+				value := parsed.String()
+				latestProcessedNumber = &value
+				hasProcessed = true
+				sourcesConsidered = append(sourcesConsidered, "processed_builds")
+			}
+
+			buildUploads, err := fetchBuildUploads(requestCtx, client, resolvedAppID, normalizedVersion, normalizedPlatform)
+			if err != nil {
+				return fmt.Errorf("builds latest: %w", err)
+			}
+
+			var latestUploadValue buildNumber
+			hasUpload := false
+			for _, upload := range buildUploads.Data {
+				parsed, err := parseBuildNumber(upload.Attributes.CFBundleVersion, fmt.Sprintf("build upload %s", upload.ID))
+				if err != nil {
+					return fmt.Errorf("builds latest: %w", err)
+				}
+				if !hasUpload || parsed.Compare(latestUploadValue) > 0 {
+					latestUploadValue = parsed
+					value := parsed.String()
+					latestUploadNumber = &value
+					hasUpload = true
+				}
+			}
+			if hasUpload {
+				sourcesConsidered = append(sourcesConsidered, "build_uploads")
+			}
+
+			var latestObservedValue buildNumber
+			hasObserved := false
+			if hasProcessed {
+				latestObservedValue = latestProcessedValue
+				hasObserved = true
+				latestObservedNumber = latestProcessedNumber
+			}
+			if hasUpload && (!hasObserved || latestUploadValue.Compare(latestObservedValue) > 0) {
+				latestObservedValue = latestUploadValue
+				hasObserved = true
+				latestObservedNumber = latestUploadNumber
+			}
+
+			nextBuildNumberValue := strconv.FormatInt(int64(*initialBuildNumber), 10)
+			if hasObserved {
+				nextValue, err := latestObservedValue.Next()
+				if err != nil {
+					return fmt.Errorf("builds latest: %w", err)
+				}
+				nextBuildNumberValue = nextValue.String()
+			}
+
+			result := &asc.BuildsLatestNextResult{
+				LatestProcessedBuildNumber: latestProcessedNumber,
+				LatestUploadBuildNumber:    latestUploadNumber,
+				LatestObservedBuildNumber:  latestObservedNumber,
+				NextBuildNumber:            nextBuildNumberValue,
+				SourcesConsidered:          sourcesConsidered,
+			}
+
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -232,4 +337,120 @@ func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 	}
 
 	return ids, nil
+}
+
+func fetchBuildUploads(ctx context.Context, client *asc.Client, appID, version, platform string) (*asc.BuildUploadsResponse, error) {
+	opts := []asc.BuildUploadsOption{
+		asc.WithBuildUploadsStates([]string{"AWAITING_UPLOAD", "PROCESSING", "COMPLETE"}),
+		asc.WithBuildUploadsLimit(200),
+	}
+	if strings.TrimSpace(version) != "" {
+		opts = append(opts, asc.WithBuildUploadsCFBundleShortVersionStrings([]string{version}))
+	}
+	if strings.TrimSpace(platform) != "" {
+		opts = append(opts, asc.WithBuildUploadsPlatforms([]string{platform}))
+	}
+
+	uploads, err := client.GetBuildUploads(ctx, appID, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch build uploads: %w", err)
+	}
+
+	if uploads.Links.Next == "" {
+		return uploads, nil
+	}
+
+	allUploads, err := asc.PaginateAll(ctx, uploads, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetBuildUploads(ctx, appID, asc.WithBuildUploadsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to paginate build uploads: %w", err)
+	}
+
+	return allUploads.(*asc.BuildUploadsResponse), nil
+}
+
+type buildNumber struct {
+	components []int64
+}
+
+func (n buildNumber) String() string {
+	if len(n.components) == 0 {
+		return ""
+	}
+	parts := make([]string, len(n.components))
+	for i, component := range n.components {
+		parts[i] = strconv.FormatInt(component, 10)
+	}
+	return strings.Join(parts, ".")
+}
+
+func (n buildNumber) Compare(other buildNumber) int {
+	maxLen := len(n.components)
+	if len(other.components) > maxLen {
+		maxLen = len(other.components)
+	}
+	for i := 0; i < maxLen; i++ {
+		var left int64
+		if i < len(n.components) {
+			left = n.components[i]
+		}
+		var right int64
+		if i < len(other.components) {
+			right = other.components[i]
+		}
+		if left > right {
+			return 1
+		}
+		if left < right {
+			return -1
+		}
+	}
+	return 0
+}
+
+func (n buildNumber) Next() (buildNumber, error) {
+	if len(n.components) == 0 {
+		return buildNumber{}, fmt.Errorf("build number is missing (expected a positive integer)")
+	}
+	nextComponents := make([]int64, len(n.components))
+	copy(nextComponents, n.components)
+	last := len(nextComponents) - 1
+	if nextComponents[last] == math.MaxInt64 {
+		return buildNumber{}, fmt.Errorf("build number %q is too large to increment", n.String())
+	}
+	nextComponents[last]++
+	return buildNumber{components: nextComponents}, nil
+}
+
+func parseBuildNumber(raw, source string) (buildNumber, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return buildNumber{}, fmt.Errorf("%s build number is missing (expected a positive integer)", source)
+	}
+
+	segments := strings.Split(trimmed, ".")
+	components := make([]int64, 0, len(segments))
+	for _, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		if segment == "" {
+			return buildNumber{}, fmt.Errorf("%s build number %q is not numeric (expected a positive integer)", source, raw)
+		}
+		for _, ch := range segment {
+			if ch < '0' || ch > '9' {
+				return buildNumber{}, fmt.Errorf("%s build number %q is not numeric (expected a positive integer)", source, raw)
+			}
+		}
+		value, err := strconv.ParseInt(segment, 10, 64)
+		if err != nil {
+			return buildNumber{}, fmt.Errorf("%s build number %q is not numeric (expected a positive integer)", source, raw)
+		}
+		components = append(components, value)
+	}
+
+	if len(components) == 0 || components[0] < 1 {
+		return buildNumber{}, fmt.Errorf("%s build number %q must be >= 1", source, raw)
+	}
+
+	return buildNumber{components: components}, nil
 }

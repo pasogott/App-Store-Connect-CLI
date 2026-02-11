@@ -37,6 +37,15 @@ type BuildUploadDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
+// BuildsLatestNextResult represents CLI output for next build number selection.
+type BuildsLatestNextResult struct {
+	LatestProcessedBuildNumber *string  `json:"latestProcessedBuildNumber"`
+	LatestUploadBuildNumber    *string  `json:"latestUploadBuildNumber"`
+	LatestObservedBuildNumber  *string  `json:"latestObservedBuildNumber"`
+	NextBuildNumber            string   `json:"nextBuildNumber"`
+	SourcesConsidered          []string `json:"sourcesConsidered"`
+}
+
 // BuildExpireAllItem represents a build selected for expiration.
 type BuildExpireAllItem struct {
 	ID           string `json:"id"`
@@ -243,5 +252,31 @@ func buildIndividualTestersUpdateRows(result *BuildIndividualTestersUpdateResult
 func buildUploadDeleteResultRows(result *BuildUploadDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	return headers, rows
+}
+
+func buildsLatestNextValue(value *string) string {
+	if value == nil {
+		return "n/a"
+	}
+	return *value
+}
+
+func buildsLatestNextSources(sources []string) string {
+	if len(sources) == 0 {
+		return "n/a"
+	}
+	return strings.Join(sources, ", ")
+}
+
+func buildsLatestNextRows(result *BuildsLatestNextResult) ([]string, [][]string) {
+	headers := []string{"Latest Processed", "Latest Upload", "Latest Observed", "Next", "Sources"}
+	rows := [][]string{{
+		buildsLatestNextValue(result.LatestProcessedBuildNumber),
+		buildsLatestNextValue(result.LatestUploadBuildNumber),
+		buildsLatestNextValue(result.LatestObservedBuildNumber),
+		result.NextBuildNumber,
+		buildsLatestNextSources(result.SourcesConsidered),
+	}}
 	return headers, rows
 }

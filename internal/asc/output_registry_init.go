@@ -299,6 +299,7 @@ func init() {
 	})
 	registerRows(buildIconsRows)
 	registerRows(buildUploadsRows)
+	registerRows(buildsLatestNextRows)
 	registerRows(func(v *BuildUploadResponse) ([]string, [][]string) {
 		return buildUploadsRows(&BuildUploadsResponse{Data: []Resource[BuildUploadAttributes]{v.Data}})
 	})
