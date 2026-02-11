@@ -1140,6 +1140,100 @@ func TestParseErrorWithStatus_NonJSONNotFoundMapsCode(t *testing.T) {
 	}
 }
 
+func TestParseErrorWithStatus_AssociatedErrors(t *testing.T) {
+	payload := []byte(`{
+		"errors": [{
+			"status": "409",
+			"code": "STATE_ERROR.ENTITY_STATE_INVALID",
+			"title": "appStoreVersions with id 'version-1' is not in valid state.",
+			"detail": "This resource cannot be reviewed, please check associated errors to see why.",
+			"meta": {
+				"associatedErrors": {
+					"/v1/ageRatingDeclarations/age-rating-1": [
+						{
+							"code": "ENTITY_ERROR.ATTRIBUTE.REQUIRED",
+							"detail": "You must provide a value for the attribute 'parentalControls' with this request"
+						},
+						{
+							"code": "ENTITY_ERROR.ATTRIBUTE.REQUIRED",
+							"detail": "You must provide a value for the attribute 'healthOrWellnessTopics' with this request"
+						}
+					]
+				}
+			}
+		}]
+	}`)
+
+	err := ParseErrorWithStatus(payload, 409)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != 409 {
+		t.Fatalf("expected status code 409, got %d", apiErr.StatusCode)
+	}
+	if len(apiErr.AssociatedErrors) != 1 {
+		t.Fatalf("expected 1 associated error key, got %d", len(apiErr.AssociatedErrors))
+	}
+	items := apiErr.AssociatedErrors["/v1/ageRatingDeclarations/age-rating-1"]
+	if len(items) != 2 {
+		t.Fatalf("expected 2 associated errors, got %d", len(items))
+	}
+
+	message := apiErr.Error()
+	if !strings.Contains(message, "Associated errors for /v1/ageRatingDeclarations/age-rating-1:") {
+		t.Fatalf("expected associated errors heading in message, got %q", message)
+	}
+	if !strings.Contains(message, "parentalControls") {
+		t.Fatalf("expected parentalControls detail in message, got %q", message)
+	}
+	if !strings.Contains(message, "healthOrWellnessTopics") {
+		t.Fatalf("expected healthOrWellnessTopics detail in message, got %q", message)
+	}
+}
+
+func TestParseErrorWithStatus_AssociatedErrorsMalformedDoesNotBreakBaseError(t *testing.T) {
+	payload := []byte(`{
+		"errors": [{
+			"status": "409",
+			"code": "STATE_ERROR.ENTITY_STATE_INVALID",
+			"title": "Invalid state",
+			"detail": "Top-level detail",
+			"meta": {
+				"associatedErrors": {
+					"/v1/ageRatingDeclarations/age-rating-1": {"code":"BAD_SHAPE"}
+				}
+			}
+		}]
+	}`)
+
+	err := ParseErrorWithStatus(payload, 409)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.Title != "Invalid state" {
+		t.Fatalf("expected title to parse, got %q", apiErr.Title)
+	}
+	if apiErr.Detail != "Top-level detail" {
+		t.Fatalf("expected detail to parse, got %q", apiErr.Detail)
+	}
+	if len(apiErr.AssociatedErrors) != 0 {
+		t.Fatalf("expected no associated errors from malformed payload, got %+v", apiErr.AssociatedErrors)
+	}
+	if strings.Contains(apiErr.Error(), "Associated errors for") {
+		t.Fatalf("did not expect associated errors section in message, got %q", apiErr.Error())
+	}
+}
+
 func TestBuildAppsQuery(t *testing.T) {
 	query := &appsQuery{}
 	opts := []AppsOption{

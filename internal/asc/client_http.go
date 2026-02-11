@@ -492,18 +492,21 @@ func ParseError(body []byte) error {
 func ParseErrorWithStatus(body []byte, statusCode int) error {
 	var errResp struct {
 		Errors []struct {
-			Code   string `json:"code"`
-			Title  string `json:"title"`
-			Detail string `json:"detail"`
+			Code   string          `json:"code"`
+			Title  string          `json:"title"`
+			Detail string          `json:"detail"`
+			Meta   json.RawMessage `json:"meta"`
 		} `json:"errors"`
 	}
 
 	if err := json.Unmarshal(body, &errResp); err == nil && len(errResp.Errors) > 0 {
+		associatedErrors := parseAssociatedErrors(errResp.Errors[0].Meta)
 		return &APIError{
-			Code:       errResp.Errors[0].Code,
-			Title:      errResp.Errors[0].Title,
-			Detail:     errResp.Errors[0].Detail,
-			StatusCode: statusCode,
+			Code:             errResp.Errors[0].Code,
+			Title:            errResp.Errors[0].Title,
+			Detail:           errResp.Errors[0].Detail,
+			StatusCode:       statusCode,
+			AssociatedErrors: associatedErrors,
 		}
 	}
 
@@ -519,6 +522,62 @@ func ParseErrorWithStatus(body []byte, statusCode int) error {
 		Detail:     sanitized,
 		StatusCode: statusCode,
 	}
+}
+
+func parseAssociatedErrors(metaRaw json.RawMessage) map[string][]APIAssociatedError {
+	if len(metaRaw) == 0 {
+		return nil
+	}
+
+	var meta map[string]json.RawMessage
+	if err := json.Unmarshal(metaRaw, &meta); err != nil {
+		return nil
+	}
+
+	associatedRaw, ok := meta["associatedErrors"]
+	if !ok {
+		return nil
+	}
+
+	var associatedByResourceRaw map[string]json.RawMessage
+	if err := json.Unmarshal(associatedRaw, &associatedByResourceRaw); err != nil {
+		return nil
+	}
+
+	associatedByResource := make(map[string][]APIAssociatedError)
+	for resource, entriesRaw := range associatedByResourceRaw {
+		var rawEntries []json.RawMessage
+		if err := json.Unmarshal(entriesRaw, &rawEntries); err != nil {
+			continue
+		}
+
+		entries := make([]APIAssociatedError, 0, len(rawEntries))
+		for _, rawEntry := range rawEntries {
+			var parsed struct {
+				Code   string `json:"code"`
+				Detail string `json:"detail"`
+			}
+			if err := json.Unmarshal(rawEntry, &parsed); err != nil {
+				continue
+			}
+			if strings.TrimSpace(parsed.Code) == "" && strings.TrimSpace(parsed.Detail) == "" {
+				continue
+			}
+			entries = append(entries, APIAssociatedError{
+				Code:   parsed.Code,
+				Detail: parsed.Detail,
+			})
+		}
+
+		if len(entries) > 0 {
+			associatedByResource[resource] = entries
+		}
+	}
+
+	if len(associatedByResource) == 0 {
+		return nil
+	}
+	return associatedByResource
 }
 
 func apiErrorCodeFromStatus(statusCode int) string {
