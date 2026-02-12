@@ -40,5 +40,11 @@
     "link": "https://apps.apple.com/us/app/unlimited-clipboard-history/id6705136056",
     "creator": "yspreen",
     "platform": ["macOS"]
+  },
+  {
+    "app": "Fisherman SMS Filtering",
+    "link": "https://apps.apple.com/app/id6449192504",
+    "creator": "MGidnian",
+    "platform": ["iOS"]
   }
 ]

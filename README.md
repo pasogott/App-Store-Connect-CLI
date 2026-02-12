@@ -25,6 +25,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 |:----|:-----|:--------|:---------|
 | CodexMonitor | [Open](https://github.com/Dimillian/CodexMonitor) | Dimillian | macOS, iOS |
 | DoubleMemory | [Open](https://doublememory.com) | Shaomeng Zhang | iOS |
+| Fisherman SMS Filtering | [Open](https://apps.apple.com/app/id6449192504) | MGidnian | iOS |
 | kora: Music Reviews & Ratings | [Open](https://apps.apple.com/app/id6502549140) | adamjhf | iOS |
 | MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | iOS |
 | Repetti | [Open](https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413) | rursache | iOS |
