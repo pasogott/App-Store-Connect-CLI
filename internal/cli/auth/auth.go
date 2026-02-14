@@ -130,7 +130,7 @@ Examples:
 				Created:    true,
 				Config:     template,
 			}
-			return asc.PrintJSON(result)
+			return shared.PrintOutput(result, "json", false)
 		},
 	}
 }
@@ -139,8 +139,7 @@ Examples:
 func AuthDoctorCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth doctor", flag.ExitOnError)
 
-	output := fs.String("output", "text", "Output format: text (default), json")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlagsWith(fs, "output", "text", "Output format: text (default), json")
 	fix := fs.Bool("fix", false, "Attempt to fix issues where possible")
 	confirm := fs.Bool("confirm", false, "Confirm applying fixes")
 
@@ -160,12 +159,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			normalizedOutput := strings.ToLower(strings.TrimSpace(*output))
-			if normalizedOutput != "text" && normalizedOutput != "json" {
-				return shared.UsageErrorf("unsupported format: %s", *output)
-			}
-			if normalizedOutput != "json" && *pretty {
-				return shared.UsageError("--pretty is only valid with JSON output")
+			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			if *fix && !*confirm {
 				return shared.UsageError("--fix requires --confirm")
@@ -176,7 +172,7 @@ Examples:
 				doctorMigrationSuggestionResolver(),
 			)
 			if normalizedOutput == "json" {
-				if err := shared.PrintOutput(report, "json", *pretty); err != nil {
+				if err := shared.PrintOutput(report, "json", *output.Pretty); err != nil {
 					return err
 				}
 			} else {
