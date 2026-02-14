@@ -50,7 +50,7 @@ func TestRenderByRegistryFallbackToJSON(t *testing.T) {
 	if output == "" {
 		t.Fatal("expected JSON fallback output")
 	}
-	if !contains(output, "test") {
+	if !strings.Contains(output, "test") {
 		t.Fatalf("expected JSON output to contain 'test', got: %s", output)
 	}
 }
@@ -184,14 +184,8 @@ func TestOutputRegistryRowsWithSingleResourceHelperRegistration(t *testing.T) {
 	singleKey := reflect.TypeOf(&SingleResponse[attrs]{})
 	cleanupRegistryTypes(t, listKey, singleKey)
 
-	listHandler, ok := outputRegistry[listKey]
-	if !ok || listHandler == nil {
-		t.Fatal("expected list handler from rows+single-resource helper")
-	}
-	singleHandler, ok := outputRegistry[singleKey]
-	if !ok || singleHandler == nil {
-		t.Fatal("expected single handler from rows+single-resource helper")
-	}
+	listHandler := requireOutputHandler(t, listKey, "list handler from rows+single-resource helper")
+	singleHandler := requireOutputHandler(t, singleKey, "single handler from rows+single-resource helper")
 
 	_, listRows, err := listHandler(&Response[attrs]{
 		Data: []Resource[attrs]{{ID: "list-id", Attributes: attrs{Name: "list-name"}}},
@@ -357,14 +351,8 @@ func TestOutputRegistryRowsWithSingleToListHelperRegistration(t *testing.T) {
 	listKey := reflect.TypeOf(&list{})
 	cleanupRegistryTypes(t, singleKey, listKey)
 
-	singleHandler, ok := outputRegistry[singleKey]
-	if !ok || singleHandler == nil {
-		t.Fatal("expected single handler from rows+single-to-list helper")
-	}
-	listHandler, ok := outputRegistry[listKey]
-	if !ok || listHandler == nil {
-		t.Fatal("expected list handler from rows+single-to-list helper")
-	}
+	singleHandler := requireOutputHandler(t, singleKey, "single handler from rows+single-to-list helper")
+	listHandler := requireOutputHandler(t, listKey, "list handler from rows+single-to-list helper")
 
 	_, singleRows, err := singleHandler(&single{Data: "single-value"})
 	if err != nil {
@@ -459,6 +447,53 @@ func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenSingle
 		})
 	})
 
+	assertRegistryTypeAbsent(t, listKey)
+}
+
+func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenListDirectRegistered(t *testing.T) {
+	type single struct {
+		Data string
+	}
+	type list struct {
+		Data []string
+	}
+
+	singleKey := reflect.TypeOf(&single{})
+	listKey := reflect.TypeOf(&list{})
+	cleanupRegistryTypes(t, singleKey, listKey)
+
+	registerDirect(func(v *list, render func([]string, [][]string)) error {
+		return nil
+	})
+
+	expectPanic(t, "expected conflict panic when list direct handler is already registered", func() {
+		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
+			return []string{"value"}, nil
+		})
+	})
+
+	assertRegistryTypeAbsent(t, singleKey)
+}
+
+func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenAdapterPanics(t *testing.T) {
+	type single struct {
+		Value string
+	}
+	type list struct {
+		Data []string
+	}
+
+	singleKey := reflect.TypeOf(&single{})
+	listKey := reflect.TypeOf(&list{})
+	cleanupRegistryTypes(t, singleKey, listKey)
+
+	expectPanic(t, "expected adapter panic for missing Data field", func() {
+		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
+			return []string{"value"}, nil
+		})
+	})
+
+	assertRegistryTypeAbsent(t, singleKey)
 	assertRegistryTypeAbsent(t, listKey)
 }
 
@@ -623,8 +658,16 @@ func TestOutputRegistryRegisterDirectPanicsWhenRowsRegistered(t *testing.T) {
 	})
 }
 
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
+func TestEnsureRegistryTypesAvailablePanicsOnDuplicateTypes(t *testing.T) {
+	type duplicate struct{}
+	key := reflect.TypeOf(&duplicate{})
+	cleanupRegistryTypes(t, key)
+
+	expectPanicContains(t, "duplicate registration", func() {
+		ensureRegistryTypesAvailable(key, key)
+	})
+
+	assertRegistryTypeAbsent(t, key)
 }
 
 func expectPanic(t *testing.T, message string, fn func()) {
@@ -662,7 +705,7 @@ func assertRowContains(t *testing.T, headers []string, rows [][]string, minColum
 	}
 	joined := strings.Join(rows[0], " ")
 	for _, want := range expected {
-		if !contains(joined, want) {
+		if !strings.Contains(joined, want) {
 			t.Fatalf("expected row to contain %q, got row=%v", want, rows[0])
 		}
 	}

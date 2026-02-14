@@ -28,7 +28,12 @@ func ensureRegistryTypeAvailable(t reflect.Type) {
 }
 
 func ensureRegistryTypesAvailable(types ...reflect.Type) {
+	seen := make(map[reflect.Type]struct{}, len(types))
 	for _, t := range types {
+		if _, exists := seen[t]; exists {
+			panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
+		}
+		seen[t] = struct{}{}
 		ensureRegistryTypeAvailable(t)
 	}
 }
@@ -103,6 +108,10 @@ func registerRowsWithSingleResourceAdapter[T any](rows func(*Response[T]) ([]str
 // names. The source type must expose `Data` and may expose `Links`; the target
 // type must expose `Data` as a slice and may expose `Links`.
 func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string)) {
+	registerRows(singleToListRowsAdapter[T, U](rows))
+}
+
+func singleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string)) func(*T) ([]string, [][]string) {
 	sourceType := reflect.TypeFor[T]()
 	targetType := reflect.TypeFor[U]()
 	if sourceType.Kind() != reflect.Struct {
@@ -135,7 +144,7 @@ func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]
 		targetHasLinks &&
 		sourceLinksField.Type.AssignableTo(targetLinksField.Type)
 
-	registerRows(func(v *T) ([]string, [][]string) {
+	return func(v *T) ([]string, [][]string) {
 		source := reflect.ValueOf(v).Elem()
 		var target U
 		targetValue := reflect.ValueOf(&target).Elem()
@@ -154,7 +163,7 @@ func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]
 		}
 
 		return rows(&target)
-	})
+	}
 }
 
 // registerRowsWithSingleToListAdapter registers both list and single handlers
@@ -164,8 +173,9 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 		reflect.TypeFor[*U](),
 		reflect.TypeFor[*T](),
 	)
+	adapter := singleToListRowsAdapter[T, U](rows)
 	registerRows(rows)
-	registerSingleToListRowsAdapter[T, U](rows)
+	registerRows(adapter)
 }
 
 // registerDirect registers a type that needs direct render control (multi-table output).
