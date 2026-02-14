@@ -66,6 +66,13 @@ var debugOverride struct {
 	verboseHTTP *bool
 }
 
+var (
+	loadConfigFn = config.Load
+	loadConfigMu sync.Mutex
+	cachedConfig *config.Config
+	configLoaded bool
+)
+
 type debugSettings struct {
 	enabled     bool
 	verboseHTTP bool
@@ -173,11 +180,42 @@ func resolveDebugValue(value string) debugSettings {
 }
 
 func loadConfig() *config.Config {
-	cfg, err := config.Load()
+	loadConfigMu.Lock()
+	defer loadConfigMu.Unlock()
+
+	if configLoaded {
+		return cachedConfig
+	}
+
+	cfg, err := loadConfigFn()
 	if err != nil {
 		return nil
 	}
-	return cfg
+	cachedConfig = cfg
+	configLoaded = true
+	return cachedConfig
+}
+
+func resetConfigCacheForTest() {
+	loadConfigMu.Lock()
+	defer loadConfigMu.Unlock()
+
+	loadConfigFn = config.Load
+	cachedConfig = nil
+	configLoaded = false
+}
+
+func setConfigLoaderForTest(loader func() (*config.Config, error)) {
+	loadConfigMu.Lock()
+	defer loadConfigMu.Unlock()
+
+	if loader == nil {
+		loadConfigFn = config.Load
+	} else {
+		loadConfigFn = loader
+	}
+	cachedConfig = nil
+	configLoaded = false
 }
 
 func envValue(name string) (string, bool) {
