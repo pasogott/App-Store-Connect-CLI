@@ -18,6 +18,10 @@ var outputRegistry = map[reflect.Type]rowsFunc{}
 // directRenderRegistry maps types that need direct render control (multi-table output).
 var directRenderRegistry = map[reflect.Type]directRenderFunc{}
 
+func panicNilHelperFunction(kind string, t reflect.Type) {
+	panic(fmt.Sprintf("output registry: nil %s for %s", kind, t))
+}
+
 func ensureRegistryTypeAvailable(t reflect.Type) {
 	if _, exists := outputRegistry[t]; exists {
 		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
@@ -43,7 +47,7 @@ func ensureRegistryTypesAvailable(types ...reflect.Type) {
 func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 	t := reflect.TypeFor[*T]()
 	if fn == nil {
-		panic(fmt.Sprintf("output registry: nil rows function for %s", t))
+		panicNilHelperFunction("rows function", t)
 	}
 	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
@@ -56,7 +60,7 @@ func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 func registerRowsErr[T any](fn func(*T) ([]string, [][]string, error)) {
 	t := reflect.TypeFor[*T]()
 	if fn == nil {
-		panic(fmt.Sprintf("output registry: nil rows function for %s", t))
+		panicNilHelperFunction("rows function", t)
 	}
 	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
@@ -66,7 +70,7 @@ func registerRowsErr[T any](fn func(*T) ([]string, [][]string, error)) {
 
 func registerSingleLinkageRows[T any](extract func(*T) ResourceData) {
 	if extract == nil {
-		panic(fmt.Sprintf("output registry: nil linkage extractor for %s", reflect.TypeFor[*T]()))
+		panicNilHelperFunction("linkage extractor", reflect.TypeFor[*T]())
 	}
 	registerRows(func(v *T) ([]string, [][]string) {
 		return linkagesRows(&LinkagesResponse{Data: []ResourceData{extract(v)}})
@@ -75,10 +79,10 @@ func registerSingleLinkageRows[T any](extract func(*T) ResourceData) {
 
 func registerIDStateRows[T any](extract func(*T) (string, string), rows func(string, string) ([]string, [][]string)) {
 	if extract == nil {
-		panic(fmt.Sprintf("output registry: nil id/state extractor for %s", reflect.TypeFor[*T]()))
+		panicNilHelperFunction("id/state extractor", reflect.TypeFor[*T]())
 	}
 	if rows == nil {
-		panic(fmt.Sprintf("output registry: nil id/state rows function for %s", reflect.TypeFor[*T]()))
+		panicNilHelperFunction("id/state rows function", reflect.TypeFor[*T]())
 	}
 	registerRows(func(v *T) ([]string, [][]string) {
 		id, state := extract(v)
@@ -88,10 +92,10 @@ func registerIDStateRows[T any](extract func(*T) (string, string), rows func(str
 
 func registerIDBoolRows[T any](extract func(*T) (string, bool), rows func(string, bool) ([]string, [][]string)) {
 	if extract == nil {
-		panic(fmt.Sprintf("output registry: nil id/bool extractor for %s", reflect.TypeFor[*T]()))
+		panicNilHelperFunction("id/bool extractor", reflect.TypeFor[*T]())
 	}
 	if rows == nil {
-		panic(fmt.Sprintf("output registry: nil id/bool rows function for %s", reflect.TypeFor[*T]()))
+		panicNilHelperFunction("id/bool rows function", reflect.TypeFor[*T]())
 	}
 	registerRows(func(v *T) ([]string, [][]string) {
 		id, deleted := extract(v)
@@ -101,7 +105,7 @@ func registerIDBoolRows[T any](extract func(*T) (string, bool), rows func(string
 
 func registerResponseDataRows[T any](rows func([]Resource[T]) ([]string, [][]string)) {
 	if rows == nil {
-		panic(fmt.Sprintf("output registry: nil response-data rows function for %s", reflect.TypeFor[*Response[T]]()))
+		panicNilHelperFunction("response-data rows function", reflect.TypeFor[*Response[T]]())
 	}
 	registerRows(func(v *Response[T]) ([]string, [][]string) {
 		return rows(v.Data)
@@ -112,7 +116,7 @@ func registerResponseDataRows[T any](rows func([]Resource[T]) ([]string, [][]str
 // by adapting SingleResponse[T] into Response[T] with one item in Data.
 func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {
 	if rows == nil {
-		panic(fmt.Sprintf("output registry: nil rows function for %s", reflect.TypeFor[*SingleResponse[T]]()))
+		panicNilHelperFunction("rows function", reflect.TypeFor[*SingleResponse[T]]())
 	}
 	registerRows(func(v *SingleResponse[T]) ([]string, [][]string) {
 		return rows(&Response[T]{Data: []Resource[T]{v.Data}})
@@ -123,7 +127,7 @@ func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string,
 // for row renderers that operate on Response[T].
 func registerRowsWithSingleResourceAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {
 	if rows == nil {
-		panic(fmt.Sprintf("output registry: nil rows function for %s", reflect.TypeFor[*Response[T]]()))
+		panicNilHelperFunction("rows function", reflect.TypeFor[*Response[T]]())
 	}
 	ensureRegistryTypesAvailable(
 		reflect.TypeFor[*Response[T]](),
@@ -143,7 +147,7 @@ func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]
 
 func singleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string)) func(*T) ([]string, [][]string) {
 	if rows == nil {
-		panic(fmt.Sprintf("output registry: nil rows function for %s", reflect.TypeFor[*U]()))
+		panicNilHelperFunction("rows function", reflect.TypeFor[*U]())
 	}
 
 	sourceType := reflect.TypeFor[T]()
@@ -204,7 +208,7 @@ func singleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string))
 // when list rendering expects a concrete list response type.
 func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, [][]string)) {
 	if rows == nil {
-		panic(fmt.Sprintf("output registry: nil rows function for %s", reflect.TypeFor[*U]()))
+		panicNilHelperFunction("rows function", reflect.TypeFor[*U]())
 	}
 	adapter := singleToListRowsAdapter[T, U](rows)
 	ensureRegistryTypesAvailable(
@@ -219,7 +223,7 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	t := reflect.TypeFor[*T]()
 	if fn == nil {
-		panic(fmt.Sprintf("output registry: nil direct render function for %s", t))
+		panicNilHelperFunction("direct render function", t)
 	}
 	ensureRegistryTypeAvailable(t)
 	directRenderRegistry[t] = func(data any, render func([]string, [][]string)) error {

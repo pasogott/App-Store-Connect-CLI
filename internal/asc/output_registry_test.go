@@ -90,12 +90,7 @@ func TestOutputRegistrySingleLinkageHelperPanicsOnNilExtractor(t *testing.T) {
 func TestOutputRegistrySingleLinkageHelperNilExtractorPanicsBeforeConflictChecks(t *testing.T) {
 	type linkage struct{}
 
-	key := reflect.TypeOf(&linkage{})
-	cleanupRegistryTypes(t, key)
-
-	registerRows(func(v *linkage) ([]string, [][]string) {
-		return []string{"id"}, nil
-	})
+	preregisterRowsForConflict[linkage](t, "id")
 
 	expectPanicContains(t, "nil linkage extractor", func() {
 		registerSingleLinkageRows[linkage](nil)
@@ -136,6 +131,18 @@ func TestOutputRegistryIDStateHelperPanicsOnNilExtractor(t *testing.T) {
 	assertRegistryTypeAbsent(t, key)
 }
 
+func TestOutputRegistryIDStateHelperNilExtractorPanicsBeforeConflictChecks(t *testing.T) {
+	type state struct{}
+
+	preregisterRowsForConflict[state](t, "id", "state")
+
+	expectPanicContains(t, "nil id/state extractor", func() {
+		registerIDStateRows[state](nil, func(id, value string) ([]string, [][]string) {
+			return []string{"id", "state"}, [][]string{{id, value}}
+		})
+	})
+}
+
 func TestOutputRegistryIDStateHelperPanicsOnNilRows(t *testing.T) {
 	type state struct{}
 
@@ -154,12 +161,7 @@ func TestOutputRegistryIDStateHelperPanicsOnNilRows(t *testing.T) {
 func TestOutputRegistryIDStateHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
 	type state struct{}
 
-	key := reflect.TypeOf(&state{})
-	cleanupRegistryTypes(t, key)
-
-	registerRows(func(v *state) ([]string, [][]string) {
-		return []string{"id", "state"}, nil
-	})
+	preregisterRowsForConflict[state](t, "id", "state")
 
 	expectPanicContains(t, "nil id/state rows function", func() {
 		registerIDStateRows[state](func(*state) (string, string) {
@@ -215,6 +217,18 @@ func TestOutputRegistryIDBoolHelperPanicsOnNilExtractor(t *testing.T) {
 	assertRegistryTypeAbsent(t, key)
 }
 
+func TestOutputRegistryIDBoolHelperNilExtractorPanicsBeforeConflictChecks(t *testing.T) {
+	type idBool struct{}
+
+	preregisterRowsForConflict[idBool](t, "id", "deleted")
+
+	expectPanicContains(t, "nil id/bool extractor", func() {
+		registerIDBoolRows[idBool](nil, func(id string, deleted bool) ([]string, [][]string) {
+			return []string{"id", "deleted"}, [][]string{{id, fmt.Sprintf("%t", deleted)}}
+		})
+	})
+}
+
 func TestOutputRegistryResponseDataHelperRegistration(t *testing.T) {
 	handler := requireOutputHandler(
 		t,
@@ -252,12 +266,7 @@ func TestOutputRegistryResponseDataHelperPanicsOnNilRows(t *testing.T) {
 func TestOutputRegistryResponseDataHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
 	type attrs struct{}
 
-	key := reflect.TypeOf(&Response[attrs]{})
-	cleanupRegistryTypes(t, key)
-
-	registerRows(func(v *Response[attrs]) ([]string, [][]string) {
-		return []string{"id"}, nil
-	})
+	preregisterRowsForConflict[Response[attrs]](t, "id")
 
 	expectPanicContains(t, "nil response-data rows function", func() {
 		registerResponseDataRows[attrs](nil)
@@ -321,12 +330,7 @@ func TestOutputRegistrySingleResourceHelperNilRowsPanicsBeforeConflictChecks(t *
 		Name string `json:"name"`
 	}
 
-	singleKey := reflect.TypeOf(&SingleResponse[helperAttrs]{})
-	cleanupRegistryTypes(t, singleKey)
-
-	registerRows(func(v *SingleResponse[helperAttrs]) ([]string, [][]string) {
-		return []string{"ID"}, [][]string{{v.Data.ID}}
-	})
+	preregisterRowsForConflict[SingleResponse[helperAttrs]](t, "ID")
 
 	expectPanicContains(t, "nil rows function", func() {
 		registerSingleResourceRowsAdapter[helperAttrs](nil)
@@ -482,13 +486,9 @@ func TestOutputRegistryRowsWithSingleResourceHelperNilRowsPanicsBeforeConflictCh
 		Name string `json:"name"`
 	}
 
-	listKey := reflect.TypeOf(&Response[attrs]{})
+	preregisterRowsForConflict[Response[attrs]](t, "ID")
 	singleKey := reflect.TypeOf(&SingleResponse[attrs]{})
-	cleanupRegistryTypes(t, listKey, singleKey)
-
-	registerRows(func(v *Response[attrs]) ([]string, [][]string) {
-		return []string{"ID"}, nil
-	})
+	cleanupRegistryTypes(t, singleKey)
 
 	expectPanicContains(t, "nil rows function", func() {
 		registerRowsWithSingleResourceAdapter[attrs](nil)
@@ -820,6 +820,23 @@ func TestOutputRegistrySingleToListHelperPanicsOnNilRowsFunction(t *testing.T) {
 	assertRegistryTypeAbsent(t, singleKey)
 }
 
+func TestOutputRegistrySingleToListHelperAdapterValidationPanicsBeforeConflictChecks(t *testing.T) {
+	type single struct {
+		Value string
+	}
+	type list struct {
+		Data []string
+	}
+
+	preregisterRowsForConflict[single](t, "value")
+
+	expectPanicContains(t, "requires Data field", func() {
+		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+			return []string{"value"}, nil
+		})
+	})
+}
+
 func TestOutputRegistrySingleToListHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
 	type single struct {
 		Data string
@@ -828,12 +845,7 @@ func TestOutputRegistrySingleToListHelperNilRowsPanicsBeforeConflictChecks(t *te
 		Data []string
 	}
 
-	singleKey := reflect.TypeOf(&single{})
-	cleanupRegistryTypes(t, singleKey)
-
-	registerRows(func(v *single) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{v.Data}}
-	})
+	preregisterRowsForConflict[single](t, "value")
 
 	expectPanicContains(t, "nil rows function", func() {
 		registerSingleToListRowsAdapter[single, list](nil)
@@ -870,12 +882,7 @@ func TestOutputRegistryRegisterRowsPanicsOnNilFunction(t *testing.T) {
 
 func TestOutputRegistryRegisterRowsNilFunctionPanicsBeforeConflictChecks(t *testing.T) {
 	type nilRows struct{}
-	key := reflect.TypeOf(&nilRows{})
-	cleanupRegistryTypes(t, key)
-
-	registerRows(func(v *nilRows) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{"existing"}}
-	})
+	preregisterRowsForConflict[nilRows](t, "value")
 
 	expectPanicContains(t, "nil rows function", func() {
 		registerRows[nilRows](nil)
@@ -994,12 +1001,8 @@ func TestOutputRegistryRowsWithSingleToListHelperNilRowsPanicsBeforeConflictChec
 	}
 
 	singleKey := reflect.TypeOf(&single{})
-	listKey := reflect.TypeOf(&list{})
-	cleanupRegistryTypes(t, singleKey, listKey)
-
-	registerRows(func(v *list) ([]string, [][]string) {
-		return []string{"value"}, nil
-	})
+	preregisterRowsForConflict[list](t, "value")
+	cleanupRegistryTypes(t, singleKey)
 
 	expectPanicContains(t, "nil rows function", func() {
 		registerRowsWithSingleToListAdapter[single, list](nil)
@@ -1017,12 +1020,8 @@ func TestOutputRegistryRowsWithSingleToListHelperAdapterValidationPanicsBeforeCo
 	}
 
 	singleKey := reflect.TypeOf(&single{})
-	listKey := reflect.TypeOf(&list{})
-	cleanupRegistryTypes(t, singleKey, listKey)
-
-	registerRows(func(v *list) ([]string, [][]string) {
-		return []string{"value"}, nil
-	})
+	preregisterRowsForConflict[list](t, "value")
+	cleanupRegistryTypes(t, singleKey)
 
 	expectPanicContains(t, "requires Data field", func() {
 		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
@@ -1120,4 +1119,23 @@ func requireOutputHandler(t *testing.T, typ reflect.Type, label string) rowsFunc
 		t.Fatalf("expected %s handler for type %v", label, typ)
 	}
 	return handler
+}
+
+func registerRowsForConflict[T any](headers ...string) {
+	if len(headers) == 0 {
+		headers = []string{"value"}
+	}
+
+	registerRows(func(*T) ([]string, [][]string) {
+		return headers, nil
+	})
+}
+
+func preregisterRowsForConflict[T any](t *testing.T, headers ...string) reflect.Type {
+	t.Helper()
+
+	key := reflect.TypeFor[*T]()
+	cleanupRegistryTypes(t, key)
+	registerRowsForConflict[T](headers...)
+	return key
 }
