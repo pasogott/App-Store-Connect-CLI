@@ -114,10 +114,10 @@ func TestScreenshotPresenceChecks_MissingSetsForLocalization(t *testing.T) {
 	}
 	sets := []ScreenshotSet{
 		{
-			ID:             "set-en-1",
+			ID:             "set-fr-1",
 			DisplayType:    "APP_IPHONE_65",
-			Locale:         "en-US",
-			LocalizationID: "ver-loc-en",
+			Locale:         "fr-FR",
+			LocalizationID: "ver-loc-fr",
 			Screenshots: []Screenshot{
 				{ID: "shot-1", FileName: "shot.png", Width: 1242, Height: 2688},
 			},
@@ -129,15 +129,15 @@ func TestScreenshotPresenceChecks_MissingSetsForLocalization(t *testing.T) {
 		t.Fatalf("expected screenshots.required.localization_missing_sets check")
 	}
 
-	foundFR := false
+	foundEN := false
 	for _, c := range checks {
-		if c.ID == "screenshots.required.localization_missing_sets" && c.Locale == "fr-FR" {
-			foundFR = true
+		if c.ID == "screenshots.required.localization_missing_sets" && c.Locale == "en-US" {
+			foundEN = true
 			break
 		}
 	}
-	if !foundFR {
-		t.Fatalf("expected missing-sets check for fr-FR, got %v", checks)
+	if !foundEN {
+		t.Fatalf("expected missing-sets check for en-US, got %v", checks)
 	}
 }
 

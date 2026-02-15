@@ -166,7 +166,7 @@ func screenshotPresenceChecks(primaryLocale string, versionLocs []VersionLocaliz
 		})
 	}
 
-	// Per-localization: if a localization exists, it must have screenshot sets.
+	// Primary locale: screenshots must exist for the primary locale localization.
 	setsByLocalization := make(map[string]int)
 	for _, set := range sets {
 		if strings.TrimSpace(set.LocalizationID) == "" {
@@ -176,6 +176,13 @@ func screenshotPresenceChecks(primaryLocale string, versionLocs []VersionLocaliz
 	}
 
 	for _, loc := range versionLocs {
+		// App Store Connect allows screenshots to fall back from the primary
+		// locale, so we only require screenshot sets for the primary locale
+		// localization.
+		if strings.TrimSpace(primaryLocale) == "" || !strings.EqualFold(loc.Locale, primaryLocale) {
+			continue
+		}
+
 		locID := strings.TrimSpace(loc.ID)
 		if locID == "" {
 			continue
@@ -184,10 +191,7 @@ func screenshotPresenceChecks(primaryLocale string, versionLocs []VersionLocaliz
 			continue
 		}
 
-		message := "no screenshot sets found for localization"
-		if strings.TrimSpace(primaryLocale) != "" && strings.EqualFold(loc.Locale, primaryLocale) {
-			message = "no screenshot sets found for primary locale"
-		}
+		message := "no screenshot sets found for primary locale"
 
 		checks = append(checks, CheckResult{
 			ID:           "screenshots.required.localization_missing_sets",
