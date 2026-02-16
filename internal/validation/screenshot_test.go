@@ -95,3 +95,90 @@ func TestScreenshotChecks_PassDesktopAndWatchUltraNewestSizes(t *testing.T) {
 		t.Fatalf("expected no checks for desktop MAC_OS set, got %d (%v)", len(macOnly), macOnly)
 	}
 }
+
+func TestScreenshotPresenceChecks_NoSets(t *testing.T) {
+	versionLocs := []VersionLocalization{
+		{ID: "ver-loc-1", Locale: "en-US"},
+	}
+
+	checks := screenshotPresenceChecks("en-US", versionLocs, nil)
+	if !hasCheckID(checks, "screenshots.required.any") {
+		t.Fatalf("expected screenshots.required.any check")
+	}
+}
+
+func TestScreenshotPresenceChecks_MissingSetsForLocalization(t *testing.T) {
+	versionLocs := []VersionLocalization{
+		{ID: "ver-loc-en", Locale: "en-US"},
+		{ID: "ver-loc-fr", Locale: "fr-FR"},
+	}
+	sets := []ScreenshotSet{
+		{
+			ID:             "set-fr-1",
+			DisplayType:    "APP_IPHONE_65",
+			Locale:         "fr-FR",
+			LocalizationID: "ver-loc-fr",
+			Screenshots: []Screenshot{
+				{ID: "shot-1", FileName: "shot.png", Width: 1242, Height: 2688},
+			},
+		},
+	}
+
+	checks := screenshotPresenceChecks("en-US", versionLocs, sets)
+	if !hasCheckID(checks, "screenshots.required.localization_missing_sets") {
+		t.Fatalf("expected screenshots.required.localization_missing_sets check")
+	}
+
+	foundEN := false
+	for _, c := range checks {
+		if c.ID == "screenshots.required.localization_missing_sets" && c.Locale == "en-US" {
+			foundEN = true
+			break
+		}
+	}
+	if !foundEN {
+		t.Fatalf("expected missing-sets check for en-US, got %v", checks)
+	}
+}
+
+func TestScreenshotPresenceChecks_EmptySet(t *testing.T) {
+	versionLocs := []VersionLocalization{
+		{ID: "ver-loc-1", Locale: "en-US"},
+	}
+	sets := []ScreenshotSet{
+		{
+			ID:             "set-1",
+			DisplayType:    "APP_IPHONE_65",
+			Locale:         "en-US",
+			LocalizationID: "ver-loc-1",
+			Screenshots:    nil,
+		},
+	}
+
+	checks := screenshotPresenceChecks("en-US", versionLocs, sets)
+	if !hasCheckID(checks, "screenshots.required.set_nonempty") {
+		t.Fatalf("expected screenshots.required.set_nonempty check")
+	}
+}
+
+func TestScreenshotPresenceChecks_Pass(t *testing.T) {
+	versionLocs := []VersionLocalization{
+		{ID: "ver-loc-1", Locale: "en-US"},
+	}
+	sets := []ScreenshotSet{
+		{
+			ID:             "set-1",
+			DisplayType:    "APP_IPHONE_65",
+			Locale:         "en-US",
+			LocalizationID: "ver-loc-1",
+			Screenshots: []Screenshot{
+				{ID: "shot-1", FileName: "shot.png", Width: 1242, Height: 2688},
+			},
+		},
+	}
+
+	checks := screenshotPresenceChecks("en-US", versionLocs, sets)
+	if len(checks) != 0 {
+		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
+	}
+}

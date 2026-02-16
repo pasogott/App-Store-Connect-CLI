@@ -43,12 +43,19 @@ type Report struct {
 // Input collects the validation inputs.
 type Input struct {
 	AppID                string
+	AppInfoID            string
 	VersionID            string
 	VersionString        string
 	Platform             string
 	PrimaryLocale        string
 	VersionLocalizations []VersionLocalization
 	AppInfoLocalizations []AppInfoLocalization
+	ReviewDetails        *ReviewDetails
+	PrimaryCategoryID    string
+	Build                *Build
+	PriceScheduleID      string
+	AvailabilityID       string
+	AvailableTerritories int
 	ScreenshotSets       []ScreenshotSet
 	AgeRatingDeclaration *AgeRatingDeclaration
 }
@@ -88,6 +95,27 @@ type Screenshot struct {
 	FileName string
 	Width    int
 	Height   int
+}
+
+// ReviewDetails represents App Store review details for a version.
+type ReviewDetails struct {
+	ID                  string
+	ContactFirstName    string
+	ContactLastName     string
+	ContactEmail        string
+	ContactPhone        string
+	DemoAccountName     string
+	DemoAccountPassword string
+	DemoAccountRequired bool
+	Notes               string
+}
+
+// Build represents an attached build for a version.
+type Build struct {
+	ID              string
+	Version         string
+	ProcessingState string
+	Expired         bool
 }
 
 // AgeRatingDeclaration represents age rating attributes for validation.

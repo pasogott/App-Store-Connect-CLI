@@ -38,22 +38,44 @@ func ValidateCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "validate",
 		ShortUsage: "asc validate --app \"APP_ID\" --version-id \"VERSION_ID\" [flags]",
-		ShortHelp:  "Validate metadata, screenshots, and age ratings before submission.",
+		ShortHelp:  "Validate App Store version readiness before submission.",
 		LongHelp: `Validate pre-submission readiness for an App Store version.
 
 Checks:
   - Metadata length limits
   - Required fields and localizations
-  - Screenshot size compatibility
+  - App Store review details completeness
+  - Primary category configured
+  - Build attached and processed
+  - Pricing schedule and territory availability
+  - Screenshot presence and size compatibility
   - Age rating completeness
 
 Examples:
   asc validate --app "APP_ID" --version-id "VERSION_ID"
   asc validate --app "APP_ID" --version-id "VERSION_ID" --platform IOS --output table
-  asc validate --app "APP_ID" --version-id "VERSION_ID" --strict`,
+  asc validate --app "APP_ID" --version-id "VERSION_ID" --strict
+
+TestFlight:
+  asc validate testflight --app "APP_ID" --build "BUILD_ID"
+
+In-App Purchases:
+  asc validate iap --app "APP_ID"
+
+Subscriptions:
+  asc validate subscriptions --app "APP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			ValidateTestFlightCommand(),
+			ValidateIAPCommand(),
+			ValidateSubscriptionsCommand(),
+		},
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n\n", args[0])
+				return flag.ErrHelp
+			}
 			if strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return flag.ErrHelp
@@ -125,6 +147,16 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		return fmt.Errorf("validate: failed to fetch app info localizations: %w", err)
 	}
 
+	primaryCategoryID := ""
+	primaryCategoryResp, err := client.GetAppInfoPrimaryCategoryRelationship(requestCtx, appInfoID)
+	if err != nil {
+		if !asc.IsNotFound(err) {
+			return fmt.Errorf("validate: failed to fetch app primary category: %w", err)
+		}
+	} else {
+		primaryCategoryID = primaryCategoryResp.Data.ID
+	}
+
 	var ageRatingDecl *validation.AgeRatingDeclaration
 	ageRatingResp, err := client.GetAgeRatingDeclarationForAppStoreVersion(requestCtx, opts.VersionID)
 	if err != nil {
@@ -133,6 +165,96 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		}
 	} else {
 		ageRatingDecl = mapAgeRatingDeclaration(ageRatingResp.Data.Attributes)
+	}
+
+	var reviewDetails *validation.ReviewDetails
+	reviewDetailsResp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, opts.VersionID)
+	if err != nil {
+		if !asc.IsNotFound(err) {
+			return fmt.Errorf("validate: failed to fetch review details: %w", err)
+		}
+	} else {
+		attrs := reviewDetailsResp.Data.Attributes
+		reviewDetails = &validation.ReviewDetails{
+			ID:                  reviewDetailsResp.Data.ID,
+			ContactFirstName:    attrs.ContactFirstName,
+			ContactLastName:     attrs.ContactLastName,
+			ContactEmail:        attrs.ContactEmail,
+			ContactPhone:        attrs.ContactPhone,
+			DemoAccountName:     attrs.DemoAccountName,
+			DemoAccountPassword: attrs.DemoAccountPassword,
+			DemoAccountRequired: attrs.DemoAccountRequired,
+			Notes:               attrs.Notes,
+		}
+	}
+
+	var attachedBuild *validation.Build
+	buildResp, err := client.GetAppStoreVersionBuild(requestCtx, opts.VersionID)
+	if err != nil {
+		if !asc.IsNotFound(err) {
+			return fmt.Errorf("validate: failed to fetch attached build: %w", err)
+		}
+	} else if strings.TrimSpace(buildResp.Data.ID) != "" {
+		attrs := buildResp.Data.Attributes
+		attachedBuild = &validation.Build{
+			ID:              buildResp.Data.ID,
+			Version:         attrs.Version,
+			ProcessingState: attrs.ProcessingState,
+			Expired:         attrs.Expired,
+		}
+	}
+
+	priceScheduleID := ""
+	priceScheduleResp, err := client.GetAppPriceSchedule(requestCtx, opts.AppID)
+	if err != nil {
+		if !asc.IsNotFound(err) {
+			return fmt.Errorf("validate: failed to fetch app price schedule: %w", err)
+		}
+	} else {
+		priceScheduleID = priceScheduleResp.Data.ID
+	}
+
+	availabilityID := ""
+	availableTerritories := 0
+	availabilityResp, err := client.GetAppAvailabilityV2(requestCtx, opts.AppID)
+	if err != nil {
+		// ASC can report missing app availability with non-404 errors
+		// (e.g. "resource does not exist"). Treat those as "missing" rather than
+		// aborting validation.
+		if !shared.IsAppAvailabilityMissing(err) {
+			return fmt.Errorf("validate: failed to fetch app availability: %w", err)
+		}
+	} else {
+		availabilityID = availabilityResp.Data.ID
+		if strings.TrimSpace(availabilityID) != "" {
+			nextURL := ""
+			for {
+				var territoryResp *asc.TerritoryAvailabilitiesResponse
+				if strings.TrimSpace(nextURL) != "" {
+					territoryResp, err = client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesNextURL(nextURL))
+				} else {
+					territoryResp, err = client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesLimit(200))
+				}
+				if err != nil {
+					return fmt.Errorf("validate: failed to fetch territory availabilities: %w", err)
+				}
+
+				for _, territoryAvailability := range territoryResp.Data {
+					if territoryAvailability.Attributes.Available {
+						availableTerritories++
+					}
+				}
+
+				if availableTerritories > 0 {
+					break
+				}
+
+				nextURL = strings.TrimSpace(territoryResp.Links.Next)
+				if nextURL == "" {
+					break
+				}
+			}
+		}
 	}
 
 	versionLocalizations := make([]validation.VersionLocalization, 0, len(versionLocsResp.Data))
@@ -173,12 +295,19 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 
 	report := validation.Validate(validation.Input{
 		AppID:                opts.AppID,
+		AppInfoID:            appInfoID,
 		VersionID:            opts.VersionID,
 		VersionString:        versionResp.Data.Attributes.VersionString,
 		Platform:             platform,
 		PrimaryLocale:        appResp.Data.Attributes.PrimaryLocale,
 		VersionLocalizations: versionLocalizations,
 		AppInfoLocalizations: appInfoLocalizations,
+		ReviewDetails:        reviewDetails,
+		PrimaryCategoryID:    primaryCategoryID,
+		Build:                attachedBuild,
+		PriceScheduleID:      priceScheduleID,
+		AvailabilityID:       availabilityID,
+		AvailableTerritories: availableTerritories,
 		ScreenshotSets:       screenshotSets,
 		AgeRatingDeclaration: ageRatingDecl,
 	}, opts.Strict)

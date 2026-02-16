@@ -2,7 +2,10 @@
 // These are pure data structures with JSON serialization and pagination support.
 package types
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 // ResourceType represents an ASC resource type.
 type ResourceType string
@@ -319,4 +322,29 @@ type RelationshipData struct {
 type ResourceData struct {
 	Type ResourceType `json:"type"`
 	ID   string       `json:"id"`
+}
+
+// UnmarshalJSON allows relationship responses to represent {"data":null}.
+//
+// App Store Connect uses JSON:API relationships, which may return a null "data"
+// when the relationship is unset (e.g. primary category not configured yet).
+// Modeling ResourceData as a struct is still convenient, but it must tolerate
+// nulls to avoid turning a "missing relationship" into a hard parse error.
+func (r *ResourceData) UnmarshalJSON(data []byte) error {
+	if r == nil {
+		return nil
+	}
+
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		*r = ResourceData{}
+		return nil
+	}
+
+	type resourceData ResourceData
+	var tmp resourceData
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	*r = ResourceData(tmp)
+	return nil
 }

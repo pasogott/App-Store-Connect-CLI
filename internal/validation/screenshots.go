@@ -118,6 +118,95 @@ func screenshotChecks(platform string, sets []ScreenshotSet) []CheckResult {
 	return checks
 }
 
+func screenshotPresenceChecks(primaryLocale string, versionLocs []VersionLocalization, sets []ScreenshotSet) []CheckResult {
+	// Presence checks are intentionally conservative: we only validate that
+	// screenshot sets exist and contain at least one screenshot. We avoid trying
+	// to enforce *which* display types are required, since that's app/device
+	// support dependent and better handled separately.
+
+	var checks []CheckResult
+
+	// If there are no version localizations, other validations already produce a
+	// clearer error (and we can't meaningfully attribute screenshot requirements).
+	if len(versionLocs) == 0 {
+		return nil
+	}
+
+	// Global: a version with no screenshot sets at all is not submittable.
+	if len(sets) == 0 {
+		return []CheckResult{
+			{
+				ID:          "screenshots.required.any",
+				Severity:    SeverityError,
+				Message:     "no screenshot sets found",
+				Remediation: "Upload screenshots for at least one required device size in App Store Connect",
+			},
+		}
+	}
+
+	// Per-set: a screenshot set that exists but has zero screenshots is always invalid.
+	for _, set := range sets {
+		if len(set.Screenshots) != 0 {
+			continue
+		}
+
+		msg := "screenshot set has no screenshots"
+		if dt := strings.TrimSpace(set.DisplayType); dt != "" {
+			msg = fmt.Sprintf("screenshot set %s has no screenshots", dt)
+		}
+
+		checks = append(checks, CheckResult{
+			ID:           "screenshots.required.set_nonempty",
+			Severity:     SeverityError,
+			Locale:       set.Locale,
+			ResourceType: "appScreenshotSet",
+			ResourceID:   set.ID,
+			Message:      msg,
+			Remediation:  "Upload at least one screenshot to this set",
+		})
+	}
+
+	// Primary locale: screenshots must exist for the primary locale localization.
+	setsByLocalization := make(map[string]int)
+	for _, set := range sets {
+		if strings.TrimSpace(set.LocalizationID) == "" {
+			continue
+		}
+		setsByLocalization[set.LocalizationID]++
+	}
+
+	for _, loc := range versionLocs {
+		// App Store Connect allows screenshots to fall back from the primary
+		// locale, so we only require screenshot sets for the primary locale
+		// localization.
+		if strings.TrimSpace(primaryLocale) == "" || !strings.EqualFold(loc.Locale, primaryLocale) {
+			continue
+		}
+
+		locID := strings.TrimSpace(loc.ID)
+		if locID == "" {
+			continue
+		}
+		if setsByLocalization[locID] > 0 {
+			continue
+		}
+
+		message := "no screenshot sets found for primary locale"
+
+		checks = append(checks, CheckResult{
+			ID:           "screenshots.required.localization_missing_sets",
+			Severity:     SeverityError,
+			Locale:       loc.Locale,
+			ResourceType: "appStoreVersionLocalization",
+			ResourceID:   loc.ID,
+			Message:      message,
+			Remediation:  "Upload screenshots for this localization (or copy them from another localization) in App Store Connect",
+		})
+	}
+
+	return checks
+}
+
 func screenshotSizesForDisplayType(displayType string) []screenshotSize {
 	if sizes, ok := screenshotSizeCatalog[displayType]; ok {
 		return sizes

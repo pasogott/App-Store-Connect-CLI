@@ -5,6 +5,12 @@ func Validate(input Input, strict bool) Report {
 	checks := make([]CheckResult, 0)
 	checks = append(checks, metadataLengthChecks(input.VersionLocalizations, input.AppInfoLocalizations)...)
 	checks = append(checks, requiredFieldChecks(input.PrimaryLocale, input.VersionString, input.VersionLocalizations, input.AppInfoLocalizations)...)
+	checks = append(checks, reviewDetailsChecks(input.ReviewDetails)...)
+	checks = append(checks, categoryChecks(input.AppInfoID, input.PrimaryCategoryID)...)
+	checks = append(checks, buildChecks(input.Build)...)
+	checks = append(checks, pricingChecks(input.AppID, input.PriceScheduleID)...)
+	checks = append(checks, availabilityChecks(input.AppID, input.AvailabilityID, input.AvailableTerritories)...)
+	checks = append(checks, screenshotPresenceChecks(input.PrimaryLocale, input.VersionLocalizations, input.ScreenshotSets)...)
 	checks = append(checks, screenshotChecks(input.Platform, input.ScreenshotSets)...)
 	checks = append(checks, ageRatingChecks(input.AgeRatingDeclaration)...)
 

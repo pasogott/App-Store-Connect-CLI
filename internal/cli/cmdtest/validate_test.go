@@ -18,14 +18,21 @@ import (
 )
 
 type validateFixture struct {
-	app              string
-	version          string
-	appInfos         string
-	appInfoLocs      string
-	versionLocs      string
-	ageRating        string
-	screenshotSets   map[string]string
-	screenshotsBySet map[string]string
+	app                  string
+	version              string
+	appInfos             string
+	appInfoLocs          string
+	versionLocs          string
+	ageRating            string
+	reviewDetails        string
+	primaryCategory      string
+	build                string
+	priceSchedule        string
+	availabilityV2       string
+	availabilityV2Status int
+	territories          string
+	screenshotSets       map[string]string
+	screenshotsBySet     map[string]string
 }
 
 func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
@@ -50,10 +57,43 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 			return jsonResponse(http.StatusOK, fixture.appInfos)
 		case path == "/v1/appInfos/info-1/appInfoLocalizations":
 			return jsonResponse(http.StatusOK, fixture.appInfoLocs)
+		case path == "/v1/appInfos/info-1/relationships/primaryCategory":
+			if fixture.primaryCategory != "" {
+				return jsonResponse(http.StatusOK, fixture.primaryCategory)
+			}
+			return jsonResponse(http.StatusOK, `{"data":null}`)
 		case path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
 			return jsonResponse(http.StatusOK, fixture.versionLocs)
 		case path == "/v1/appStoreVersions/ver-1/ageRatingDeclaration":
 			return jsonResponse(http.StatusOK, fixture.ageRating)
+		case path == "/v1/appStoreVersions/ver-1/appStoreReviewDetail":
+			if fixture.reviewDetails != "" {
+				return jsonResponse(http.StatusOK, fixture.reviewDetails)
+			}
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"resource not found"}]}`)
+		case path == "/v1/appStoreVersions/ver-1/build":
+			if fixture.build != "" {
+				return jsonResponse(http.StatusOK, fixture.build)
+			}
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"resource not found"}]}`)
+		case path == "/v1/apps/app-1/appPriceSchedule":
+			if fixture.priceSchedule != "" {
+				return jsonResponse(http.StatusOK, fixture.priceSchedule)
+			}
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"resource not found"}]}`)
+		case path == "/v1/apps/app-1/appAvailabilityV2":
+			if fixture.availabilityV2Status != 0 {
+				return jsonResponse(fixture.availabilityV2Status, fixture.availabilityV2)
+			}
+			if fixture.availabilityV2 != "" {
+				return jsonResponse(http.StatusOK, fixture.availabilityV2)
+			}
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"resource not found"}]}`)
+		case strings.HasPrefix(path, "/v2/appAvailabilities/") && strings.HasSuffix(path, "/territoryAvailabilities"):
+			if fixture.territories != "" {
+				return jsonResponse(http.StatusOK, fixture.territories)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v1/appStoreVersionLocalizations/") && strings.HasSuffix(path, "/appScreenshotSets"):
 			localizationID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/appStoreVersionLocalizations/"), "/appScreenshotSets")
 			if body, ok := fixture.screenshotSets[localizationID]; ok {
@@ -88,11 +128,17 @@ func jsonResponse(status int, body string) (*http.Response, error) {
 
 func validValidateFixture() validateFixture {
 	return validateFixture{
-		app:         `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`,
-		version:     `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0"}}}`,
-		appInfos:    `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
-		appInfoLocs: `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle"}}]}`,
-		versionLocs: `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","whatsNew":"Notes","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`,
+		app:             `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`,
+		version:         `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0"}}}`,
+		appInfos:        `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
+		appInfoLocs:     `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle"}}]}`,
+		versionLocs:     `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","whatsNew":"Notes","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`,
+		reviewDetails:   `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":false,"notes":"Review notes"}}}`,
+		primaryCategory: `{"data":{"type":"appCategories","id":"cat-1"}}`,
+		build:           `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`,
+		priceSchedule:   `{"data":{"type":"appPriceSchedules","id":"sched-1","attributes":{}}}`,
+		availabilityV2:  `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`,
+		territories:     `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}]}`,
 		ageRating: `{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{
 			"advertising":false,
 			"gambling":false,
@@ -315,4 +361,483 @@ func TestValidateMixedWarningAndError(t *testing.T) {
 			t.Fatalf("expected ReportedError, got %v", err)
 		}
 	})
+}
+
+func TestValidateFailsWhenNoScreenshotSets(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.screenshotSets = map[string]string{
+		"ver-loc-1": `{"data":[]}`,
+	}
+	fixture.screenshotsBySet = map[string]string{}
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "screenshots.required.any" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected screenshots.required.any check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenScreenshotSetIsEmpty(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.screenshotsBySet = map[string]string{
+		"set-1": `{"data":[]}`,
+	}
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "screenshots.required.set_nonempty" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected screenshots.required.set_nonempty check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenReviewDetailsMissing(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.reviewDetails = ""
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "review_details.missing" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected review_details.missing check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenReviewDetailsMissingContactEmail(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.reviewDetails = `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"","contactPhone":"123","demoAccountRequired":false}}}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "review_details.missing_field" && check.Field == "contactEmail" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected review_details.missing_field for contactEmail, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenPrimaryCategoryMissing(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.primaryCategory = `{"data":null}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "categories.primary_missing" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected categories.primary_missing check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenBuildMissing(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.build = ""
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "build.required.missing" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected build.required.missing check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenBuildMissingWithNullData(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.build = `{"data":null}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "build.required.missing" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected build.required.missing check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenBuildIsProcessing(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.build = `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"PROCESSING","expired":false}}}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "build.invalid.processing_state" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected build.invalid.processing_state check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenPriceScheduleMissing(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.priceSchedule = ""
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "pricing.schedule.missing" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected pricing.schedule.missing check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateTreatsAppAvailabilityMissingNon404AsMissing(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.availabilityV2Status = http.StatusConflict
+	fixture.availabilityV2 = `{"errors":[{"code":"RESOURCE_DOES_NOT_EXIST","title":"Resource does not exist","detail":"The resource AppAvailabilities does not exist."}]}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "availability.missing" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected availability.missing check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsWhenNoTerritoriesAvailable(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.territories = `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":false}}]}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "availability.territories.none" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected availability.territories.none check, got %+v", report.Checks)
+	}
 }
