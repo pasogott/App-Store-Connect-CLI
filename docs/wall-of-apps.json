@@ -66,6 +66,18 @@
     "platform": ["iOS"]
   },
   {
+    "app": "Morning Pages",
+    "link": "https://apps.apple.com/us/app/morning-pages/id6738604034",
+    "creator": "zchwyng",
+    "platform": ["iOS", "macOS"]
+  },
+  {
+    "app": "bijou.fm",
+    "link": "https://apps.apple.com/us/app/bijou-fm-for-last-fm/id6450460066",
+    "creator": "zchwyng",
+    "platform": ["iOS", "macOS", "tvOS", "visionOS"]
+  },
+  {
     "app": "Dripped",
     "link": "https://apps.apple.com/app/id6749790183",
     "creator": "mithileshchellapan",
