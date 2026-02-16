@@ -3,8 +3,10 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 )
 
 // Definition is the top-level .asc/workflow.json schema.
@@ -46,8 +48,14 @@ func (s *Step) UnmarshalJSON(data []byte) error {
 
 	type stepAlias Step
 	var alias stepAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&alias); err != nil {
 		return fmt.Errorf("step must be a string or object: %w", err)
+	}
+	// Ensure there is exactly one JSON value.
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		return fmt.Errorf("step must be a single JSON value: %w", err)
 	}
 	*s = Step(alias)
 	return nil

@@ -4,10 +4,12 @@ go 1.26.0
 
 require (
 	github.com/99designs/keyring v1.2.2
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/olekukonko/tablewriter v1.1.3
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/schollz/progressbar/v3 v3.19.0
+	github.com/tidwall/jsonc v0.3.2
 	golang.org/x/mod v0.32.0
 	golang.org/x/sys v0.40.0
 	golang.org/x/term v0.39.0
@@ -23,7 +25,6 @@ require (
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/dvsekhvalnov/jose2go v1.8.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -217,6 +216,3 @@ func TestParseParams_EqualsBeforeColon(t *testing.T) {
 		t.Fatalf("expected A='B:C', got %q", params["A"])
 	}
 }
-
-// Silence unused import warning in case os is only used via t.Setenv
-var _ = os.Getenv

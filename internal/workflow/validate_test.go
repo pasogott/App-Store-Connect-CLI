@@ -61,6 +61,78 @@ func TestLoad_Valid(t *testing.T) {
 	}
 }
 
+func TestLoad_Valid_WithJSONCComments(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowFile(t, dir, `{
+		// Comments are allowed in workflow files.
+		"workflows": {
+			"beta": {
+				/* block comments too */
+				"steps": ["echo hello"] // inline comment
+			}
+		}
+	}`)
+
+	_, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+}
+
+func TestLoad_StrictUnknownRootField(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowFile(t, dir, `{
+		"unknown": 1,
+		"workflows": {
+			"beta": {"steps": ["echo hello"]}
+		}
+	}`)
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for unknown root field")
+	}
+	if !errors.Is(err, ErrWorkflowParseJSON) {
+		t.Fatalf("expected ErrWorkflowParseJSON, got %v", err)
+	}
+}
+
+func TestLoad_StrictUnknownWorkflowField(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowFile(t, dir, `{
+		"workflows": {
+			"beta": {"steps": ["echo hello"], "unknown": true}
+		}
+	}`)
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for unknown workflow field")
+	}
+	if !errors.Is(err, ErrWorkflowParseJSON) {
+		t.Fatalf("expected ErrWorkflowParseJSON, got %v", err)
+	}
+}
+
+func TestLoad_StrictUnknownStepField(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowFile(t, dir, `{
+		"workflows": {
+			"beta": {
+				"steps": [{"run": "echo hello", "unknown": true}]
+			}
+		}
+	}`)
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for unknown step field")
+	}
+	if !errors.Is(err, ErrWorkflowParseJSON) {
+		t.Fatalf("expected ErrWorkflowParseJSON, got %v", err)
+	}
+}
+
 func TestLoad_InvalidStepType(t *testing.T) {
 	dir := t.TempDir()
 	path := writeWorkflowFile(t, dir, `{

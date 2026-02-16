@@ -12,22 +12,6 @@ import (
 	"testing"
 )
 
-// extractLastJSON finds the JSON result object in workflow run output.
-// Workflow run commands output command stdout + JSON result to the same stream.
-// The JSON result always starts with {"workflow" on a new line.
-func extractLastJSON(t *testing.T, output string) string {
-	t.Helper()
-	idx := strings.Index(output, "{\"workflow\"")
-	if idx == -1 {
-		// Try pretty-printed format
-		idx = strings.Index(output, "{\n")
-		if idx == -1 {
-			t.Fatalf("no JSON object found in output: %q", output)
-		}
-	}
-	return strings.TrimSpace(output[idx:])
-}
-
 func writeWorkflowJSON(t *testing.T, dir, content string) string {
 	t.Helper()
 	ascDir := filepath.Join(dir, ".asc")
@@ -168,6 +152,36 @@ func TestWorkflowRun_DryRun(t *testing.T) {
 	if !strings.Contains(stderr, "[dry-run]") {
 		t.Fatalf("expected '[dry-run]' in stderr, got %q", stderr)
 	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected JSON stdout, got %q: %v", stdout, err)
+	}
+	if result["status"] != "ok" {
+		t.Fatalf("expected status=ok, got %v", result["status"])
+	}
+}
+
+func TestWorkflowRun_Valid_WithJSONCComments(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		// Comments are allowed in workflow files.
+		"workflows": {
+			"beta": {"steps": ["echo hello world"]} // inline comment
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -357,7 +371,7 @@ func TestWorkflowRun_Success(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"workflow", "run", "--file", path, "test"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -366,17 +380,18 @@ func TestWorkflowRun_Success(t *testing.T) {
 		}
 	})
 
-	// stdout contains command output + JSON result; extract the JSON line
-	jsonLine := extractLastJSON(t, stdout)
 	var result map[string]any
-	if err := json.Unmarshal([]byte(jsonLine), &result); err != nil {
-		t.Fatalf("expected JSON, got %q: %v", jsonLine, err)
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected JSON stdout, got %q: %v", stdout, err)
 	}
 	if result["status"] != "ok" {
 		t.Fatalf("expected status=ok, got %v", result["status"])
 	}
 	if result["workflow"] != "test" {
 		t.Fatalf("expected workflow=test, got %v", result["workflow"])
+	}
+	if !strings.Contains(stderr, "workflow_success") {
+		t.Fatalf("expected command output on stderr, got %q", stderr)
 	}
 }
 
@@ -405,10 +420,9 @@ func TestWorkflowRun_PrettyJSON(t *testing.T) {
 		t.Fatalf("expected indented JSON, got %q", stdout)
 	}
 
-	jsonStr := extractLastJSON(t, stdout)
 	var result map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		t.Fatalf("expected valid JSON, got %q: %v", jsonStr, err)
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected valid JSON, got %q: %v", stdout, err)
 	}
 }
 
@@ -432,10 +446,9 @@ func TestWorkflowRun_WithParams(t *testing.T) {
 		}
 	})
 
-	jsonLine := extractLastJSON(t, stdout)
 	var result map[string]any
-	if err := json.Unmarshal([]byte(jsonLine), &result); err != nil {
-		t.Fatalf("expected JSON, got %q: %v", jsonLine, err)
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected JSON, got %q: %v", stdout, err)
 	}
 	if result["status"] != "ok" {
 		t.Fatalf("expected status=ok, got %v", result["status"])
@@ -453,7 +466,7 @@ func TestWorkflowRun_WithParamsEqualsSeparator(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"workflow", "run", "--file", path, "test", "TEST=yes"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -463,14 +476,13 @@ func TestWorkflowRun_WithParamsEqualsSeparator(t *testing.T) {
 	})
 
 	// Verify the param reached the command
-	if !strings.Contains(stdout, "RESULT_IS_yes") {
-		t.Fatalf("expected runtime param in output, got %q", stdout)
+	if !strings.Contains(stderr, "RESULT_IS_yes") {
+		t.Fatalf("expected runtime param in command output, got %q", stderr)
 	}
 
-	jsonLine := extractLastJSON(t, stdout)
 	var result map[string]any
-	if err := json.Unmarshal([]byte(jsonLine), &result); err != nil {
-		t.Fatalf("expected JSON, got %q: %v", jsonLine, err)
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected JSON, got %q: %v", stdout, err)
 	}
 	if result["status"] != "ok" {
 		t.Fatalf("expected status=ok, got %v", result["status"])
@@ -502,10 +514,9 @@ func TestWorkflowRun_ParamControlsConditional(t *testing.T) {
 			t.Fatalf("run error: %v", err)
 		}
 	})
-	json1 := extractLastJSON(t, stdout1)
 	var result1 map[string]any
-	if err := json.Unmarshal([]byte(json1), &result1); err != nil {
-		t.Fatalf("expected JSON, got %q: %v", json1, err)
+	if err := json.Unmarshal([]byte(stdout1), &result1); err != nil {
+		t.Fatalf("expected JSON, got %q: %v", stdout1, err)
 	}
 	steps1 := result1["steps"].([]any)
 	firstStep1 := steps1[0].(map[string]any)
@@ -525,10 +536,9 @@ func TestWorkflowRun_ParamControlsConditional(t *testing.T) {
 			t.Fatalf("run error: %v", err)
 		}
 	})
-	json2 := extractLastJSON(t, stdout2)
 	var result2 map[string]any
-	if err := json.Unmarshal([]byte(json2), &result2); err != nil {
-		t.Fatalf("expected JSON, got %q: %v", json2, err)
+	if err := json.Unmarshal([]byte(stdout2), &result2); err != nil {
+		t.Fatalf("expected JSON, got %q: %v", stdout2, err)
 	}
 	steps2 := result2["steps"].([]any)
 	firstStep2 := steps2[0].(map[string]any)
@@ -569,10 +579,9 @@ func TestWorkflowRun_StepFailure_PartialJSON(t *testing.T) {
 	})
 
 	// Partial JSON result should be printed even on failure
-	jsonStr := extractLastJSON(t, stdout)
 	var result map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		t.Fatalf("expected JSON on failure, got %q: %v", jsonStr, err)
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected JSON on failure, got %q: %v", stdout, err)
 	}
 	if result["status"] != "error" {
 		t.Fatalf("expected status=error, got %v", result["status"])

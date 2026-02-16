@@ -70,7 +70,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 	if err := runHook(ctx, def.BeforeAll, env, opts.DryRun, opts.Stdout, opts.Stderr); err != nil {
 		result.Status = "error"
 		result.DurationMS = time.Since(start).Milliseconds()
-		_ = runHook(ctx, def.Error, env, false, opts.Stdout, opts.Stderr)
+		_ = runHook(ctx, def.Error, env, opts.DryRun, opts.Stdout, opts.Stderr)
 		return result, fmt.Errorf("workflow: before_all hook failed: %w", err)
 	}
 
@@ -81,7 +81,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 	if err != nil {
 		result.Status = "error"
 		if hook := strings.TrimSpace(def.Error); hook != "" {
-			_ = runHook(ctx, hook, env, false, opts.Stdout, opts.Stderr)
+			_ = runHook(ctx, hook, env, opts.DryRun, opts.Stdout, opts.Stderr)
 		}
 		return result, err
 	}
@@ -145,7 +145,8 @@ func executeSteps(ctx context.Context, def *Definition, workflowName string, ste
 				return fmt.Errorf("workflow: %s step %d: unknown workflow %q", workflowName, idx, ref)
 			}
 
-			subEnv := mergeEnv(env, step.With, subWf.Env)
+			// Sub-workflow env provides defaults; call-site "with" should override.
+			subEnv := mergeEnv(env, subWf.Env, step.With)
 
 			if opts.DryRun {
 				fmt.Fprintf(opts.Stderr, "[dry-run] step %d: workflow %s\n", idx, ref)

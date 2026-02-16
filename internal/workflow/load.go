@@ -1,10 +1,14 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+
+	"github.com/tidwall/jsonc"
 )
 
 var (
@@ -36,9 +40,18 @@ func LoadUnvalidated(path string) (*Definition, error) {
 		return nil, fmt.Errorf("%w: %w", ErrWorkflowRead, err)
 	}
 
+	// Allow JSONC-style comments (// and /* */) in workflow files.
+	data = jsonc.ToJSON(data)
+
 	var def Definition
-	if err := json.Unmarshal(data, &def); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&def); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrWorkflowParseJSON, err)
+	}
+	// Ensure there is exactly one JSON value in the file.
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		return nil, fmt.Errorf("%w: trailing data", ErrWorkflowParseJSON)
 	}
 
 	return &def, nil

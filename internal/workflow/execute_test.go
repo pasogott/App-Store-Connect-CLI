@@ -314,6 +314,36 @@ func TestRun_SubWorkflowWithEnv(t *testing.T) {
 	}
 }
 
+func TestRun_SubWorkflowWithEnv_WithOverridesSubWorkflowEnv(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"main": {Steps: []Step{
+				{Workflow: "helper", With: map[string]string{"MSG": "from-with"}},
+			}},
+			"helper": {
+				Env:   map[string]string{"MSG": "from-helper-env"},
+				Steps: []Step{{Run: "echo $MSG"}},
+			},
+		},
+	}
+	opts := runOpts("main")
+
+	result, err := Run(context.Background(), def, opts)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	stdout := opts.Stdout.(*bytes.Buffer).String()
+	if !strings.Contains(stdout, "from-with") {
+		t.Fatalf("expected with env to override sub-workflow env, got %q", stdout)
+	}
+	if strings.Contains(stdout, "from-helper-env") {
+		t.Fatalf("expected sub-workflow env to be overridden, got %q", stdout)
+	}
+	if result.Status != "ok" {
+		t.Fatalf("expected ok, got %q", result.Status)
+	}
+}
+
 func TestRun_SubWorkflowEnvDoesNotLeak(t *testing.T) {
 	def := &Definition{
 		Workflows: map[string]Workflow{
@@ -442,6 +472,43 @@ func TestRun_MaxCallDepthExceeded(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "max call depth") {
 		t.Fatalf("expected max call depth error, got %v", err)
+	}
+}
+
+func TestRun_ErrorHook_DryRunDoesNotExecute(t *testing.T) {
+	workflows := make(map[string]Workflow)
+	for i := 0; i <= MaxCallDepth+1; i++ {
+		name := "w" + strings.Repeat("x", i)
+		nextName := "w" + strings.Repeat("x", i+1)
+		if i > MaxCallDepth {
+			workflows[name] = Workflow{Steps: []Step{{Run: "echo done"}}}
+		} else {
+			workflows[name] = Workflow{Steps: []Step{{Workflow: nextName}}}
+		}
+	}
+	def := &Definition{
+		Error:     "echo error_hook_ran",
+		Workflows: workflows,
+	}
+	opts := runOpts("w")
+	opts.DryRun = true
+
+	result, err := Run(context.Background(), def, opts)
+	if err == nil {
+		t.Fatal("expected error for max call depth")
+	}
+	if result.Status != "error" {
+		t.Fatalf("expected error status, got %q", result.Status)
+	}
+
+	// Dry-run should never execute hooks (only preview them).
+	stdout := opts.Stdout.(*bytes.Buffer).String()
+	if strings.Contains(stdout, "error_hook_ran") {
+		t.Fatalf("expected error hook to not execute in dry-run, got stdout %q", stdout)
+	}
+	stderr := opts.Stderr.(*bytes.Buffer).String()
+	if !strings.Contains(stderr, "[dry-run] hook:") || !strings.Contains(stderr, "error_hook_ran") {
+		t.Fatalf("expected dry-run hook preview in stderr, got %q", stderr)
 	}
 }
 

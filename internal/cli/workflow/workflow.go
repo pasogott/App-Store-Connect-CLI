@@ -87,8 +87,9 @@ func workflowRunCommand() *ffcli.Command {
 				WorkflowName: workflowName,
 				Params:       params,
 				DryRun:       *dryRun,
-				Stdout:       os.Stdout,
-				Stderr:       os.Stderr,
+				// Keep stdout machine-parseable JSON; stream step output to stderr.
+				Stdout: os.Stderr,
+				Stderr: os.Stderr,
 			})
 			if err != nil {
 				if result != nil {
