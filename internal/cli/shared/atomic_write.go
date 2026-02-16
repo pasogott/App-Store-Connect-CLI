@@ -1,12 +1,45 @@
 package shared
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+func createTempFileNoFollowWithPerm(dir string, pattern string, perm os.FileMode) (*os.File, error) {
+	// Mirror os.CreateTemp pattern semantics: replace the last "*" with random text,
+	// or append random text if no "*" is present.
+	prefix := pattern
+	suffix := ""
+	if idx := strings.LastIndex(pattern, "*"); idx != -1 {
+		prefix = pattern[:idx]
+		suffix = pattern[idx+1:]
+	}
+
+	const maxAttempts = 10_000
+	var randBytes [12]byte
+	for i := 0; i < maxAttempts; i++ {
+		if _, err := rand.Read(randBytes[:]); err != nil {
+			return nil, err
+		}
+		name := prefix + hex.EncodeToString(randBytes[:]) + suffix
+		f, err := OpenNewFileNoFollow(filepath.Join(dir, name), perm)
+		if err == nil {
+			return f, nil
+		}
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		return nil, err
+	}
+
+	return nil, fmt.Errorf("failed to create temporary file in %q", dir)
+}
 
 // WriteFileNoSymlinkOverwrite writes reader to path via temp+rename.
 // It refuses to overwrite symlinks and uses a Windows-safe replace when needed.
@@ -29,7 +62,7 @@ func WriteFileNoSymlinkOverwrite(path string, reader io.Reader, perm os.FileMode
 		return 0, err
 	}
 
-	tempFile, err := os.CreateTemp(filepath.Dir(path), tempPattern)
+	tempFile, err := createTempFileNoFollowWithPerm(filepath.Dir(path), tempPattern, perm)
 	if err != nil {
 		return 0, err
 	}
@@ -42,10 +75,6 @@ func WriteFileNoSymlinkOverwrite(path string, reader io.Reader, perm os.FileMode
 			_ = os.Remove(tempPath)
 		}
 	}()
-
-	if err := tempFile.Chmod(perm); err != nil {
-		return 0, err
-	}
 
 	written, err := io.Copy(tempFile, reader)
 	if err != nil {
