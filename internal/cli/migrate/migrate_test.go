@@ -615,3 +615,67 @@ func TestValidateAppInfoLocalization_UsesRuneCount(t *testing.T) {
 		}
 	}
 }
+
+func TestReadFastlaneMetadata_SkipsNonLocaleDirectories(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create non-locale directories that should be skipped
+	for _, name := range []string{"trade_representative_contact_information", "apple_tv_privacy_policy"} {
+		if err := os.MkdirAll(filepath.Join(dir, name), 0o755); err != nil {
+			t.Fatalf("failed to create dir %s: %v", name, err)
+		}
+	}
+
+	// Create a valid locale directory
+	enDir := filepath.Join(dir, "en-US")
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(enDir, "description.txt"), []byte("English description"), 0o644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	locs, err := readFastlaneMetadata(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(locs) != 1 {
+		t.Errorf("expected 1 localization (non-locale dirs skipped), got %d", len(locs))
+	}
+	if locs[0].Locale != "en-US" {
+		t.Errorf("expected locale 'en-US', got %q", locs[0].Locale)
+	}
+}
+
+func TestReadFastlaneAppInfoMetadata_SkipsNonLocaleDirectories(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create non-locale directories that should be skipped
+	for _, name := range []string{"trade_representative_contact_information", "review_information"} {
+		if err := os.MkdirAll(filepath.Join(dir, name), 0o755); err != nil {
+			t.Fatalf("failed to create dir %s: %v", name, err)
+		}
+	}
+
+	// Create a valid locale directory with content
+	enDir := filepath.Join(dir, "en-US")
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(enDir, "name.txt"), []byte("My App"), 0o644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	locs, err := readFastlaneAppInfoMetadata(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(locs) != 1 {
+		t.Errorf("expected 1 localization (non-locale dirs skipped), got %d", len(locs))
+	}
+	if locs[0].Locale != "en-US" {
+		t.Errorf("expected locale 'en-US', got %q", locs[0].Locale)
+	}
+}

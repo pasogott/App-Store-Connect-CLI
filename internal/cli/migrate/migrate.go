@@ -466,7 +466,7 @@ func readFastlaneMetadata(metadataDir string) ([]FastlaneLocalization, error) {
 
 		normalized, err := normalizeLocale(locale)
 		if err != nil {
-			return nil, fmt.Errorf("invalid locale %q in metadata: %w", locale, err)
+			continue // Skip non-locale directories (e.g. trade_representative_contact_information)
 		}
 		if seen[normalized] {
 			return nil, fmt.Errorf("duplicate locale %q in metadata", normalized)
@@ -511,7 +511,7 @@ func readFastlaneAppInfoMetadata(metadataDir string) ([]AppInfoFastlaneLocalizat
 
 		normalized, err := normalizeLocale(locale)
 		if err != nil {
-			return nil, fmt.Errorf("invalid locale %q in metadata: %w", locale, err)
+			continue // Skip non-locale directories (e.g. trade_representative_contact_information)
 		}
 		if seen[normalized] {
 			return nil, fmt.Errorf("duplicate locale %q in metadata", normalized)
