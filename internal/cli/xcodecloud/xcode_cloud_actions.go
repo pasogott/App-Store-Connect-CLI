@@ -197,14 +197,14 @@ func xcodeCloudActionsList(ctx context.Context, runID string, limit int, next st
 
 	if paginate {
 		paginateOpts := append(opts, asc.WithCiBuildActionsLimit(200))
-		firstPage, err := client.GetCiBuildActions(requestCtx, resolvedRunID, paginateOpts...)
-		if err != nil {
-			return fmt.Errorf("xcode-cloud actions: failed to fetch: %w", err)
-		}
-
-		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetCiBuildActions(ctx, resolvedRunID, asc.WithCiBuildActionsNextURL(nextURL))
-		})
+		resp, err := shared.PaginateWithSpinner(requestCtx,
+			func(ctx context.Context) (asc.PaginatedResponse, error) {
+				return client.GetCiBuildActions(ctx, resolvedRunID, paginateOpts...)
+			},
+			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return client.GetCiBuildActions(ctx, resolvedRunID, asc.WithCiBuildActionsNextURL(nextURL))
+			},
+		)
 		if err != nil {
 			return fmt.Errorf("xcode-cloud actions: %w", err)
 		}

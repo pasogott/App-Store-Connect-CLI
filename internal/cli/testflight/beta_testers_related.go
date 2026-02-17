@@ -97,13 +97,14 @@ Examples:
 					return flag.ErrHelp
 				}
 				paginateOpts := append(opts, asc.WithBetaTesterAppsLimit(200))
-				firstPage, err := client.GetBetaTesterApps(requestCtx, testerValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("testflight beta-testers apps list: failed to fetch: %w", err)
-				}
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaTesterApps(ctx, testerValue, asc.WithBetaTesterAppsNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterApps(ctx, testerValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterApps(ctx, testerValue, asc.WithBetaTesterAppsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers apps list: %w", err)
 				}
@@ -204,13 +205,14 @@ Examples:
 					return flag.ErrHelp
 				}
 				paginateOpts := append(opts, asc.WithBetaTesterBetaGroupsLimit(200))
-				firstPage, err := client.GetBetaTesterBetaGroups(requestCtx, testerValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("testflight beta-testers beta-groups list: failed to fetch: %w", err)
-				}
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaTesterBetaGroups(ctx, testerValue, asc.WithBetaTesterBetaGroupsNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterBetaGroups(ctx, testerValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterBetaGroups(ctx, testerValue, asc.WithBetaTesterBetaGroupsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers beta-groups list: %w", err)
 				}
@@ -311,13 +313,14 @@ Examples:
 					return flag.ErrHelp
 				}
 				paginateOpts := append(opts, asc.WithBetaTesterBuildsLimit(200))
-				firstPage, err := client.GetBetaTesterBuilds(requestCtx, testerValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("testflight beta-testers builds list: failed to fetch: %w", err)
-				}
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaTesterBuilds(ctx, testerValue, asc.WithBetaTesterBuildsNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterBuilds(ctx, testerValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterBuilds(ctx, testerValue, asc.WithBetaTesterBuildsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers builds list: %w", err)
 				}

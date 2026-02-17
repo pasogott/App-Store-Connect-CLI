@@ -95,14 +95,14 @@ Examples:
 				}
 
 				paginateOpts := append(opts, asc.WithBuildIndividualTestersLimit(200))
-				firstPage, err := client.GetBuildIndividualTesters(requestCtx, buildValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("builds individual-testers list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildIndividualTesters(ctx, buildValue, asc.WithBuildIndividualTestersNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBuildIndividualTesters(ctx, buildValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBuildIndividualTesters(ctx, buildValue, asc.WithBuildIndividualTestersNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("builds individual-testers list: %w", err)
 				}

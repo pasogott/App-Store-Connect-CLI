@@ -394,14 +394,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithBetaAppReviewSubmissionsLimit(200))
-				firstPage, err := client.GetBetaAppReviewSubmissions(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("testflight review submissions list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaAppReviewSubmissions(ctx, asc.WithBetaAppReviewSubmissionsNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBetaAppReviewSubmissions(ctx, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaAppReviewSubmissions(ctx, asc.WithBetaAppReviewSubmissionsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("testflight review submissions list: %w", err)
 				}

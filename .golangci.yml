@@ -1,0 +1,25 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    # Baseline "industry standard" Go checks.
+    - govet
+    - staticcheck
+    - stylecheck
+    - errcheck
+    - ineffassign
+    - unused
+    # (intentionally NOT enabling `misspell` or `unparam` yet; both create large
+    # cleanup churn with current codebase conventions)
+
+issues:
+  # Keep defaults, but avoid noisy duplicates.
+  exclude-rules:
+    # Ignore stylecheck naming warnings (e.g. `app_events` package) to avoid
+    # massive rename churn; keep other style rules like ST1005.
+    - linters: [stylecheck]
+      text: "ST1003:"
+

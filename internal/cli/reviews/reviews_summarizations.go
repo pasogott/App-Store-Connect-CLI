@@ -85,13 +85,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithCustomerReviewSummarizationsLimit(200))
-				firstPage, err := client.GetCustomerReviewSummarizations(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("reviews summarizations: failed to fetch: %w", err)
-				}
-				summaries, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetCustomerReviewSummarizations(ctx, resolvedAppID, asc.WithCustomerReviewSummarizationsNextURL(nextURL))
-				})
+				summaries, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetCustomerReviewSummarizations(ctx, resolvedAppID, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetCustomerReviewSummarizations(ctx, resolvedAppID, asc.WithCustomerReviewSummarizationsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("reviews summarizations: %w", err)
 				}

@@ -115,14 +115,14 @@ Examples:
 			if *global {
 				if *paginate {
 					paginateOpts := append(opts, asc.WithBetaGroupsLimit(200))
-					firstPage, err := client.ListBetaGroups(requestCtx, paginateOpts...)
-					if err != nil {
-						return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
-					}
-
-					groups, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
-					})
+					groups, err := shared.PaginateWithSpinner(requestCtx,
+						func(ctx context.Context) (asc.PaginatedResponse, error) {
+							return client.ListBetaGroups(ctx, paginateOpts...)
+						},
+						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+							return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
+						},
+					)
 					if err != nil {
 						return fmt.Errorf("beta-groups list: %w", err)
 					}
@@ -139,17 +139,15 @@ Examples:
 			}
 
 			if *paginate {
-				// Fetch first page with limit set for consistent pagination
 				paginateOpts := append(opts, asc.WithBetaGroupsLimit(200))
-				firstPage, err := client.GetBetaGroups(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
-				}
-
-				// Fetch all remaining pages
-				groups, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaGroups(ctx, resolvedAppID, asc.WithBetaGroupsNextURL(nextURL))
-				})
+				groups, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBetaGroups(ctx, resolvedAppID, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaGroups(ctx, resolvedAppID, asc.WithBetaGroupsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("beta-groups list: %w", err)
 				}

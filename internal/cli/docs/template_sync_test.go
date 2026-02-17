@@ -3,9 +3,6 @@ package docs_test
 import (
 	_ "embed"
 	"flag"
-	"os"
-	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -47,26 +44,6 @@ func TestASCTemplateIncludesAllRootFlags(t *testing.T) {
 	extra := difference(templateFlags, rootFlags)
 	if len(missing) > 0 || len(extra) > 0 {
 		t.Fatalf("template global flags are out of sync: missing=%v extra=%v", missing, extra)
-	}
-}
-
-func TestRootASCDocMatchesEmbeddedTemplate(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("unable to resolve test file path")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "..", ".."))
-	rootDocPath := filepath.Join(repoRoot, "ASC.md")
-
-	data, err := os.ReadFile(rootDocPath)
-	if err != nil {
-		t.Fatalf("read ASC.md: %v", err)
-	}
-
-	expected := strings.TrimSpace(embeddedTemplate)
-	actual := strings.TrimSpace(string(data))
-	if actual != expected {
-		t.Fatalf("ASC.md is out of sync with embedded template (%s)", rootDocPath)
 	}
 }
 

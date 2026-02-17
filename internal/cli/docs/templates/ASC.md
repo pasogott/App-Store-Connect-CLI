@@ -85,6 +85,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `install` - Install optional ASC components.
 - `init` - Initialize ASC helper docs in the current repo.
 - `docs` - Generate ASC CLI reference docs for a repo.
+- `release-notes` - Generate and manage App Store release notes.
 - `feedback` - List TestFlight feedback from beta testers.
 - `crashes` - List and export TestFlight crash reports.
 - `reviews` - List and manage App Store customer reviews.
@@ -173,6 +174,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `ASC_UPLOAD_TIMEOUT`, `ASC_UPLOAD_TIMEOUT_SECONDS` - Upload timeout
 - `ASC_DEBUG` - Debug output (`api` enables HTTP logs)
 - `ASC_NO_UPDATE` - Disable update checks
+- `ASC_SPINNER_DISABLED` - Disable interactive stderr spinner
 
 ## API References (Offline)
 

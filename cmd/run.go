@@ -32,7 +32,7 @@ var (
 // It returns the intended process exit code.
 func Run(args []string, versionInfo string) int {
 	root := RootCommand(versionInfo)
-	defer CleanupTempPrivateKeys()
+	defer shared.CleanupTempPrivateKeys()
 
 	if err := root.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -116,7 +116,7 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	if runErr != nil {
-		if _, ok := errors.AsType[ReportedError](runErr); ok {
+		if _, ok := errors.AsType[shared.ReportedError](runErr); ok {
 			return ExitCodeFromError(runErr)
 		}
 		if errors.Is(runErr, flag.ErrHelp) {

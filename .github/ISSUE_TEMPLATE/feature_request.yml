@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest an idea or improvement for asc (App Store Connect CLI)
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest an improvement.
+
+        If this is a question or support request, consider using Discussions (if enabled) or include enough detail below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What are you trying to do with App Store Connect?
+      placeholder: "I want to automate ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like asc to do? Include example commands/flags if possible.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or alternative approaches?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Links to Apple docs, related API endpoints, or prior art are helpful.
+

@@ -430,7 +430,7 @@ func resolveBundleInfoForIPA(ipaPath, version, buildNumber string) (string, stri
 			missingFields = append(missingFields, "CFBundleVersion")
 			missingFlags = append(missingFlags, "--build-number")
 		}
-		return "", "", fmt.Errorf("Info.plist missing %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
+		return "", "", fmt.Errorf("missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
 	}
 	return versionValue, buildNumberValue, nil
 }

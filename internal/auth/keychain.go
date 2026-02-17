@@ -10,12 +10,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/99designs/keyring"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
+
+// ErrKeychainAccessDenied is returned when a keychain backend is available but
+// access is explicitly denied (e.g. user clicked "Deny" on the prompt).
+//
+// This is distinct from keychain being unavailable (`keyring.ErrNoAvailImpl`).
+var ErrKeychainAccessDenied = errors.New("keychain access denied")
 
 const (
 	keyringService    = "asc"
@@ -488,6 +495,9 @@ func GetCredentialsWithSource(profile string) (*config.Config, string, error) {
 		return configCfg, "config", nil
 	}
 	if !isKeyringUnavailable(err) {
+		if isKeychainAccessDeniedError(err) {
+			return nil, "", fmt.Errorf("%w: %v", ErrKeychainAccessDenied, err)
+		}
 		return nil, "", err
 	}
 	cfg, err := getCredentialsFromConfig(profile)
@@ -495,6 +505,51 @@ func GetCredentialsWithSource(profile string) (*config.Config, string, error) {
 		return nil, "", err
 	}
 	return cfg, "config", nil
+}
+
+func isKeychainAccessDeniedError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// keyring's keychain backend doesn't wrap go-keychain errors with %w; it
+	// typically stringifies them. Use the trailing OSStatus code as the stable signal.
+	//
+	// Common denial/cancel style codes:
+	// - errSecAuthFailed (-25293): user denied / auth failed
+	// - errSecInteractionNotAllowed (-25308): interaction not allowed
+	// - errSecNoAccessForItem (-25291): no access for item
+	if code, ok := parseTrailingOSStatus(err.Error()); ok {
+		switch code {
+		case -25293, -25308, -25291:
+			return true
+		}
+	}
+
+	// Fallback: match message fragments in case the OSStatus code is lost.
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "interaction is not allowed") ||
+		strings.Contains(msg, "passphrase you entered is not correct") ||
+		strings.Contains(msg, "no access")
+}
+
+func parseTrailingOSStatus(message string) (int, bool) {
+	// Expected format from go-keychain: "... (-25293)"
+	message = strings.TrimSpace(message)
+	end := strings.LastIndex(message, ")")
+	start := strings.LastIndex(message, "(")
+	if start < 0 || end < 0 || end <= start+1 || end != len(message)-1 {
+		return 0, false
+	}
+	raw := strings.TrimSpace(message[start+1 : end])
+	if raw == "" {
+		return 0, false
+	}
+	code, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, false
+	}
+	return code, true
 }
 
 // GetCredentials returns credentials for a named profile.

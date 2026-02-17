@@ -136,17 +136,15 @@ Examples:
 			}
 
 			if *paginate {
-				// Fetch first page with limit set for consistent pagination
 				paginateOpts := append(opts, asc.WithBetaTestersLimit(200))
-				firstPage, err := client.GetBetaTesters(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("beta-testers list: failed to fetch: %w", err)
-				}
-
-				// Fetch all remaining pages
-				testers, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaTesters(ctx, resolvedAppID, asc.WithBetaTestersNextURL(nextURL))
-				})
+				testers, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesters(ctx, resolvedAppID, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesters(ctx, resolvedAppID, asc.WithBetaTestersNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("beta-testers list: %w", err)
 				}

@@ -133,13 +133,14 @@ Examples:
 
 				if *paginate {
 					paginateOpts := append(opts, asc.WithLinkagesLimit(200))
-					firstPage, err := getBuildRelationshipList(requestCtx, client, relationshipType, buildValue, paginateOpts...)
-					if err != nil {
-						return fmt.Errorf("builds relationships get: failed to fetch: %w", err)
-					}
-					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return getBuildRelationshipList(ctx, client, relationshipType, buildValue, asc.WithLinkagesNextURL(nextURL))
-					})
+					resp, err := shared.PaginateWithSpinner(requestCtx,
+						func(ctx context.Context) (asc.PaginatedResponse, error) {
+							return getBuildRelationshipList(ctx, client, relationshipType, buildValue, paginateOpts...)
+						},
+						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+							return getBuildRelationshipList(ctx, client, relationshipType, buildValue, asc.WithLinkagesNextURL(nextURL))
+						},
+					)
 					if err != nil {
 						return fmt.Errorf("builds relationships get: %w", err)
 					}

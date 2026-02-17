@@ -201,14 +201,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithScmRepositoriesLimit(200))
-				firstPage, err := client.GetScmProviderRepositories(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud scm providers repositories: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetScmProviderRepositories(ctx, idValue, asc.WithScmRepositoriesNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetScmProviderRepositories(ctx, idValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetScmProviderRepositories(ctx, idValue, asc.WithScmRepositoriesNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("xcode-cloud scm providers repositories: %w", err)
 				}
@@ -367,14 +367,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithScmGitReferencesLimit(200))
-				firstPage, err := client.GetScmGitReferences(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud scm repositories git-references: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetScmGitReferences(ctx, idValue, asc.WithScmGitReferencesNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetScmGitReferences(ctx, idValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetScmGitReferences(ctx, idValue, asc.WithScmGitReferencesNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("xcode-cloud scm repositories git-references: %w", err)
 				}
@@ -438,14 +438,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithScmPullRequestsLimit(200))
-				firstPage, err := client.GetScmRepositoryPullRequests(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud scm repositories pull-requests: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetScmRepositoryPullRequests(ctx, idValue, asc.WithScmPullRequestsNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetScmRepositoryPullRequests(ctx, idValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetScmRepositoryPullRequests(ctx, idValue, asc.WithScmPullRequestsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("xcode-cloud scm repositories pull-requests: %w", err)
 				}
@@ -533,14 +533,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
-				firstPage, err := client.GetScmRepositoryGitReferencesRelationships(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud scm repositories relationships git-references: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetScmRepositoryGitReferencesRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetScmRepositoryGitReferencesRelationships(ctx, idValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetScmRepositoryGitReferencesRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("xcode-cloud scm repositories relationships git-references: %w", err)
 				}
@@ -604,14 +604,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
-				firstPage, err := client.GetScmRepositoryPullRequestsRelationships(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud scm repositories relationships pull-requests: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetScmRepositoryPullRequestsRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetScmRepositoryPullRequestsRelationships(ctx, idValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetScmRepositoryPullRequestsRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("xcode-cloud scm repositories relationships pull-requests: %w", err)
 				}
@@ -781,14 +781,14 @@ func xcodeCloudScmProvidersList(ctx context.Context, limit int, next string, pag
 
 	if paginate {
 		paginateOpts := append(opts, asc.WithScmProvidersLimit(200))
-		firstPage, err := client.GetScmProviders(requestCtx, paginateOpts...)
-		if err != nil {
-			return fmt.Errorf("xcode-cloud scm providers: failed to fetch: %w", err)
-		}
-
-		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetScmProviders(ctx, asc.WithScmProvidersNextURL(nextURL))
-		})
+		resp, err := shared.PaginateWithSpinner(requestCtx,
+			func(ctx context.Context) (asc.PaginatedResponse, error) {
+				return client.GetScmProviders(ctx, paginateOpts...)
+			},
+			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return client.GetScmProviders(ctx, asc.WithScmProvidersNextURL(nextURL))
+			},
+		)
 		if err != nil {
 			return fmt.Errorf("xcode-cloud scm providers: %w", err)
 		}
@@ -828,14 +828,14 @@ func xcodeCloudScmRepositoriesList(ctx context.Context, limit int, next string, 
 
 	if paginate {
 		paginateOpts := append(opts, asc.WithScmRepositoriesLimit(200))
-		firstPage, err := client.GetScmRepositories(requestCtx, paginateOpts...)
-		if err != nil {
-			return fmt.Errorf("xcode-cloud scm repositories: failed to fetch: %w", err)
-		}
-
-		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetScmRepositories(ctx, asc.WithScmRepositoriesNextURL(nextURL))
-		})
+		resp, err := shared.PaginateWithSpinner(requestCtx,
+			func(ctx context.Context) (asc.PaginatedResponse, error) {
+				return client.GetScmRepositories(ctx, paginateOpts...)
+			},
+			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return client.GetScmRepositories(ctx, asc.WithScmRepositoriesNextURL(nextURL))
+			},
+		)
 		if err != nil {
 			return fmt.Errorf("xcode-cloud scm repositories: %w", err)
 		}

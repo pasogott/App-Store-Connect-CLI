@@ -119,14 +119,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
-				firstPage, err := getBetaGroupRelationshipList(requestCtx, client, relationshipType, groupValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("testflight beta-groups relationships get: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return getBetaGroupRelationshipList(ctx, client, relationshipType, groupValue, asc.WithLinkagesNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return getBetaGroupRelationshipList(ctx, client, relationshipType, groupValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return getBetaGroupRelationshipList(ctx, client, relationshipType, groupValue, asc.WithLinkagesNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("testflight beta-groups relationships get: %w", err)
 				}

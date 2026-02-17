@@ -128,14 +128,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithCiBuildRunBuildsLimit(200))
-				firstPage, err := client.GetCiBuildRunBuilds(requestCtx, runIDValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud build-runs builds: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetCiBuildRunBuilds(ctx, runIDValue, asc.WithCiBuildRunBuildsNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetCiBuildRunBuilds(ctx, runIDValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetCiBuildRunBuilds(ctx, runIDValue, asc.WithCiBuildRunBuildsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 				}
@@ -182,14 +182,14 @@ func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, limit int, 
 
 	if paginate {
 		paginateOpts := append(opts, asc.WithCiBuildRunsLimit(200))
-		firstPage, err := client.GetCiBuildRuns(requestCtx, resolvedWorkflowID, paginateOpts...)
-		if err != nil {
-			return fmt.Errorf("xcode-cloud build-runs: failed to fetch: %w", err)
-		}
-
-		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetCiBuildRuns(ctx, resolvedWorkflowID, asc.WithCiBuildRunsNextURL(nextURL))
-		})
+		resp, err := shared.PaginateWithSpinner(requestCtx,
+			func(ctx context.Context) (asc.PaginatedResponse, error) {
+				return client.GetCiBuildRuns(ctx, resolvedWorkflowID, paginateOpts...)
+			},
+			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return client.GetCiBuildRuns(ctx, resolvedWorkflowID, asc.WithCiBuildRunsNextURL(nextURL))
+			},
+		)
 		if err != nil {
 			return fmt.Errorf("xcode-cloud build-runs: %w", err)
 		}

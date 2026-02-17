@@ -130,10 +130,10 @@ func aggregatePageData(result, page PaginatedResponse) error {
 		return fmt.Errorf("missing Data field for %T", page)
 	}
 	if resultData.Kind() != reflect.Slice || pageData.Kind() != reflect.Slice {
-		return fmt.Errorf("Data field is not a slice for %T", page)
+		return fmt.Errorf("data field is not a slice for %T", page)
 	}
 	if resultData.Type() != pageData.Type() {
-		return fmt.Errorf("Data field type mismatch: %s vs %s", resultData.Type(), pageData.Type())
+		return fmt.Errorf("data field type mismatch: %s vs %s", resultData.Type(), pageData.Type())
 	}
 
 	resultData.Set(reflect.AppendSlice(resultData, pageData))

@@ -1,0 +1,54 @@
+# App Store Connect CLI (asc)
+
+This repository provides `asc`, a fast, scriptable CLI for Apple's App Store
+Connect API.
+
+## What this tool is
+
+- A single Go binary that automates App Store Connect workflows (TestFlight,
+  builds, metadata, signing, submissions, analytics, etc.)
+- JSON-first output (minified by default) for scripting
+- Explicit flags (prefer `--app`, `--output`, etc.)
+- No interactive prompts (destructive operations require `--confirm`)
+
+## Where to start
+
+- README: https://github.com/rudrankriyam/App-Store-Connect-CLI#readme
+- Website docs: https://asccli.sh
+- Command discovery: run `asc --help` and `asc <command> --help`
+
+## Install
+
+- Homebrew:
+  - `brew tap rudrankriyam/tap`
+  - `brew install rudrankriyam/tap/asc`
+- Script:
+  - `curl -fsSL https://raw.githubusercontent.com/rudrankriyam/App-Store-Connect-CLI/main/install.sh | bash`
+
+## Usage patterns
+
+- Prefer JSON parsing:
+  - `asc apps list | jq '.data[] | {id: .id, name: .attributes.name}'`
+- Fetch all pages:
+  - `asc apps list --paginate`
+- Human output:
+  - `asc builds list --app "APP_ID" --output table`
+
+## Auth
+
+`asc` supports App Store Connect API key authentication. Credentials can be
+stored in the system keychain (when available) with a config and environment
+variable fallback.
+
+## Development pointers
+
+- CLI style and agent guidance: `AGENTS.md` and `CLAUDE.md`
+- Offline OpenAPI snapshot:
+  - `docs/openapi/latest.json`
+  - `docs/openapi/paths.txt`
+
+## Repo keywords
+
+App Store Connect, TestFlight, Xcode Cloud, code signing, provisioning profiles,
+certificates, iOS, macOS, CI/CD, CLI, Go.
+

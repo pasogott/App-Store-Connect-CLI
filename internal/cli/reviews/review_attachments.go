@@ -84,14 +84,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithAppStoreReviewAttachmentsLimit(200))
-				firstPage, err := client.GetAppStoreReviewAttachmentsForReviewDetail(requestCtx, reviewDetailValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("review attachments-list: failed to fetch: %w", err)
-				}
-
-				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, asc.WithAppStoreReviewAttachmentsNextURL(nextURL))
-				})
+				pages, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, asc.WithAppStoreReviewAttachmentsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("review attachments-list: %w", err)
 				}

@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/update"
 )
@@ -325,30 +323,6 @@ func TestWriteJUnitReport(t *testing.T) {
 	}
 	if suite.TestCases[0].Failure == nil || suite.TestCases[0].Failure.Type != "ERROR" {
 		t.Fatalf("expected failure type ERROR, got %+v", suite.TestCases[0].Failure)
-	}
-}
-
-func TestCmdSharedWrappersAndReportedError(t *testing.T) {
-	CleanupTempPrivateKey()
-	CleanupTempPrivateKeys()
-
-	if Bold("hi") == "" {
-		t.Fatal("Bold() should not return empty string")
-	}
-
-	usage := DefaultUsageFunc(&ffcli.Command{
-		Name:      "asc",
-		ShortHelp: "test help",
-		FlagSet:   flag.NewFlagSet("asc", flag.ContinueOnError),
-	})
-	if usage == "" {
-		t.Fatal("DefaultUsageFunc() should return non-empty usage string")
-	}
-
-	inner := errors.New("already printed")
-	wrapped := NewReportedError(inner)
-	if !errors.Is(wrapped, inner) {
-		t.Fatalf("NewReportedError() should wrap original error")
 	}
 }
 

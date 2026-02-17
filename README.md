@@ -1,12 +1,30 @@
 # Unofficial App Store Connect CLI
 
 <p align="center">
+  <a href="https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/latest"><img src="https://img.shields.io/github/v/release/rudrankriyam/App-Store-Connect-CLI?style=for-the-badge&color=blue" alt="Latest Release"></a>
+  <a href="https://github.com/rudrankriyam/App-Store-Connect-CLI/stargazers"><img src="https://img.shields.io/github/stars/rudrankriyam/App-Store-Connect-CLI?style=for-the-badge" alt="GitHub Stars"></a>
   <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Homebrew-compatible-blue?style=for-the-badge" alt="Homebrew">
+  <img src="https://img.shields.io/github/downloads/rudrankriyam/App-Store-Connect-CLI/total?style=for-the-badge&color=green" alt="Downloads">
 </p>
 
-A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Automate your iOS app workflows from your IDE/terminal.
+A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect API](https://developer.apple.com/app-store-connect/api/). Automate your iOS, macOS, tvOS, and visionOS app workflows from your terminal, IDE, or CI/CD pipeline. A modern **fastlane alternative** built as a single Go binary.
+
+### Features
+
+- **TestFlight** -- manage builds, beta groups, testers, feedback, and crash reports
+- **App Store submissions** -- versions, localizations, screenshots, review submissions, and phased releases
+- **Builds** -- upload IPAs/PKGs, expire old builds, manage build metadata
+- **Signing** -- certificates, provisioning profiles, bundle IDs, and capabilities
+- **Subscriptions & IAP** -- create and manage subscriptions, in-app purchases, offer codes, and pricing
+- **Analytics & Sales** -- download sales reports, analytics data, and finance reports
+- **Xcode Cloud** -- trigger workflows, monitor build runs, download artifacts
+- **Notarization** -- submit, poll, and retrieve logs for macOS notarization
+- **Game Center** -- achievements, leaderboards, leaderboard sets, and localizations
+- **Screenshots & Previews** -- upload, frame, and manage App Store media assets
+- **Webhooks** -- create and manage App Store Connect webhooks
+- **Agent-friendly** -- JSON-first output, explicit flags, no interactive prompts, clean exit codes
 
 ## Why ASC?
 
@@ -16,50 +34,10 @@ A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Autom
 | Slow, heavy tooling | Single Go binary, instant startup |
 | Poor scripting support | JSON output, explicit flags, clean exit codes |
 
-<!-- WALL-OF-APPS:START -->
-## Wall of Apps
-
-Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls)!
-
-| App | Link | Creator | Platform |
-|:----|:-----|:--------|:---------|
-| bijou.fm | [Open](https://apps.apple.com/us/app/bijou-fm-for-last-fm/id6450460066) | zchwyng | iOS, macOS, tvOS, visionOS |
-| CodexMonitor | [Open](https://github.com/Dimillian/CodexMonitor) | Dimillian | macOS, iOS |
-| Dandelion | [Open](https://apps.apple.com/us/app/dandelion-write-and-let-go/id6757363901) | joeycast | iOS, macOS |
-| DoubleMemory | [Open](https://doublememory.com) | Shaomeng Zhang | iOS |
-| Dripped | [Open](https://apps.apple.com/app/id6749790183) | mithileshchellapan | iOS |
-| Fisherman SMS Filtering | [Open](https://apps.apple.com/app/id6449192504) | MGidnian | iOS |
-| kora: Music Reviews & Ratings | [Open](https://apps.apple.com/app/id6502549140) | adamjhf | iOS |
-| Lumical: Scan to Calendar | [Open](https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309) | arunavo4 | iOS |
-| MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | iOS |
-| Morning Pages | [Open](https://apps.apple.com/us/app/morning-pages/id6738604034) | zchwyng | iOS, macOS |
-| Repetti | [Open](https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413) | rursache | iOS |
-| TV Show Tracker | [Open](https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903) | rursache | iOS |
-| Unlimited Clipboard History | [Open](https://apps.apple.com/us/app/unlimited-clipboard-history/id6705136056) | yspreen | macOS |
-| XO: Have I Ever | [Open](https://apps.apple.com/us/app/xo-have-i-ever/id6757594745) | arunavo4 | iOS |
-<!-- WALL-OF-APPS:END -->
-
-### Add Your App to the Wall
-
-Use:
-`make generate app APP="Your App Name" LINK="https://apps.apple.com/app/id1234567890" CREATOR="your-github-handle" PLATFORM="iOS,macOS"`
-
-This command updates `docs/wall-of-apps.json` and re-syncs the generated Wall snippet in `README.md`.
-
-## ASC Skills
-
-Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rudrankriyam/app-store-connect-cli-skills
-
-## Acknowledgements
-
-Local screenshot framing in ASC uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
-GitHub: https://github.com/bitomule/koubou
-
 ## Table of Contents
 
+- [Features](#features)
 - [Why ASC?](#why-asc)
-- [ASC Skills](#asc-skills)
-- [Acknowledgements](#acknowledgements)
 - [Quick Start](#quick-start)
   - [Install](#install)
   - [Authenticate](#authenticate)
@@ -117,6 +95,9 @@ GitHub: https://github.com/bitomule/koubou
 - [Documentation](#documentation)
 - [How to test in <10 minutes](#how-to-test-in-10-minutes)
 - [Security](#security)
+- [ASC Skills](#asc-skills)
+- [Wall of Apps](#wall-of-apps)
+- [Acknowledgements](#acknowledgements)
 - [Contributing](#contributing)
 - [License](#license)
 - [Author](#author)
@@ -1724,6 +1705,48 @@ make build
 - Environment variables as fallback
 - Report/artifact file helpers use atomic `O_NOFOLLOW` on Unix-like systems
 - On platforms without a portable `O_NOFOLLOW`, helpers use best-effort pre/post `Lstat` checks to reject symlinks and detect path swaps (residual TOCTOU window remains)
+
+## ASC Skills
+
+Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rudrankriyam/app-store-connect-cli-skills
+
+<!-- WALL-OF-APPS:START -->
+## Wall of Apps
+
+Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls)!
+
+| App | Link | Creator | Platform |
+|:----|:-----|:--------|:---------|
+| bijou.fm | [Open](https://apps.apple.com/us/app/bijou-fm-for-last-fm/id6450460066) | zchwyng | iOS, macOS, tvOS, visionOS |
+| CodexMonitor | [Open](https://github.com/Dimillian/CodexMonitor) | Dimillian | macOS, iOS |
+| Dandelion | [Open](https://apps.apple.com/us/app/dandelion-write-and-let-go/id6757363901) | joeycast | iOS, macOS |
+| DoubleMemory | [Open](https://doublememory.com) | Shaomeng Zhang | iOS |
+| Dripped | [Open](https://apps.apple.com/app/id6749790183) | mithileshchellapan | iOS |
+| Fisherman SMS Filtering | [Open](https://apps.apple.com/app/id6449192504) | MGidnian | iOS |
+| kora: Music Reviews & Ratings | [Open](https://apps.apple.com/app/id6502549140) | adamjhf | iOS |
+| Lumical: Scan to Calendar | [Open](https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309) | arunavo4 | iOS |
+| MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | iOS |
+| Mixtape | [Open](https://apps.apple.com/us/app/mixtape-personal-music-gift/id6756442910) | jimripple | iOS |
+| Morning Pages | [Open](https://apps.apple.com/us/app/morning-pages/id6738604034) | zchwyng | iOS, macOS |
+| Parsely | [Open](https://testflight.apple.com/join/HjUZtzVm) | sambitcreate | iOS |
+| Repetti | [Open](https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413) | rursache | iOS |
+| Steps: Workout & Pedometer | [Open](https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378) | Hieu Dinh | iOS |
+| TV Show Tracker | [Open](https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903) | rursache | iOS |
+| Unlimited Clipboard History | [Open](https://apps.apple.com/us/app/unlimited-clipboard-history/id6705136056) | yspreen | macOS |
+| XO: Have I Ever | [Open](https://apps.apple.com/us/app/xo-have-i-ever/id6757594745) | arunavo4 | iOS |
+<!-- WALL-OF-APPS:END -->
+
+### Add Your App to the Wall
+
+Use:
+`make generate app APP="Your App Name" LINK="https://apps.apple.com/app/id1234567890" CREATOR="your-github-handle" PLATFORM="iOS,macOS"`
+
+This command updates `docs/wall-of-apps.json` and re-syncs the generated Wall snippet in `README.md`.
+
+## Acknowledgements
+
+Local screenshot framing in ASC uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
+GitHub: https://github.com/bitomule/koubou
 
 ## Contributing
 

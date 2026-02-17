@@ -34,7 +34,8 @@ func ExtractBundleInfoFromIPA(ipaPath string) (IPABundleInfo, error) {
 		return readBundleInfoFromInfoPlist(file)
 	}
 
-	return IPABundleInfo{}, fmt.Errorf("Info.plist not found in IPA")
+	// Keep the canonical casing for the filename, but follow Go error string style.
+	return IPABundleInfo{}, fmt.Errorf("missing Info.plist in IPA")
 }
 
 func isTopLevelAppInfoPlist(name string) bool {

@@ -95,14 +95,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithCiArtifactsLimit(200))
-				firstPage, err := client.GetCiBuildActionArtifacts(requestCtx, resolvedActionID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud artifacts list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetCiBuildActionArtifacts(ctx, resolvedActionID, asc.WithCiArtifactsNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetCiBuildActionArtifacts(ctx, resolvedActionID, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetCiBuildActionArtifacts(ctx, resolvedActionID, asc.WithCiArtifactsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("xcode-cloud artifacts list: %w", err)
 				}

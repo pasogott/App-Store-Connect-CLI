@@ -135,14 +135,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithLinkagesLimit(analyticsMaxLimit))
-				firstPage, err := client.GetAnalyticsReportInstanceSegmentsRelationships(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("analytics instances relationships: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, asc.WithLinkagesNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, asc.WithLinkagesNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("analytics instances relationships: %w", err)
 				}

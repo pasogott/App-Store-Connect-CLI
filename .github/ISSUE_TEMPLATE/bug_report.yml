@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a bug in asc (App Store Connect CLI)
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        Please include enough detail for someone else to reproduce the issue.
+
+  - type: input
+    id: version
+    attributes:
+      label: asc version
+      description: Paste the output of `asc version` (or `asc --version`)
+      placeholder: "0.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: Your operating system (e.g. macOS 15.3, Ubuntu 24.04)
+      placeholder: "macOS 15.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options:
+        - Homebrew
+        - install.sh script
+        - Built from source
+        - Other (please specify in Additional context)
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command(s) you ran
+      description: Paste the exact command(s), with any sensitive values removed
+      render: shell
+      placeholder: |
+        asc apps list --paginate
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "What did you expect to happen?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: "What happened instead?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output
+      description: Paste stdout/stderr output (redact secrets)
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that helps (screenshots, repro repo, etc.)
+

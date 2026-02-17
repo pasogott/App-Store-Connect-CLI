@@ -82,5 +82,24 @@
     "link": "https://apps.apple.com/app/id6749790183",
     "creator": "mithileshchellapan",
     "platform": ["iOS"]
+  },
+  {
+    "app": "Mixtape",
+    "link": "https://apps.apple.com/us/app/mixtape-personal-music-gift/id6756442910",
+    "creator": "jimripple",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Parsely",
+    "link": "https://testflight.apple.com/join/HjUZtzVm",
+    "creator": "sambitcreate",
+    "platform": ["iOS"]
+  }
+  ,
+  {
+    "app": "Steps: Workout & Pedometer",
+    "link": "https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378",
+    "creator": "Hieu Dinh",
+    "platform": ["iOS"]
   }
 ]

@@ -102,14 +102,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithProfilesLimit(200))
-				firstPage, err := client.GetProfiles(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("profiles list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetProfiles(ctx, asc.WithProfilesNextURL(nextURL))
-				})
+				paginated, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetProfiles(ctx, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetProfiles(ctx, asc.WithProfilesNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("profiles list: %w", err)
 				}

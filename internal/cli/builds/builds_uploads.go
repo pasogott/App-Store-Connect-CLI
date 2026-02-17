@@ -116,14 +116,14 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithBuildUploadsLimit(200))
-				firstPage, err := client.GetBuildUploads(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("builds uploads list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildUploads(ctx, resolvedAppID, asc.WithBuildUploadsNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBuildUploads(ctx, resolvedAppID, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBuildUploads(ctx, resolvedAppID, asc.WithBuildUploadsNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("builds uploads list: %w", err)
 				}
@@ -313,14 +313,14 @@ Examples:
 				}
 
 				paginateOpts := append(opts, asc.WithBuildUploadFilesLimit(200))
-				firstPage, err := client.GetBuildUploadFiles(requestCtx, uploadValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("builds uploads files list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildUploadFiles(ctx, uploadValue, asc.WithBuildUploadFilesNextURL(nextURL))
-				})
+				resp, err := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetBuildUploadFiles(ctx, uploadValue, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBuildUploadFiles(ctx, uploadValue, asc.WithBuildUploadFilesNextURL(nextURL))
+					},
+				)
 				if err != nil {
 					return fmt.Errorf("builds uploads files list: %w", err)
 				}

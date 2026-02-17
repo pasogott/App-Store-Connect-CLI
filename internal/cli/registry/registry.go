@@ -55,6 +55,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/profiles"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/publish"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/releasenotes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/sandbox"
@@ -95,6 +96,7 @@ func Subcommands(version string) []*ffcli.Command {
 		install.InstallCommand(),
 		initcmd.InitCommand(),
 		docs.DocsCommand(),
+		releasenotes.ReleaseNotesCommand(),
 		feedback.FeedbackCommand(),
 		crashes.CrashesCommand(),
 		reviews.ReviewsCommand(),

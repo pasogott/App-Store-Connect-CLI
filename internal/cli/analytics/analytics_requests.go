@@ -162,17 +162,15 @@ Examples:
 				}
 
 				if *paginate {
-					// Fetch first page with limit set for consistent pagination
 					paginateOpts := append(opts, asc.WithAnalyticsReportRequestsLimit(200))
-					firstPage, err := client.GetAnalyticsReportRequests(requestCtx, resolvedAppID, paginateOpts...)
-					if err != nil {
-						return fmt.Errorf("analytics requests: failed to fetch: %w", err)
-					}
-
-					// Fetch all remaining pages
-					paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAnalyticsReportRequests(ctx, resolvedAppID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
-					})
+					paginated, err := shared.PaginateWithSpinner(requestCtx,
+						func(ctx context.Context) (asc.PaginatedResponse, error) {
+							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, paginateOpts...)
+						},
+						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+						},
+					)
 					if err != nil {
 						return fmt.Errorf("analytics requests: %w", err)
 					}
