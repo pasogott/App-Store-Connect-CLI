@@ -48,8 +48,14 @@ func FormatNotes(commits []Commit, format string) (string, error) {
 // TruncateNotes truncates notes to maxChars (in runes), attempting to keep whole lines.
 // It returns the truncated notes and whether truncation occurred.
 func TruncateNotes(notes string, maxChars int) (string, bool) {
-	if maxChars <= 0 {
+	if maxChars < 0 {
 		return notes, false
+	}
+	if maxChars == 0 {
+		if notes == "" {
+			return "", false
+		}
+		return "", true
 	}
 	if utf8.RuneCountInString(notes) <= maxChars {
 		return notes, false

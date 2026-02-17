@@ -37,3 +37,23 @@ func TestTruncateNotes_TruncatesWithinLineWhenNecessary(t *testing.T) {
 		t.Fatalf("out = %q, want %q", out, "- this is ")
 	}
 }
+
+func TestTruncateNotes_ZeroMaxChars(t *testing.T) {
+	out, truncated := TruncateNotes("- first\n- second", 0)
+	if !truncated {
+		t.Fatalf("expected truncated=true")
+	}
+	if out != "" {
+		t.Fatalf("out = %q, want empty string", out)
+	}
+}
+
+func TestTruncateNotes_ZeroMaxChars_EmptyInput(t *testing.T) {
+	out, truncated := TruncateNotes("", 0)
+	if truncated {
+		t.Fatalf("expected truncated=false")
+	}
+	if out != "" {
+		t.Fatalf("out = %q, want empty string", out)
+	}
+}
