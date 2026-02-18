@@ -41,7 +41,8 @@ type Step struct {
 //   - bare string → Step{Run: "..."}
 //   - object → normal unmarshal
 func (s *Step) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+	// encoding/json passes already-trimmed tokens to UnmarshalJSON.
+	if bytes.Equal(data, []byte("null")) {
 		return fmt.Errorf("step must be a string or object, not null")
 	}
 

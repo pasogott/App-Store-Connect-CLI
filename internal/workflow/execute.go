@@ -157,6 +157,13 @@ func runHookAndRecord(ctx context.Context, command string, env map[string]string
 	}
 	if dryRun {
 		hr.Status = "dry-run"
+		// Even in dry-run, surface writer failures (e.g. broken pipe) instead of
+		// silently discarding them.
+		if err != nil {
+			hr.Status = "error"
+			hr.Error = err.Error()
+			return hr, err
+		}
 		return hr, nil
 	}
 	if err != nil {
