@@ -1777,6 +1777,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | Repetti | [Open](https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413) | rursache | iOS |
 | Steps: Workout & Pedometer | [Open](https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378) | Hieu Dinh | iOS |
 | Summit | [Open](https://apps.apple.com/app/id6756911679) | OscarGorog | iOS |
+| ToMe: Save to Self | [Open](https://apps.apple.com/app/id6755589008) | framara | iOS, macOS |
 | TV Show Tracker | [Open](https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903) | rursache | iOS |
 | Unlimited Clipboard History | [Open](https://apps.apple.com/us/app/unlimited-clipboard-history/id6705136056) | yspreen | macOS |
 | Video Annotation | [Open](https://apps.apple.com/us/app/video-annotation/id6758316355) | antranapp | iOS |
