@@ -154,6 +154,7 @@ func workflowListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("workflow list", flag.ExitOnError)
 	filePath := fs.String("file", wf.DefaultPath, "Path to workflow.json")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	all := fs.Bool("all", false, "Include private workflows in listing")
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -181,6 +182,9 @@ func workflowListCommand() *ffcli.Command {
 
 			workflows := make([]workflowInfo, 0, len(def.Workflows))
 			for name, w := range def.Workflows {
+				if w.Private && !*all {
+					continue
+				}
 				workflows = append(workflows, workflowInfo{
 					Name:        name,
 					Description: w.Description,

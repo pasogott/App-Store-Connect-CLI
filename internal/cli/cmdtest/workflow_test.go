@@ -345,6 +345,76 @@ func TestWorkflowList_Sorted(t *testing.T) {
 	}
 }
 
+func TestWorkflowList_HidesPrivate(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"beta":   {"steps": ["echo beta"]},
+			"helper": {"private": true, "steps": ["echo helper"]}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "list", "--file", path}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	var workflows []map[string]any
+	if err := json.Unmarshal([]byte(stdout), &workflows); err != nil {
+		t.Fatalf("expected JSON array, got %q: %v", stdout, err)
+	}
+	if len(workflows) != 1 {
+		t.Fatalf("expected 1 public workflow, got %d: %v", len(workflows), workflows)
+	}
+	if workflows[0]["name"] != "beta" {
+		t.Fatalf("expected name=beta, got %v", workflows[0]["name"])
+	}
+}
+
+func TestWorkflowList_AllIncludesPrivate(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"beta":   {"steps": ["echo beta"]},
+			"helper": {"private": true, "steps": ["echo helper"]}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "list", "--all", "--file", path}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	var workflows []map[string]any
+	if err := json.Unmarshal([]byte(stdout), &workflows); err != nil {
+		t.Fatalf("expected JSON array, got %q: %v", stdout, err)
+	}
+	if len(workflows) != 2 {
+		t.Fatalf("expected 2 workflows with --all, got %d: %v", len(workflows), workflows)
+	}
+	// Should be sorted: beta, helper
+	if workflows[0]["name"] != "beta" {
+		t.Fatalf("expected first=beta, got %v", workflows[0]["name"])
+	}
+	if workflows[1]["name"] != "helper" {
+		t.Fatalf("expected second=helper, got %v", workflows[1]["name"])
+	}
+}
+
 func TestWorkflowList_MissingFile(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
