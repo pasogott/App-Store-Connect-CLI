@@ -117,6 +117,6 @@ Hooks are recorded in the structured JSON output as `hooks.before_all`, `hooks.a
 This makes it safe to do:
 
 ```bash
-asc workflow run beta BUILD_ID:123 GROUP_ID:xyz | jq -e '.status == \"ok\"'
+asc workflow run beta BUILD_ID:123 GROUP_ID:xyz | jq -e '.status == "ok"'
 ```
 
