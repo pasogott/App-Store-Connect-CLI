@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -160,7 +161,7 @@ func detectCycles(def *Definition) *ValidationError {
 						break
 					}
 				}
-				cycle := append(path[cycleStart:], ref)
+				cycle := append(slices.Clone(path[cycleStart:]), ref)
 				return &ValidationError{
 					Code:     ErrCyclicReference,
 					Workflow: name,
