@@ -152,7 +152,7 @@ team_id "TEAM123"
 	if err := os.WriteFile(filepath.Join(fastlaneDir, "Appfile"), []byte(appfile), 0o644); err != nil {
 		t.Fatalf("write Appfile error: %v", err)
 	}
-	fastfile := `lane :beta do
+	fastfile := `platform :ios do
   app_store_connect_api_key(
     key_content: "` + secretValue + `"
   )
