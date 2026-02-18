@@ -323,6 +323,16 @@ func TestValidate_StepConflict(t *testing.T) {
 	assertValidationCode(t, errs, ErrStepConflict)
 }
 
+func TestValidate_StepWithOnRunStep(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"beta": {Steps: []Step{{Run: "echo $MSG", With: map[string]string{"MSG": "hello"}}}},
+		},
+	}
+	errs := Validate(def)
+	assertValidationCode(t, errs, ErrStepWithOnRun)
+}
+
 func TestValidate_WorkflowNotFound(t *testing.T) {
 	def := &Definition{
 		Workflows: map[string]Workflow{

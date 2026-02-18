@@ -20,6 +20,7 @@ const (
 	ErrStepConflict        ValidationCode = "step_run_and_workflow"
 	ErrWorkflowNotFound    ValidationCode = "workflow_not_found"
 	ErrCyclicReference     ValidationCode = "cyclic_reference"
+	ErrStepWithOnRun       ValidationCode = "step_with_on_run"
 )
 
 // ValidationError describes a structured workflow validation failure.
@@ -104,6 +105,15 @@ func Validate(def *Definition) []*ValidationError {
 					Workflow: name,
 					Step:     idx,
 					Message:  fmt.Sprintf("workflow %q step %d has both run and workflow (only one allowed)", name, idx),
+				})
+			}
+
+			if hasRun && len(step.With) > 0 {
+				errs = append(errs, &ValidationError{
+					Code:     ErrStepWithOnRun,
+					Workflow: name,
+					Step:     idx,
+					Message:  fmt.Sprintf("workflow %q step %d has 'with' on a run step (only allowed on workflow steps)", name, idx),
 				})
 			}
 
