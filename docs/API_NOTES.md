@@ -45,6 +45,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 - If Game Center is not enabled for the app, the detail lookup returns 404.
 - Releases are required to make achievements/leaderboards/leaderboard-sets live (create a release after creating the resource).
 - Image uploads follow a three-step flow: reserve upload slot → upload file → commit upload (using upload operations).
+- The `challengesMinimumPlatformVersions` relationship on `gameCenterDetails` expects `gameCenterAppVersions` linkages, even though the published OpenAPI spec indicates `appStoreVersions` (see PR #639).
 
 ## Authentication & Rate Limiting
 
