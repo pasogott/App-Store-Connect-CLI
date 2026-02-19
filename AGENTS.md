@@ -36,6 +36,10 @@ For endpoint existence and request/response schemas, use the offline snapshot:
 `docs/openapi/latest.json` and the quick index `docs/openapi/paths.txt`.
 Update instructions live in `docs/openapi/README.md`.
 
+Notes:
+- Validate flags against the *request* schema for the method you're implementing (create vs update often differ).
+- Validate query params against the specific endpoint (top-level vs relationship endpoints may allow different filters).
+
 ## Build & Test
 
 ```bash
@@ -95,6 +99,12 @@ make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
   - Verify CLI exit behavior using a built binary (not only `go run`) for black-box checks:
     - `go build -o /tmp/asc .`
     - run `/tmp/asc ...` and assert exit code + stderr/stdout
+  - For any new/changed API-facing flag (query params or request attributes), cross-check `docs/openapi/latest.json` to ensure:
+    - the attribute exists in the correct request schema (create-only vs update-only is common)
+    - the query parameter is permitted for that endpoint (top-level vs relationship endpoints can differ)
+    - if the API doesn't support it, don't ship a flag; implement client-side behavior or document the limitation explicitly
+  - If the change depends on ASC API quirks and you have credentials available locally, run a minimal live smoke test with a built binary (`/tmp/asc`).
+    - Prefer read-only commands first; for write operations, use a throwaway app/resource and clean up (create-then-delete).
 - Before opening/updating a PR, always run:
   - `make format`
   - `make lint`
