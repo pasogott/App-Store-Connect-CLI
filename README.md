@@ -1774,6 +1774,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | Mixtape | [Open](https://apps.apple.com/us/app/mixtape-personal-music-gift/id6756442910) | jimripple | iOS |
 | Morning Pages | [Open](https://apps.apple.com/us/app/morning-pages/id6738604034) | zchwyng | iOS, macOS |
 | Parsely | [Open](https://testflight.apple.com/join/HjUZtzVm) | sambitcreate | iOS |
+| Plinky | [Open](https://apps.apple.com/us/app/plinky-easily-save-links/id1597187737) | mergesort | iOS, macOS |
 | Repetti | [Open](https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413) | rursache | iOS |
 | Steps: Workout & Pedometer | [Open](https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378) | Hieu Dinh | iOS |
 | Summit | [Open](https://apps.apple.com/app/id6756911679) | OscarGorog | iOS |
