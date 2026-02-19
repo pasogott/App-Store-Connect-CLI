@@ -37,7 +37,6 @@ jobs:
 
           # Run integration tests (build-tagged and env-gated)
           go test -tags=integration -v -timeout 10m ./internal/asc -run Integration
-          go test -tags=integration -v -timeout 5m ./internal/update -run Integration
 
       - name: Cleanup
         if: always()

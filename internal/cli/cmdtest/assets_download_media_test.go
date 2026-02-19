@@ -71,7 +71,7 @@ func TestScreenshotsDownload_ByID_WritesFile(t *testing.T) {
 	}
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"--no-update", "screenshots", "download", "--id", "shot-1", "--output", outPath}); err != nil {
+		if err := root.Parse([]string{"screenshots", "download", "--id", "shot-1", "--output", outPath}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -175,7 +175,7 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 	}
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"--no-update", "screenshots", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
+		if err := root.Parse([]string{"screenshots", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -253,7 +253,7 @@ func TestVideoPreviewsDownload_ByID_WritesFile(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"--no-update", "video-previews", "download", "--id", "prev-1", "--output", outPath}); err != nil {
+		if err := root.Parse([]string{"video-previews", "download", "--id", "prev-1", "--output", outPath}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -334,7 +334,7 @@ func TestVideoPreviewsDownload_ByLocalization_WritesFiles(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"--no-update", "video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
+		if err := root.Parse([]string{"video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

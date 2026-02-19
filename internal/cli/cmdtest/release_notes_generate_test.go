@@ -31,7 +31,7 @@ func TestReleaseNotesGenerate_JSON(t *testing.T) {
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"--no-update", "release-notes", "generate", "--since-tag", "v1.0.0", "--output", "json"}, "1.0.0")
+		code = cmd.Run([]string{"release-notes", "generate", "--since-tag", "v1.0.0", "--output", "json"}, "1.0.0")
 	})
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
@@ -83,7 +83,7 @@ func TestReleaseNotesGenerate_MissingSinceIsUsage(t *testing.T) {
 	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
 
 	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"--no-update", "release-notes", "generate"}, "1.0.0")
+		code := cmd.Run([]string{"release-notes", "generate"}, "1.0.0")
 		if code != cmd.ExitUsage {
 			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
 		}
@@ -111,7 +111,7 @@ func TestReleaseNotesGenerate_NotGitRepoReturnsError(t *testing.T) {
 	}
 
 	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"--no-update", "release-notes", "generate", "--since-ref", "HEAD~1"}, "1.0.0")
+		code := cmd.Run([]string{"release-notes", "generate", "--since-ref", "HEAD~1"}, "1.0.0")
 		if code != cmd.ExitError {
 			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
 		}
@@ -141,7 +141,6 @@ func TestReleaseNotesGenerate_TruncatesToMaxChars(t *testing.T) {
 	var code int
 	stdout, stderr := captureOutput(t, func() {
 		code = cmd.Run([]string{
-			"--no-update",
 			"release-notes", "generate",
 			"--since-tag", "v1.0.0",
 			"--max-chars", "10",

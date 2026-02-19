@@ -76,12 +76,12 @@ func TestShotsCapture_FlagsBeforeSubcommand(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
-	// Root-level flag before subcommand: asc --no-update screenshots capture --name home
+	// Root-level flag before subcommand: asc --strict-auth screenshots capture --name home
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	_, stderr := captureOutput(t, func() {
-		args := []string{"--no-update", "screenshots", "capture", "--name", "home"}
+		args := []string{"--strict-auth", "screenshots", "capture", "--name", "home"}
 		if err := root.Parse(args); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}

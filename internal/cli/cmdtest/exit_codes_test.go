@@ -182,13 +182,13 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 	}{
 		{
 			name:    "submit create conflicting version flags",
-			args:    []string{"--no-update", "submit", "create", "--version", "1.0", "--version-id", "V123", "--build", "B1", "--confirm"},
+			args:    []string{"submit", "create", "--version", "1.0", "--version-id", "V123", "--build", "B1", "--confirm"},
 			wantErr: "--version and --version-id are mutually exclusive",
 		},
 		{
 			name: "auth login mutually exclusive validation flags",
 			args: []string{
-				"--no-update", "auth", "login",
+				"auth", "login",
 				"--name", "demo",
 				"--key-id", "KEY",
 				"--issuer-id", "ISS",
@@ -200,22 +200,22 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 		},
 		{
 			name:    "app-info get conflicting version flags",
-			args:    []string{"--no-update", "app-info", "get", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
+			args:    []string{"app-info", "get", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
 			wantErr: "--version and --version-id are mutually exclusive",
 		},
 		{
 			name:    "performance download mutually exclusive selectors",
-			args:    []string{"--no-update", "performance", "download", "--app", "APP_ID", "--build", "BUILD_ID"},
+			args:    []string{"performance", "download", "--app", "APP_ID", "--build", "BUILD_ID"},
 			wantErr: "mutually exclusive",
 		},
 		{
 			name:    "xcode-cloud run mutually exclusive workflow flags",
-			args:    []string{"--no-update", "xcode-cloud", "run", "--workflow", "CI", "--workflow-id", "WF_ID", "--branch", "main"},
+			args:    []string{"xcode-cloud", "run", "--workflow", "CI", "--workflow-id", "WF_ID", "--branch", "main"},
 			wantErr: "--workflow and --workflow-id are mutually exclusive",
 		},
 		{
 			name:    "publish appstore invalid timeout",
-			args:    []string{"--no-update", "publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
+			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than 0",
 		},
 	}

@@ -128,7 +128,10 @@ make build
 
 ### Updates
 
-`asc` checks for updates on startup and auto-updates when installed via the GitHub release install script. Homebrew installs will show a `brew upgrade` hint instead. Disable update checks with `--no-update` or `ASC_NO_UPDATE=1`.
+`asc` does not self-update. Update it using your install method:
+
+- Homebrew: `brew upgrade asc`
+- Install script: re-run `install.sh` (or download the latest release from GitHub)
 
 ### Authenticate
 

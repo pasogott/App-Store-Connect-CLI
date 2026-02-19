@@ -64,7 +64,6 @@ var (
 	retryLog            OptionalBool
 	debug               OptionalBool
 	apiDebug            OptionalBool
-	noUpdate            bool
 
 	getCredentialsWithSourceFn = auth.GetCredentialsWithSource
 )
@@ -87,18 +86,12 @@ func BindRootFlags(fs *flag.FlagSet) {
 	fs.Var(&retryLog, "retry-log", "Enable retry logging to stderr (overrides ASC_RETRY_LOG/config when set)")
 	fs.Var(&debug, "debug", "Enable debug logging to stderr")
 	fs.Var(&apiDebug, "api-debug", "Enable HTTP debug logging to stderr (redacts sensitive values)")
-	fs.BoolVar(&noUpdate, "no-update", false, "Skip update checks and auto-update")
 	BindCIFlags(fs)
 }
 
 // SelectedProfile returns the current profile override.
 func SelectedProfile() string {
 	return selectedProfile
-}
-
-// NoUpdate reports whether update checks are disabled via flag.
-func NoUpdate() bool {
-	return noUpdate
 }
 
 // ProgressEnabled reports whether it's safe/appropriate to emit progress messages.

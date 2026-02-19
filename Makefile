@@ -68,7 +68,6 @@ test-coverage:
 test-integration:
 	@echo "$(BLUE)Running integration tests (requires ASC_* env vars)...$(NC)"
 	$(GO) test -tags=integration -v ./internal/asc -run Integration
-	$(GO) test -tags=integration -v ./internal/update -run Integration
 
 # Lint the code
 .PHONY: lint
