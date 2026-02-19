@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
@@ -329,16 +330,20 @@ func TestBetaGroupsListScopedWithExternalFilter(t *testing.T) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/betaGroups" {
-			t.Fatalf("expected path /v1/betaGroups, got %s", req.URL.Path)
+		if req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			t.Fatalf("expected path /v1/apps/app-1/betaGroups, got %s", req.URL.Path)
 		}
-		if req.URL.Query().Get("filter[apps]") != "app-1" {
-			t.Fatalf("expected filter[apps]=app-1, got %q", req.URL.Query().Get("filter[apps]"))
+		if req.URL.Query().Get("limit") != "200" {
+			t.Fatalf("expected limit=200, got %q", req.URL.Query().Get("limit"))
 		}
-		if req.URL.Query().Get("filter[isInternalGroup]") != "false" {
-			t.Fatalf("expected filter[isInternalGroup]=false, got %q", req.URL.Query().Get("filter[isInternalGroup]"))
+		if req.URL.Query().Get("filter[isInternalGroup]") != "" {
+			t.Fatalf("expected no filter[isInternalGroup] in request, got %q", req.URL.Query().Get("filter[isInternalGroup]"))
 		}
-		body := `{"data":[]}`
+
+		body := `{"data":[` +
+			`{"type":"betaGroups","id":"bg-int","attributes":{"name":"Internal","isInternalGroup":true}},` +
+			`{"type":"betaGroups","id":"bg-ext","attributes":{"name":"External","isInternalGroup":false}}` +
+			`]}`
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(body)),
@@ -361,8 +366,26 @@ func TestBetaGroupsListScopedWithExternalFilter(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, `"data":[]`) {
-		t.Fatalf("expected empty data output, got %q", stdout)
+
+	var parsed struct {
+		Data []struct {
+			ID         string `json:"id"`
+			Attributes struct {
+				IsInternalGroup bool `json:"isInternalGroup"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
+		t.Fatalf("failed to parse json output: %v\noutput: %q", err, stdout)
+	}
+	if len(parsed.Data) != 1 {
+		t.Fatalf("expected 1 beta group after filtering, got %d", len(parsed.Data))
+	}
+	if parsed.Data[0].ID != "bg-ext" {
+		t.Fatalf("expected external group id bg-ext, got %q", parsed.Data[0].ID)
+	}
+	if parsed.Data[0].Attributes.IsInternalGroup {
+		t.Fatalf("expected external group (isInternalGroup=false), got true")
 	}
 }
 

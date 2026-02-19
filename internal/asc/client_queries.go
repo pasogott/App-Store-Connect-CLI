@@ -357,7 +357,6 @@ type appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery struct {
 
 type betaGroupsQuery struct {
 	listQuery
-	appID           string
 	isInternalGroup *bool
 }
 
@@ -772,9 +771,6 @@ func buildCrashQuery(query *crashQuery) string {
 func buildBetaGroupsQuery(query *betaGroupsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
-	if strings.TrimSpace(query.appID) != "" {
-		values.Set("filter[apps]", strings.TrimSpace(query.appID))
-	}
 	if query.isInternalGroup != nil {
 		values.Set("filter[isInternalGroup]", strconv.FormatBool(*query.isInternalGroup))
 	}

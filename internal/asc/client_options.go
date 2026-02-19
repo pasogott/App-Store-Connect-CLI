@@ -1763,15 +1763,6 @@ func WithBetaGroupsNextURL(next string) BetaGroupsOption {
 	}
 }
 
-// WithBetaGroupsAppID filters beta groups by app ID (global endpoint).
-func WithBetaGroupsAppID(appID string) BetaGroupsOption {
-	return func(q *betaGroupsQuery) {
-		if strings.TrimSpace(appID) != "" {
-			q.appID = strings.TrimSpace(appID)
-		}
-	}
-}
-
 // WithBetaGroupsIsInternal filters beta groups by internal/external groups.
 func WithBetaGroupsIsInternal(isInternal bool) BetaGroupsOption {
 	return func(q *betaGroupsQuery) {
