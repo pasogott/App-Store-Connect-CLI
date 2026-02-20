@@ -118,10 +118,10 @@ func validateDir(dir string) (ValidateResult, error) {
 				continue
 			}
 			locale := strings.TrimSuffix(entry.Name(), ".json")
-			filePath, pathErr := AppInfoLocalizationFilePath(dir, locale)
-			if pathErr != nil {
-				return ValidateResult{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), pathErr)
+			if _, localeErr := validateLocale(locale); localeErr != nil {
+				return ValidateResult{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
 			}
+			filePath := filepath.Join(appInfoDir, entry.Name())
 
 			loc, readErr := ReadAppInfoLocalizationFile(filePath)
 			if readErr != nil {
@@ -167,10 +167,10 @@ func validateDir(dir string) (ValidateResult, error) {
 				}
 
 				locale := strings.TrimSuffix(localeEntry.Name(), ".json")
-				filePath, pathErr := VersionLocalizationFilePath(dir, version, locale)
-				if pathErr != nil {
-					return ValidateResult{}, shared.UsageErrorf("invalid version localization file %q: %v", localeEntry.Name(), pathErr)
+				if _, localeErr := validateLocale(locale); localeErr != nil {
+					return ValidateResult{}, shared.UsageErrorf("invalid version localization file %q: %v", localeEntry.Name(), localeErr)
 				}
+				filePath := filepath.Join(versionPath, localeEntry.Name())
 
 				loc, readErr := ReadVersionLocalizationFile(filePath)
 				if readErr != nil {

@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -44,5 +46,34 @@ func TestAppInfoLengthIssuesBoundaries(t *testing.T) {
 	})
 	if len(withIssues) != 2 {
 		t.Fatalf("expected 2 issues above limits, got %d", len(withIssues))
+	}
+}
+
+func TestValidateDirTreatsDefaultLocaleCaseInsensitively(t *testing.T) {
+	dir := t.TempDir()
+	version := "1.2.3"
+
+	if err := os.MkdirAll(filepath.Join(dir, appInfoDirName), 0o755); err != nil {
+		t.Fatalf("mkdir app-info: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, versionDirName, version), 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, appInfoDirName, "Default.json"), []byte(`{"name":"Default App Name"}`), 0o644); err != nil {
+		t.Fatalf("write app-info default file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, versionDirName, version, "DeFaUlT.json"), []byte(`{"description":"Default description"}`), 0o644); err != nil {
+		t.Fatalf("write version default file: %v", err)
+	}
+
+	result, err := validateDir(dir)
+	if err != nil {
+		t.Fatalf("validateDir() error: %v", err)
+	}
+	if result.FilesScanned != 2 {
+		t.Fatalf("expected 2 files scanned, got %d", result.FilesScanned)
+	}
+	if len(result.Issues) != 0 {
+		t.Fatalf("expected no issues, got %+v", result.Issues)
 	}
 }
