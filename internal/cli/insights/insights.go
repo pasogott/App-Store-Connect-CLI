@@ -255,19 +255,26 @@ func collectSalesMetrics(ctx context.Context, client *asc.Client, vendor string,
 		resolveSalesReason("customer price", availabilityReason, thisData.hasCustomerPrice, prevData.hasCustomerPrice),
 	))
 
-	metrics = append(metrics, comparableMetric("report_rows", "count", float64(thisData.rowCount), float64(prevData.rowCount)))
+	metrics = append(metrics, metricFromOptionalTotals(
+		"report_rows",
+		"count",
+		availabilityReason == "",
+		float64(thisData.rowCount),
+		float64(prevData.rowCount),
+		availabilityReason,
+	))
 	metrics = append(metrics, unavailableMetric("active_devices", "count", "not derivable from sales summary exports"))
 
 	return metrics
 }
 
-func fetchSalesWeekMetrics(ctx context.Context, client *asc.Client, vendor, weekStart string) (salesWeekMetrics, error) {
+func fetchSalesWeekMetrics(ctx context.Context, client *asc.Client, vendor, reportDate string) (salesWeekMetrics, error) {
 	download, err := client.GetSalesReport(ctx, asc.SalesReportParams{
 		VendorNumber:  vendor,
 		ReportType:    asc.SalesReportTypeSales,
 		ReportSubType: asc.SalesReportSubTypeSummary,
 		Frequency:     asc.SalesReportFrequencyWeekly,
-		ReportDate:    weekStart,
+		ReportDate:    reportDate,
 		Version:       asc.SalesReportVersion1_0,
 	})
 	if err != nil {

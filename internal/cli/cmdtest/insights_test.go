@@ -172,6 +172,74 @@ func TestInsightsWeeklySalesJSON(t *testing.T) {
 	}
 }
 
+func TestInsightsWeeklySalesReportRowsUnavailableOnFetchError(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/salesReports" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+
+		switch req.URL.Query().Get("filter[reportDate]") {
+		case "2026-02-22":
+			return &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body: io.NopCloser(strings.NewReader(`{
+					"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Internal Server Error","detail":"temporary failure"}]
+				}`)),
+				Header: http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "2026-02-15":
+			return insightsGzipResponse(strings.Join([]string{
+				"Provider\tUnits\tDeveloper Proceeds\tCustomer Price",
+				"foo\t8\t1.25\t2.00",
+				"",
+			}, "\n")), nil
+		default:
+			t.Fatalf("unexpected report date filter %q", req.URL.Query().Get("filter[reportDate]"))
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+
+	metrics, ok := payload["metrics"].([]any)
+	if !ok {
+		t.Fatalf("expected metrics array, got %T", payload["metrics"])
+	}
+
+	reportRowsMetric := findMetric(t, metrics, "report_rows")
+	if reportRowsMetric["status"] != "unavailable" {
+		t.Fatalf("expected report_rows metric unavailable, got %v", reportRowsMetric["status"])
+	}
+}
+
 func TestInsightsWeeklyAnalyticsJSON(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
