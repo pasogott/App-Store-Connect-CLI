@@ -1,20 +1,50 @@
 [
   {
+    "app": "bijou.fm",
+    "link": "https://apps.apple.com/us/app/bijou-fm-for-last-fm/id6450460066",
+    "creator": "zchwyng",
+    "platform": ["iOS", "macOS", "tvOS", "visionOS"]
+  },
+  {
+    "app": "Bobbin",
+    "link": "https://apps.apple.com/us/app/threads-growth-bobbin/id6756035789",
+    "creator": "ljyjeffrey",
+    "platform": ["iOS"]
+  },
+  {
     "app": "CodexMonitor",
     "link": "https://github.com/Dimillian/CodexMonitor",
     "creator": "Dimillian",
     "platform": ["macOS", "iOS"]
   },
   {
-    "app": "MileIO",
-    "link": "https://apps.apple.com/app/id6758225631",
-    "creator": "Juergen",
-    "platform": ["iOS"]
+    "app": "Dandelion",
+    "link": "https://apps.apple.com/us/app/dandelion-write-and-let-go/id6757363901",
+    "creator": "joeycast",
+    "platform": ["iOS", "macOS"]
   },
   {
     "app": "DoubleMemory",
     "link": "https://apps.apple.com/app/id6737529034",
     "creator": "randomor",
+    "platform": ["iOS", "macOS"]
+  },
+  {
+    "app": "Dripped",
+    "link": "https://apps.apple.com/app/id6749790183",
+    "creator": "mithileshchellapan",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Fisherman SMS Filtering",
+    "link": "https://apps.apple.com/app/id6449192504",
+    "creator": "MGidnian",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Inkput",
+    "link": "https://apps.apple.com/app/id6758570182",
+    "creator": "funclosure",
     "platform": ["iOS", "macOS"]
   },
   {
@@ -24,10 +54,76 @@
     "platform": ["iOS"]
   },
   {
+    "app": "Lumical: Scan to Calendar",
+    "link": "https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309",
+    "creator": "arunavo4",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Meshing",
+    "link": "https://apps.apple.com/app/id6567933550",
+    "creator": "rudrankriyam",
+    "platform": ["iOS", "macOS"]
+  },
+  {
+    "app": "MileIO",
+    "link": "https://apps.apple.com/app/id6758225631",
+    "creator": "Juergen",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Mixtape",
+    "link": "https://apps.apple.com/us/app/mixtape-personal-music-gift/id6756442910",
+    "creator": "jimripple",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Morning Pages",
+    "link": "https://apps.apple.com/us/app/morning-pages/id6738604034",
+    "creator": "zchwyng",
+    "platform": ["iOS", "macOS"]
+  },
+  {
+    "app": "Parsely",
+    "link": "https://testflight.apple.com/join/HjUZtzVm",
+    "creator": "sambitcreate",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Plinky",
+    "link": "https://apps.apple.com/us/app/plinky-easily-save-links/id1597187737",
+    "creator": "mergesort",
+    "platform": ["iOS", "macOS"]
+  },
+  {
     "app": "Repetti",
     "link": "https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413",
     "creator": "rursache",
     "platform": ["iOS"]
+  },
+  {
+    "app": "Steps: Workout & Pedometer",
+    "link": "https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378",
+    "creator": "Hieu Dinh",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Summit",
+    "link": "https://apps.apple.com/app/id6756911679",
+    "creator": "OscarGorog",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Timefall",
+    "link": "https://apps.apple.com/app/id6757712804",
+    "creator": "vatrueshka",
+    "platform": ["iOS", "macOS"]
+  },
+  {
+    "app": "ToMe: Save to Self",
+    "link": "https://apps.apple.com/app/id6755589008",
+    "creator": "framara",
+    "platform": ["iOS", "macOS"]
   },
   {
     "app": "TV Show Tracker",
@@ -42,106 +138,10 @@
     "platform": ["macOS"]
   },
   {
-    "app": "Fisherman SMS Filtering",
-    "link": "https://apps.apple.com/app/id6449192504",
-    "creator": "MGidnian",
-    "platform": ["iOS"]
-  },
-  {
-    "app": "Dandelion",
-    "link": "https://apps.apple.com/us/app/dandelion-write-and-let-go/id6757363901",
-    "creator": "joeycast",
-    "platform": ["iOS", "macOS"]
-  },
-  {
-    "app": "Lumical: Scan to Calendar",
-    "link": "https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309",
-    "creator": "arunavo4",
-    "platform": ["iOS"]
-  },
-  {
-    "app": "XO: Have I Ever",
-    "link": "https://apps.apple.com/us/app/xo-have-i-ever/id6757594745",
-    "creator": "arunavo4",
-    "platform": ["iOS"]
-  },
-  {
-    "app": "Morning Pages",
-    "link": "https://apps.apple.com/us/app/morning-pages/id6738604034",
-    "creator": "zchwyng",
-    "platform": ["iOS", "macOS"]
-  },
-  {
-    "app": "bijou.fm",
-    "link": "https://apps.apple.com/us/app/bijou-fm-for-last-fm/id6450460066",
-    "creator": "zchwyng",
-    "platform": ["iOS", "macOS", "tvOS", "visionOS"]
-  },
-  {
-    "app": "Dripped",
-    "link": "https://apps.apple.com/app/id6749790183",
-    "creator": "mithileshchellapan",
-    "platform": ["iOS"]
-  },
-  {
-    "app": "Mixtape",
-    "link": "https://apps.apple.com/us/app/mixtape-personal-music-gift/id6756442910",
-    "creator": "jimripple",
-    "platform": ["iOS"]
-  },
-  {
-    "app": "Parsely",
-    "link": "https://testflight.apple.com/join/HjUZtzVm",
-    "creator": "sambitcreate",
-    "platform": ["iOS"]
-  },
-  {
-    "app": "Steps: Workout & Pedometer",
-    "link": "https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378",
-    "creator": "Hieu Dinh",
-    "platform": ["iOS"]
-  },
-  {
     "app": "Video Annotation",
     "link": "https://apps.apple.com/us/app/video-annotation/id6758316355",
     "creator": "antranapp",
     "platform": ["iOS"]
-  },
-  {
-    "app": "Summit",
-    "link": "https://apps.apple.com/app/id6756911679",
-    "creator": "OscarGorog",
-    "platform": ["iOS"]
-  },
-  {
-    "app": "Bobbin",
-    "link": "https://apps.apple.com/us/app/threads-growth-bobbin/id6756035789",
-    "creator": "ljyjeffrey",
-    "platform": ["iOS"]
-  },
-  {
-    "app": "ToMe: Save to Self",
-    "link": "https://apps.apple.com/app/id6755589008",
-    "creator": "framara",
-    "platform": ["iOS", "macOS"]
-  },
-  {
-    "app": "Plinky",
-    "link": "https://apps.apple.com/us/app/plinky-easily-save-links/id1597187737",
-    "creator": "mergesort",
-    "platform": ["iOS", "macOS"]
-  },
-  {
-    "app": "Inkput",
-    "link": "https://apps.apple.com/app/id6758570182",
-    "creator": "funclosure",
-    "platform": ["iOS", "macOS"]
-  },
-  {
-    "app": "Meshing",
-    "link": "https://apps.apple.com/app/id6567933550",
-    "creator": "rudrankriyam",
-    "platform": ["iOS", "macOS"]
   },
   {
     "app": "Writone - Reply Assistant",
@@ -150,9 +150,9 @@
     "platform": ["iOS"]
   },
   {
-    "app": "Timefall",
-    "link": "https://apps.apple.com/app/id6757712804",
-    "creator": "vatrueshka",
-    "platform": ["iOS", "macOS"]
+    "app": "XO: Have I Ever",
+    "link": "https://apps.apple.com/us/app/xo-have-i-ever/id6757594745",
+    "creator": "arunavo4",
+    "platform": ["iOS"]
   }
 ]

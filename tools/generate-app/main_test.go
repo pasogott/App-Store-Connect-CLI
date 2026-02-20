@@ -107,6 +107,55 @@ Old wall content.
 	}
 }
 
+func TestRunSortsJSONEntriesAlphabeticallyByApp(t *testing.T) {
+	tmpRepo := t.TempDir()
+	withWorkingDirectory(t, tmpRepo)
+
+	writeFile(t, filepath.Join(tmpRepo, "docs", "wall-of-apps.json"), `[
+  {
+    "app": "Zulu",
+    "link": "https://apps.apple.com/app/id1000000001",
+    "creator": "creator-zulu",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "alpha",
+    "link": "https://apps.apple.com/app/id1000000002",
+    "creator": "creator-alpha",
+    "platform": ["iOS"]
+  }
+]`)
+
+	writeFile(t, filepath.Join(tmpRepo, "README.md"), `# Demo
+<!-- WALL-OF-APPS:START -->
+Old wall content.
+<!-- WALL-OF-APPS:END -->
+`)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	err := run([]string{
+		"--app", "Beta",
+		"--link", "https://apps.apple.com/app/id1000000003",
+		"--creator", "creator-beta",
+		"--platform", "iOS",
+	}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v (stderr: %s)", err, stderr.String())
+	}
+
+	entries := readJSONEntries(t, filepath.Join(tmpRepo, "docs", "wall-of-apps.json"))
+	if len(entries) != 3 {
+		t.Fatalf("expected 3 JSON entries, got %d", len(entries))
+	}
+
+	orderedApps := []string{entries[0].App, entries[1].App, entries[2].App}
+	expectedApps := []string{"alpha", "Beta", "Zulu"}
+	if strings.Join(orderedApps, ",") != strings.Join(expectedApps, ",") {
+		t.Fatalf("expected JSON apps sorted alphabetically, got %v", orderedApps)
+	}
+}
+
 func TestRunUpdatesExistingEntryByApp(t *testing.T) {
 	tmpRepo := t.TempDir()
 	withWorkingDirectory(t, tmpRepo)

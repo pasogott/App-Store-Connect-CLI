@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/wallgen"
@@ -137,10 +138,24 @@ func upsertByApp(entries []wallgen.WallEntry, candidate wallgen.WallEntry) ([]wa
 	for i := range entries {
 		if strings.EqualFold(strings.TrimSpace(entries[i].App), candidate.App) {
 			entries[i] = candidate
+			sortEntriesByApp(entries)
 			return entries, "Updated"
 		}
 	}
-	return append(entries, candidate), "Added"
+	entries = append(entries, candidate)
+	sortEntriesByApp(entries)
+	return entries, "Added"
+}
+
+func sortEntriesByApp(entries []wallgen.WallEntry) {
+	sort.SliceStable(entries, func(i, j int) bool {
+		leftApp := strings.ToLower(strings.TrimSpace(entries[i].App))
+		rightApp := strings.ToLower(strings.TrimSpace(entries[j].App))
+		if leftApp != rightApp {
+			return leftApp < rightApp
+		}
+		return strings.ToLower(strings.TrimSpace(entries[i].Link)) < strings.ToLower(strings.TrimSpace(entries[j].Link))
+	})
 }
 
 func writeEntries(path string, entries []wallgen.WallEntry) error {
