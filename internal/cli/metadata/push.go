@@ -314,10 +314,11 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 				continue
 			}
 			locale := strings.TrimSuffix(entry.Name(), ".json")
-			filePath, pathErr := AppInfoLocalizationFilePath(dir, locale)
-			if pathErr != nil {
-				return localMetadataBundle{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), pathErr)
+			resolvedLocale, localeErr := validateLocale(locale)
+			if localeErr != nil {
+				return localMetadataBundle{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
 			}
+			filePath := filepath.Join(appInfoDir, entry.Name())
 			loc, readErr := ReadAppInfoLocalizationFile(filePath)
 			if readErr != nil {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
@@ -328,13 +329,13 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 					return localMetadataBundle{}, shared.UsageErrorf("invalid metadata in %s: %s", filePath, issue.Message)
 				}
 			}
-			if locale == DefaultLocale {
+			if resolvedLocale == DefaultLocale {
 				value := loc
 				defaultAppInfo = &value
 				filesSeen++
 				continue
 			}
-			localAppInfo[locale] = loc
+			localAppInfo[resolvedLocale] = loc
 			filesSeen++
 		}
 	}
@@ -350,10 +351,11 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 				continue
 			}
 			locale := strings.TrimSuffix(entry.Name(), ".json")
-			filePath, pathErr := VersionLocalizationFilePath(dir, version, locale)
-			if pathErr != nil {
-				return localMetadataBundle{}, shared.UsageErrorf("invalid version localization file %q: %v", entry.Name(), pathErr)
+			resolvedLocale, localeErr := validateLocale(locale)
+			if localeErr != nil {
+				return localMetadataBundle{}, shared.UsageErrorf("invalid version localization file %q: %v", entry.Name(), localeErr)
 			}
+			filePath := filepath.Join(versionDir, entry.Name())
 			loc, readErr := ReadVersionLocalizationFile(filePath)
 			if readErr != nil {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
@@ -362,13 +364,13 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 			if len(issues) > 0 {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid metadata in %s: %s", filePath, issues[0].Message)
 			}
-			if locale == DefaultLocale {
+			if resolvedLocale == DefaultLocale {
 				value := loc
 				defaultVersion = &value
 				filesSeen++
 				continue
 			}
-			localVersion[locale] = loc
+			localVersion[resolvedLocale] = loc
 			filesSeen++
 		}
 	}
@@ -857,6 +859,7 @@ func buildScopePlan(
 		localValues, localExists := local[locale]
 		remoteValues, remoteExists := remote[locale]
 		localeChanged := false
+		localeDeletes := 0
 
 		for _, field := range fields {
 			localValue, localHasField := localValues[field]
@@ -885,6 +888,7 @@ func buildScopePlan(
 					Reason:  "field exists remotely but not locally",
 					From:    remoteValue,
 				})
+				localeDeletes++
 				localeChanged = true
 			case remoteHasField && localHasField && remoteValue != localValue:
 				updates = append(updates, PlanItem{
@@ -909,6 +913,9 @@ func buildScopePlan(
 			callCounts.create++
 		case !localExists && remoteExists:
 			callCounts.delete++
+		case localExists && remoteExists && localeDeletes > 0:
+			callCounts.delete++
+			callCounts.create++
 		default:
 			callCounts.update++
 		}
