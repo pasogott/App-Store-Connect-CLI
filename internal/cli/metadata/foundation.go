@@ -174,15 +174,6 @@ func WriteAppInfoLocalizationFile(path string, loc AppInfoLocalization) error {
 	return writeFileNoFollow(path, data)
 }
 
-// WriteVersionLocalizationFile writes canonical version JSON safely.
-func WriteVersionLocalizationFile(path string, loc VersionLocalization) error {
-	data, err := EncodeVersionLocalization(loc)
-	if err != nil {
-		return err
-	}
-	return writeFileNoFollow(path, data)
-}
-
 // AppInfoLocalizationFilePath resolves canonical app-info file path.
 func AppInfoLocalizationFilePath(rootDir, locale string) (string, error) {
 	base, err := validateRootDir(rootDir)
