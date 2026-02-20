@@ -18,16 +18,20 @@ func DocsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "docs",
 		ShortUsage: "asc docs <subcommand> [flags]",
-		ShortHelp:  "Generate asc cli documentation helpers.",
-		LongHelp: `Generate asc cli documentation helpers.
+		ShortHelp:  "Access embedded documentation guides and reference helpers.",
+		LongHelp: `Access embedded documentation guides and reference helpers.
 
 Examples:
+  asc docs list
+  asc docs show workflows
   asc docs init
   asc docs init --path ./ASC.md
   asc docs init --force --link=false`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			DocsListCommand(),
+			DocsShowCommand(),
 			DocsInitCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
