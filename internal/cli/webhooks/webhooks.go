@@ -31,6 +31,7 @@ Examples:
   asc webhooks create --app "APP_ID" --name "Build Updates" --url "https://example.com/webhook" --secret "secret123" --events "SUBSCRIPTION.CREATED,SUBSCRIPTION.UPDATED" --enabled true
   asc webhooks update --webhook-id "WEBHOOK_ID" --url "https://new-url.com/webhook" --enabled false
   asc webhooks delete --webhook-id "WEBHOOK_ID" --confirm
+  asc webhooks serve --port 8787 --dir ./webhook-events
   asc webhooks deliveries --webhook-id "WEBHOOK_ID"
   asc webhooks deliveries relationships --webhook-id "WEBHOOK_ID"
   asc webhooks deliveries redeliver --delivery-id "DELIVERY_ID"
@@ -43,6 +44,7 @@ Examples:
 			WebhooksCreateCommand(),
 			WebhooksUpdateCommand(),
 			WebhooksDeleteCommand(),
+			WebhooksServeCommand(),
 			WebhookDeliveriesCommand(),
 			WebhookPingCommand(),
 		},

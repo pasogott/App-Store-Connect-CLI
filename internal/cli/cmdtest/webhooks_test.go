@@ -111,6 +111,31 @@ func TestWebhooksValidationErrors(t *testing.T) {
 			args:    []string{"webhooks", "ping"},
 			wantErr: "--webhook-id is required",
 		},
+		{
+			name:    "serve invalid port high",
+			args:    []string{"webhooks", "serve", "--port", "70000"},
+			wantErr: "--port must be between 0 and 65535",
+		},
+		{
+			name:    "serve invalid output",
+			args:    []string{"webhooks", "serve", "--output", "table"},
+			wantErr: "--output must be one of: text, json",
+		},
+		{
+			name:    "serve positional args",
+			args:    []string{"webhooks", "serve", "extra"},
+			wantErr: "webhooks serve does not accept positional arguments",
+		},
+		{
+			name:    "serve empty host",
+			args:    []string{"webhooks", "serve", "--host", ""},
+			wantErr: "--host is required",
+		},
+		{
+			name:    "serve invalid max body bytes",
+			args:    []string{"webhooks", "serve", "--max-body-bytes", "0"},
+			wantErr: "--max-body-bytes must be greater than 0",
+		},
 	}
 
 	for _, test := range tests {
