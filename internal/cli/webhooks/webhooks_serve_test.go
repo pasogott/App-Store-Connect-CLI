@@ -84,14 +84,7 @@ func TestWebhooksServeExecReceivesPayload(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
 	}
 
-	waitForFile(t, outPath)
-	content, err := os.ReadFile(outPath)
-	if err != nil {
-		t.Fatalf("read exec output file: %v", err)
-	}
-	if !strings.Contains(string(content), `"id":"evt-exec-1"`) {
-		t.Fatalf("expected payload file to contain event id, got %q", string(content))
-	}
+	waitForFileContains(t, outPath, `"id":"evt-exec-1"`)
 }
 
 func TestReadWebhookServeJSONPayloadAllowsMaxInt64Limit(t *testing.T) {
@@ -347,18 +340,23 @@ func waitForJSONPayloadFile(t *testing.T, dir string) map[string]any {
 	return nil
 }
 
-func waitForFile(t *testing.T, path string) {
+func waitForFileContains(t *testing.T, path, substring string) {
 	t.Helper()
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, err := os.Stat(path); err == nil {
+		data, err := os.ReadFile(path)
+		if err == nil && strings.Contains(string(data), substring) {
 			return
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Fatalf("timed out waiting for file %q", path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("timed out waiting for file %q to contain %q: %v", path, substring, err)
+	}
+	t.Fatalf("timed out waiting for file %q to contain %q, got %q", path, substring, string(data))
 }
 
 func shutdownServeCommand(t *testing.T, cancel context.CancelFunc, errCh <-chan error) {
