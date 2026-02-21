@@ -239,12 +239,14 @@ func LocalizationsScreenshotSetsCommand() *ffcli.Command {
 Examples:
   asc localizations screenshot-sets list --localization-id "LOCALIZATION_ID"
   asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"
+  asc localizations screenshot-sets delete --id "SCREENSHOT_SET_ID" --confirm
   asc localizations screenshot-sets relationships --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			LocalizationsScreenshotSetsListCommand(),
 			LocalizationsScreenshotSetsGetCommand(),
+			LocalizationsScreenshotSetsDeleteCommand(),
 			LocalizationsScreenshotSetsRelationshipsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -291,6 +293,57 @@ Examples:
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		},
+	}
+}
+
+// LocalizationsScreenshotSetsDeleteCommand returns the screenshot sets delete subcommand.
+func LocalizationsScreenshotSetsDeleteCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("localizations screenshot-sets delete", flag.ExitOnError)
+
+	setID := fs.String("id", "", "App screenshot set ID")
+	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "delete",
+		ShortUsage: "asc localizations screenshot-sets delete --id \"SCREENSHOT_SET_ID\" --confirm",
+		ShortHelp:  "Delete an empty screenshot set by ID.",
+		LongHelp: `Delete an empty screenshot set by ID.
+
+Examples:
+  asc localizations screenshot-sets delete --id "SCREENSHOT_SET_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedID := strings.TrimSpace(*setID)
+			if trimmedID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("localizations screenshot-sets delete: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.DeleteAppScreenshotSet(requestCtx, trimmedID); err != nil {
+				return fmt.Errorf("localizations screenshot-sets delete: %w", err)
+			}
+
+			result := asc.AssetDeleteResult{
+				ID:      trimmedID,
+				Deleted: true,
+			}
+
+			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }
