@@ -2626,6 +2626,58 @@ func TestPrintMarkdown_AppPreviewUploadResult(t *testing.T) {
 	}
 }
 
+func TestPrintJSON_CustomProductPageScreenshotUploadResult(t *testing.T) {
+	result := &CustomProductPageScreenshotUploadResult{
+		CustomProductPageLocalizationID: "CPP_LOC_123",
+		SetID:                           "SET_123",
+		DisplayType:                     "APP_IPHONE_65",
+		Results: []AssetUploadResultItem{
+			{FileName: "shot.png", AssetID: "SHOT_123", State: "COMPLETE"},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintJSON(result)
+	})
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
+		t.Fatalf("failed to parse output JSON: %v", err)
+	}
+	if got := parsed["customProductPageLocalizationId"]; got != "CPP_LOC_123" {
+		t.Fatalf("expected customProductPageLocalizationId to be CPP_LOC_123, got: %#v", got)
+	}
+	if _, exists := parsed["versionLocalizationId"]; exists {
+		t.Fatalf("did not expect versionLocalizationId in output JSON: %s", output)
+	}
+}
+
+func TestPrintJSON_CustomProductPagePreviewUploadResult(t *testing.T) {
+	result := &CustomProductPagePreviewUploadResult{
+		CustomProductPageLocalizationID: "CPP_LOC_123",
+		SetID:                           "SET_123",
+		PreviewType:                     "IPHONE_65",
+		Results: []AssetUploadResultItem{
+			{FileName: "preview.mov", AssetID: "PREVIEW_123", State: "COMPLETE"},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintJSON(result)
+	})
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
+		t.Fatalf("failed to parse output JSON: %v", err)
+	}
+	if got := parsed["customProductPageLocalizationId"]; got != "CPP_LOC_123" {
+		t.Fatalf("expected customProductPageLocalizationId to be CPP_LOC_123, got: %#v", got)
+	}
+	if _, exists := parsed["versionLocalizationId"]; exists {
+		t.Fatalf("did not expect versionLocalizationId in output JSON: %s", output)
+	}
+}
+
 func TestPrintTable_AssetDeleteResult(t *testing.T) {
 	result := &AssetDeleteResult{ID: "ASSET_123", Deleted: true}
 

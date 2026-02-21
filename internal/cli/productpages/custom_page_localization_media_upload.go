@@ -148,7 +148,11 @@ Examples:
 	}
 }
 
-func executeCustomPageScreenshotUpload(ctx context.Context, localizationID, path, deviceType string, sync bool) (*asc.AppScreenshotUploadResult, error) {
+func executeCustomPageScreenshotUpload(
+	ctx context.Context,
+	localizationID, path, deviceType string,
+	sync bool,
+) (*asc.CustomProductPageScreenshotUploadResult, error) {
 	trimmedLocalizationID := strings.TrimSpace(localizationID)
 	if trimmedLocalizationID == "" {
 		fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
@@ -204,15 +208,19 @@ func executeCustomPageScreenshotUpload(ctx context.Context, localizationID, path
 		results = append(results, item)
 	}
 
-	return &asc.AppScreenshotUploadResult{
-		VersionLocalizationID: trimmedLocalizationID,
-		SetID:                 set.ID,
-		DisplayType:           set.Attributes.ScreenshotDisplayType,
-		Results:               results,
+	return &asc.CustomProductPageScreenshotUploadResult{
+		CustomProductPageLocalizationID: trimmedLocalizationID,
+		SetID:                           set.ID,
+		DisplayType:                     set.Attributes.ScreenshotDisplayType,
+		Results:                         results,
 	}, nil
 }
 
-func executeCustomPagePreviewUpload(ctx context.Context, localizationID, path, deviceType string, sync bool) (*asc.AppPreviewUploadResult, error) {
+func executeCustomPagePreviewUpload(
+	ctx context.Context,
+	localizationID, path, deviceType string,
+	sync bool,
+) (*asc.CustomProductPagePreviewUploadResult, error) {
 	trimmedLocalizationID := strings.TrimSpace(localizationID)
 	if trimmedLocalizationID == "" {
 		fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
@@ -265,11 +273,11 @@ func executeCustomPagePreviewUpload(ctx context.Context, localizationID, path, d
 		results = append(results, item)
 	}
 
-	return &asc.AppPreviewUploadResult{
-		VersionLocalizationID: trimmedLocalizationID,
-		SetID:                 set.ID,
-		PreviewType:           set.Attributes.PreviewType,
-		Results:               results,
+	return &asc.CustomProductPagePreviewUploadResult{
+		CustomProductPageLocalizationID: trimmedLocalizationID,
+		SetID:                           set.ID,
+		PreviewType:                     set.Attributes.PreviewType,
+		Results:                         results,
 	}, nil
 }
 

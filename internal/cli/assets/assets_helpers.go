@@ -74,11 +74,6 @@ func collectAssetFiles(path string) ([]string, error) {
 	return []string{path}, nil
 }
 
-// WaitForAssetDeliveryState polls until an asset delivery reaches a terminal state.
-func WaitForAssetDeliveryState(ctx context.Context, assetID string, fetch func(context.Context) (*asc.AssetDeliveryState, error)) (string, error) {
-	return waitForAssetDeliveryState(ctx, assetID, fetch)
-}
-
 func waitForAssetDeliveryState(ctx context.Context, assetID string, fetch func(context.Context) (*asc.AssetDeliveryState, error)) (string, error) {
 	var lastState string
 	_, err := asc.PollUntil(ctx, assetPollInterval, func(ctx context.Context) (struct{}, bool, error) {
@@ -105,11 +100,6 @@ func waitForAssetDeliveryState(ctx context.Context, assetID string, fetch func(c
 	}
 
 	return lastState, nil
-}
-
-// FormatAssetErrors formats asset delivery errors for user-facing messages.
-func FormatAssetErrors(errors []asc.ErrorDetail) string {
-	return formatAssetErrors(errors)
 }
 
 func formatAssetErrors(errors []asc.ErrorDetail) string {
