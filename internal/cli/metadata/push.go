@@ -94,20 +94,17 @@ type localMetadataBundle struct {
 }
 
 type localPlanFields struct {
-	setFields   map[string]string
-	clearFields map[string]struct{}
+	setFields map[string]string
 }
 
 type appInfoLocalPatch struct {
 	localization AppInfoLocalization
 	setFields    map[string]string
-	clearFields  map[string]struct{}
 }
 
 type versionLocalPatch struct {
 	localization VersionLocalization
 	setFields    map[string]string
-	clearFields  map[string]struct{}
 }
 
 // MetadataPushCommand returns the metadata push subcommand.
@@ -139,9 +136,7 @@ Examples:
 Notes:
   - default.json fallback is applied only when --allow-deletes is not set.
   - with --allow-deletes, remote locales missing locally are planned as deletes.
-  - omitted fields are treated as no-op; they do not imply deletion.
-  - use "__ASC_DELETE__" to explicitly clear a field value.
-  - clear operations on existing localizations are applied via delete+create and can partially fail.`,
+  - omitted fields are treated as no-op; they do not imply deletion.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -348,17 +343,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 			if readErr != nil {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 			}
-
-			if len(patch.clearFields) > 0 {
-				if _, ok := patch.clearFields["name"]; ok {
-					return localMetadataBundle{}, shared.UsageErrorf("invalid metadata in %s: name cannot be cleared", filePath)
-				}
-			}
-
 			if resolvedLocale == DefaultLocale {
-				if len(patch.clearFields) > 0 {
-					return localMetadataBundle{}, shared.UsageErrorf("invalid metadata in %s: %s does not allow clear markers", filePath, DefaultLocale+".json")
-				}
 				value := patch
 				defaultAppInfo = &value
 				filesSeen++
@@ -394,9 +379,6 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 			}
 			if resolvedLocale == DefaultLocale {
-				if len(patch.clearFields) > 0 {
-					return localMetadataBundle{}, shared.UsageErrorf("invalid metadata in %s: %s does not allow clear markers", filePath, DefaultLocale+".json")
-				}
 				value := patch
 				defaultVersion = &value
 				filesSeen++
@@ -430,16 +412,11 @@ func readAppInfoLocalizationPatchFromFile(path string) (appInfoLocalPatch, error
 	}
 
 	setFields := make(map[string]string)
-	clearFields := make(map[string]struct{})
 	loc := AppInfoLocalization{}
 	for key, rawValue := range raw {
-		value, clear, err := decodeStringFieldPatch(key, rawValue, appInfoPlanFields)
+		value, err := decodeStringFieldPatch(key, rawValue, appInfoPlanFields)
 		if err != nil {
 			return appInfoLocalPatch{}, err
-		}
-		if clear {
-			clearFields[key] = struct{}{}
-			continue
 		}
 		setFields[key] = value
 		switch key {
@@ -456,14 +433,13 @@ func readAppInfoLocalizationPatchFromFile(path string) (appInfoLocalPatch, error
 		}
 	}
 
-	if len(setFields)+len(clearFields) == 0 {
+	if len(setFields) == 0 {
 		return appInfoLocalPatch{}, fmt.Errorf("at least one app-info field is required")
 	}
 
 	return appInfoLocalPatch{
 		localization: NormalizeAppInfoLocalization(loc),
 		setFields:    setFields,
-		clearFields:  clearFields,
 	}, nil
 }
 
@@ -479,16 +455,11 @@ func readVersionLocalizationPatchFromFile(path string) (versionLocalPatch, error
 	}
 
 	setFields := make(map[string]string)
-	clearFields := make(map[string]struct{})
 	loc := VersionLocalization{}
 	for key, rawValue := range raw {
-		value, clear, err := decodeStringFieldPatch(key, rawValue, versionPlanFields)
+		value, err := decodeStringFieldPatch(key, rawValue, versionPlanFields)
 		if err != nil {
 			return versionLocalPatch{}, err
-		}
-		if clear {
-			clearFields[key] = struct{}{}
-			continue
 		}
 		setFields[key] = value
 		switch key {
@@ -507,36 +478,38 @@ func readVersionLocalizationPatchFromFile(path string) (versionLocalPatch, error
 		}
 	}
 
-	if len(setFields)+len(clearFields) == 0 {
+	if len(setFields) == 0 {
 		return versionLocalPatch{}, fmt.Errorf("at least one version metadata field is required")
 	}
 
 	return versionLocalPatch{
 		localization: NormalizeVersionLocalization(loc),
 		setFields:    setFields,
-		clearFields:  clearFields,
 	}, nil
 }
 
-func decodeStringFieldPatch(field string, raw json.RawMessage, allowed []string) (string, bool, error) {
+func decodeStringFieldPatch(field string, raw json.RawMessage, allowed []string) (string, error) {
 	allowedSet := make(map[string]struct{}, len(allowed))
 	for _, key := range allowed {
 		allowedSet[key] = struct{}{}
 	}
 	if _, ok := allowedSet[field]; !ok {
-		return "", false, fmt.Errorf("json: unknown field %q", field)
+		return "", fmt.Errorf("json: unknown field %q", field)
 	}
 
 	var value string
 	if err := json.Unmarshal(raw, &value); err != nil {
-		return "", false, err
+		return "", err
 	}
 
 	trimmed := strings.TrimSpace(value)
-	if trimmed == "" || trimmed == ClearFieldToken {
-		return "", true, nil
+	if trimmed == "__ASC_DELETE__" {
+		return "", fmt.Errorf("field %q uses unsupported clear token __ASC_DELETE__; omit the key to keep the remote value", field)
 	}
-	return trimmed, false, nil
+	if trimmed == "" {
+		return "", fmt.Errorf("field %q cannot be empty; omit the key to leave the remote value unchanged", field)
+	}
+	return trimmed, nil
 }
 
 func applyDefaultAppInfoFallback(
@@ -593,7 +566,6 @@ func cloneAppInfoLocalPatch(patch appInfoLocalPatch) appInfoLocalPatch {
 	return appInfoLocalPatch{
 		localization: patch.localization,
 		setFields:    cloneStringMap(patch.setFields),
-		clearFields:  cloneSetMap(patch.clearFields),
 	}
 }
 
@@ -601,7 +573,6 @@ func cloneVersionLocalPatch(patch versionLocalPatch) versionLocalPatch {
 	return versionLocalPatch{
 		localization: patch.localization,
 		setFields:    cloneStringMap(patch.setFields),
-		clearFields:  cloneSetMap(patch.clearFields),
 	}
 }
 
@@ -613,20 +584,11 @@ func cloneStringMap(source map[string]string) map[string]string {
 	return result
 }
 
-func cloneSetMap(source map[string]struct{}) map[string]struct{} {
-	result := make(map[string]struct{}, len(source))
-	for key := range source {
-		result[key] = struct{}{}
-	}
-	return result
-}
-
 func appInfoToPlanFields(values map[string]appInfoLocalPatch) map[string]localPlanFields {
 	result := make(map[string]localPlanFields, len(values))
 	for locale, value := range values {
 		result[locale] = localPlanFields{
-			setFields:   cloneStringMap(value.setFields),
-			clearFields: cloneSetMap(value.clearFields),
+			setFields: cloneStringMap(value.setFields),
 		}
 	}
 	return result
@@ -636,8 +598,7 @@ func versionToPlanFields(values map[string]versionLocalPatch) map[string]localPl
 	result := make(map[string]localPlanFields, len(values))
 	for locale, value := range values {
 		result[locale] = localPlanFields{
-			setFields:   cloneStringMap(value.setFields),
-			clearFields: cloneSetMap(value.clearFields),
+			setFields: cloneStringMap(value.setFields),
 		}
 	}
 	return result
@@ -730,8 +691,8 @@ func applyAppInfoChanges(
 		}
 
 		remoteFields := cloneStringMap(remoteState.fields)
-		adds, updates, clears := countIntentChanges(appInfoPlanFields, localPatch.setFields, localPatch.clearFields, remoteFields)
-		if adds == 0 && updates == 0 && clears == 0 {
+		adds, updates := countIntentChanges(appInfoPlanFields, localPatch.setFields, remoteFields)
+		if adds == 0 && updates == 0 {
 			continue
 		}
 
@@ -751,35 +712,6 @@ func applyAppInfoChanges(
 				LocalizationID: resp.Data.ID,
 			})
 		case remoteExists:
-			if clears > 0 {
-				if !allowDeletes {
-					return nil, fmt.Errorf("delete operations require --allow-deletes")
-				}
-				merged, mergeErr := mergedAppInfoLocalization(localPatch, remoteState.fields)
-				if mergeErr != nil {
-					return nil, fmt.Errorf("cannot recreate app-info localization %q: %w", locale, mergeErr)
-				}
-				if err := client.DeleteAppInfoLocalization(ctx, remoteState.id); err != nil {
-					return nil, fmt.Errorf("delete app-info localization %s before recreate: %w", locale, err)
-				}
-				actions = append(actions, ApplyAction{
-					Scope:          appInfoDirName,
-					Locale:         locale,
-					Action:         "delete",
-					LocalizationID: remoteState.id,
-				})
-				resp, err := client.CreateAppInfoLocalization(ctx, appInfoID, appInfoAttributes(locale, merged, true))
-				if err != nil {
-					return nil, fmt.Errorf("recreate app-info localization %s: %w", locale, err)
-				}
-				actions = append(actions, ApplyAction{
-					Scope:          appInfoDirName,
-					Locale:         locale,
-					Action:         "create",
-					LocalizationID: resp.Data.ID,
-				})
-				continue
-			}
 			resp, err := client.UpdateAppInfoLocalization(ctx, remoteState.id, appInfoAttributes(locale, localPatch.localization, false))
 			if err != nil {
 				return nil, fmt.Errorf("update app-info localization %s: %w", locale, err)
@@ -852,8 +784,8 @@ func applyVersionChanges(
 		}
 
 		remoteFields := cloneStringMap(remoteState.fields)
-		adds, updates, clears := countIntentChanges(versionPlanFields, localPatch.setFields, localPatch.clearFields, remoteFields)
-		if adds == 0 && updates == 0 && clears == 0 {
+		adds, updates := countIntentChanges(versionPlanFields, localPatch.setFields, remoteFields)
+		if adds == 0 && updates == 0 {
 			continue
 		}
 
@@ -871,34 +803,6 @@ func applyVersionChanges(
 				LocalizationID: resp.Data.ID,
 			})
 		case remoteExists:
-			if clears > 0 {
-				if !allowDeletes {
-					return nil, fmt.Errorf("delete operations require --allow-deletes")
-				}
-				merged := mergedVersionLocalization(localPatch, remoteState.fields)
-				if err := client.DeleteAppStoreVersionLocalization(ctx, remoteState.id); err != nil {
-					return nil, fmt.Errorf("delete version localization %s before recreate: %w", locale, err)
-				}
-				actions = append(actions, ApplyAction{
-					Scope:          versionDirName,
-					Locale:         locale,
-					Version:        version,
-					Action:         "delete",
-					LocalizationID: remoteState.id,
-				})
-				resp, err := client.CreateAppStoreVersionLocalization(ctx, versionID, versionAttributes(locale, merged, true))
-				if err != nil {
-					return nil, fmt.Errorf("recreate version localization %s: %w", locale, err)
-				}
-				actions = append(actions, ApplyAction{
-					Scope:          versionDirName,
-					Locale:         locale,
-					Version:        version,
-					Action:         "create",
-					LocalizationID: resp.Data.ID,
-				})
-				continue
-			}
 			resp, err := client.UpdateAppStoreVersionLocalization(ctx, remoteState.id, versionAttributes(locale, localPatch.localization, false))
 			if err != nil {
 				return nil, fmt.Errorf("update version localization %s: %w", locale, err)
@@ -916,17 +820,10 @@ func applyVersionChanges(
 	return actions, nil
 }
 
-func countIntentChanges(fields []string, localSet map[string]string, localClear map[string]struct{}, remote map[string]string) (int, int, int) {
+func countIntentChanges(fields []string, localSet map[string]string, remote map[string]string) (int, int) {
 	adds := 0
 	updates := 0
-	clears := 0
 	for _, field := range fields {
-		if _, clear := localClear[field]; clear {
-			if _, remoteHasField := remote[field]; remoteHasField {
-				clears++
-			}
-			continue
-		}
 		localValue, localHasField := localSet[field]
 		if !localHasField {
 			continue
@@ -939,93 +836,7 @@ func countIntentChanges(fields []string, localSet map[string]string, localClear 
 			updates++
 		}
 	}
-	return adds, updates, clears
-}
-
-func mergedAppInfoLocalization(local appInfoLocalPatch, remoteFields map[string]string) (AppInfoLocalization, error) {
-	merged := AppInfoLocalization{
-		Name:              remoteFields["name"],
-		Subtitle:          remoteFields["subtitle"],
-		PrivacyPolicyURL:  remoteFields["privacyPolicyUrl"],
-		PrivacyChoicesURL: remoteFields["privacyChoicesUrl"],
-		PrivacyPolicyText: remoteFields["privacyPolicyText"],
-	}
-	for field, value := range local.setFields {
-		switch field {
-		case "name":
-			merged.Name = value
-		case "subtitle":
-			merged.Subtitle = value
-		case "privacyPolicyUrl":
-			merged.PrivacyPolicyURL = value
-		case "privacyChoicesUrl":
-			merged.PrivacyChoicesURL = value
-		case "privacyPolicyText":
-			merged.PrivacyPolicyText = value
-		}
-	}
-	for field := range local.clearFields {
-		switch field {
-		case "name":
-			merged.Name = ""
-		case "subtitle":
-			merged.Subtitle = ""
-		case "privacyPolicyUrl":
-			merged.PrivacyPolicyURL = ""
-		case "privacyChoicesUrl":
-			merged.PrivacyChoicesURL = ""
-		case "privacyPolicyText":
-			merged.PrivacyPolicyText = ""
-		}
-	}
-	if strings.TrimSpace(merged.Name) == "" {
-		return AppInfoLocalization{}, fmt.Errorf("name is required")
-	}
-	return NormalizeAppInfoLocalization(merged), nil
-}
-
-func mergedVersionLocalization(local versionLocalPatch, remoteFields map[string]string) VersionLocalization {
-	merged := VersionLocalization{
-		Description:     remoteFields["description"],
-		Keywords:        remoteFields["keywords"],
-		MarketingURL:    remoteFields["marketingUrl"],
-		PromotionalText: remoteFields["promotionalText"],
-		SupportURL:      remoteFields["supportUrl"],
-		WhatsNew:        remoteFields["whatsNew"],
-	}
-	for field, value := range local.setFields {
-		switch field {
-		case "description":
-			merged.Description = value
-		case "keywords":
-			merged.Keywords = value
-		case "marketingUrl":
-			merged.MarketingURL = value
-		case "promotionalText":
-			merged.PromotionalText = value
-		case "supportUrl":
-			merged.SupportURL = value
-		case "whatsNew":
-			merged.WhatsNew = value
-		}
-	}
-	for field := range local.clearFields {
-		switch field {
-		case "description":
-			merged.Description = ""
-		case "keywords":
-			merged.Keywords = ""
-		case "marketingUrl":
-			merged.MarketingURL = ""
-		case "promotionalText":
-			merged.PromotionalText = ""
-		case "supportUrl":
-			merged.SupportURL = ""
-		case "whatsNew":
-			merged.WhatsNew = ""
-		}
-	}
-	return NormalizeVersionLocalization(merged)
+	return adds, updates
 }
 
 func sortedLocaleUnion[T any](local map[string]T, remote map[string]remoteLocalizationState) []string {
@@ -1191,27 +1002,10 @@ func buildScopePlan(
 		}
 
 		localeChanged := false
-		localeClears := 0
 
 		for _, field := range fields {
 			localValue, localHasField := localValues.setFields[field]
 			remoteValue, remoteHasField := remoteValues[field]
-			if _, clearRequested := localValues.clearFields[field]; clearRequested {
-				if remoteHasField {
-					deletes = append(deletes, PlanItem{
-						Key:     buildPlanKey(scope, version, locale, field),
-						Scope:   scope,
-						Locale:  locale,
-						Version: version,
-						Field:   field,
-						Reason:  "field explicitly cleared locally (requires recreate)",
-						From:    remoteValue,
-					})
-					localeClears++
-					localeChanged = true
-				}
-				continue
-			}
 			if !localHasField {
 				continue
 			}
@@ -1249,9 +1043,6 @@ func buildScopePlan(
 		}
 		switch {
 		case localExists && !remoteExists:
-			callCounts.create++
-		case localExists && remoteExists && localeClears > 0:
-			callCounts.delete++
 			callCounts.create++
 		default:
 			callCounts.update++

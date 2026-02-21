@@ -18,8 +18,6 @@ const (
 	versionDirName = "version"
 	// DefaultLocale is the fastlane-compatible fallback locale token.
 	DefaultLocale = "default"
-	// ClearFieldToken explicitly marks a field for deletion in push payloads.
-	ClearFieldToken = "__ASC_DELETE__"
 )
 
 var localePattern = regexp.MustCompile(`^[a-zA-Z]{2,3}(-[a-zA-Z0-9]+)*$`)

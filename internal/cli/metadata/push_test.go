@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -58,14 +59,11 @@ func TestLoadLocalMetadataRejectsVersionPathTraversal(t *testing.T) {
 	}
 }
 
-func TestBuildScopePlanCountsDeleteAndCreateForRecreate(t *testing.T) {
+func TestBuildScopePlanTreatsMissingLocalFieldsAsNoOp(t *testing.T) {
 	local := map[string]localPlanFields{
 		"en-US": {
 			setFields: map[string]string{
 				"name": "Local Name",
-			},
-			clearFields: map[string]struct{}{
-				"subtitle": {},
 			},
 		},
 	}
@@ -90,10 +88,10 @@ func TestBuildScopePlanCountsDeleteAndCreateForRecreate(t *testing.T) {
 	if len(updates) != 1 {
 		t.Fatalf("expected one field update, got %+v", updates)
 	}
-	if len(deletes) != 1 {
-		t.Fatalf("expected one field delete, got %+v", deletes)
+	if len(deletes) != 0 {
+		t.Fatalf("expected no field deletes, got %+v", deletes)
 	}
-	if calls.create != 1 || calls.delete != 1 || calls.update != 0 {
+	if calls.create != 0 || calls.delete != 0 || calls.update != 1 {
 		t.Fatalf("unexpected call counts: %+v", calls)
 	}
 }
@@ -136,10 +134,10 @@ func TestApplyDefaultFallbackSkipsRemoteLocalesWhenDeletesAllowed(t *testing.T) 
 	}
 }
 
-func TestReadAppInfoLocalizationPatchTracksClearsAndNoOps(t *testing.T) {
+func TestReadAppInfoLocalizationPatchTracksExplicitFields(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "en-US.json")
-	if err := os.WriteFile(path, []byte(`{"name":"New Name","subtitle":"__ASC_DELETE__"}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"name":"New Name","subtitle":"New Subtitle"}`), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
@@ -150,7 +148,23 @@ func TestReadAppInfoLocalizationPatchTracksClearsAndNoOps(t *testing.T) {
 	if patch.localization.Name != "New Name" {
 		t.Fatalf("expected name set, got %+v", patch.localization)
 	}
-	if _, ok := patch.clearFields["subtitle"]; !ok {
-		t.Fatalf("expected subtitle clear marker, got %+v", patch.clearFields)
+	if patch.localization.Subtitle != "New Subtitle" {
+		t.Fatalf("expected subtitle set, got %+v", patch.localization)
+	}
+}
+
+func TestReadAppInfoLocalizationPatchRejectsLegacyClearToken(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "en-US.json")
+	if err := os.WriteFile(path, []byte(`{"name":"New Name","subtitle":"__ASC_DELETE__"}`), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := readAppInfoLocalizationPatchFromFile(path)
+	if err == nil {
+		t.Fatal("expected error for legacy clear token")
+	}
+	if !strings.Contains(err.Error(), "unsupported clear token __ASC_DELETE__") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
