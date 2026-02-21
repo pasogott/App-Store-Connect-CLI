@@ -101,3 +101,26 @@ func TestValidateDirAllowsDefaultAppInfoWithoutName(t *testing.T) {
 		t.Fatalf("expected valid=true, got %+v", result)
 	}
 }
+
+func TestValidateDirNormalizesVersionDefaultLocaleInIssues(t *testing.T) {
+	dir := t.TempDir()
+	version := "1.2.3"
+	versionPath := filepath.Join(dir, versionDirName, version)
+	if err := os.MkdirAll(versionPath, 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionPath, "DeFaUlT.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("write version default file: %v", err)
+	}
+
+	result, err := validateDir(dir)
+	if err != nil {
+		t.Fatalf("validateDir() error: %v", err)
+	}
+	if len(result.Issues) != 1 {
+		t.Fatalf("expected 1 issue, got %+v", result.Issues)
+	}
+	if result.Issues[0].Locale != DefaultLocale {
+		t.Fatalf("expected locale %q, got %q", DefaultLocale, result.Issues[0].Locale)
+	}
+}

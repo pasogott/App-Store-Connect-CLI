@@ -168,7 +168,8 @@ func validateDir(dir string) (ValidateResult, error) {
 				}
 
 				locale := strings.TrimSuffix(localeEntry.Name(), ".json")
-				if _, localeErr := validateLocale(locale); localeErr != nil {
+				resolvedLocale, localeErr := validateLocale(locale)
+				if localeErr != nil {
 					return ValidateResult{}, shared.UsageErrorf("invalid version localization file %q: %v", localeEntry.Name(), localeErr)
 				}
 				filePath := filepath.Join(versionPath, localeEntry.Name())
@@ -184,14 +185,14 @@ func validateDir(dir string) (ValidateResult, error) {
 					result.Issues = append(result.Issues, ValidateIssue{
 						Scope:    versionDirName,
 						File:     filePath,
-						Locale:   locale,
+						Locale:   resolvedLocale,
 						Version:  version,
 						Field:    issue.Field,
 						Severity: issueSeverityError,
 						Message:  issue.Message,
 					})
 				}
-				result.Issues = append(result.Issues, versionLengthIssues(filePath, version, locale, loc)...)
+				result.Issues = append(result.Issues, versionLengthIssues(filePath, version, resolvedLocale, loc)...)
 			}
 		}
 	}

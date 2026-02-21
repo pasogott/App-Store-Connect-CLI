@@ -215,8 +215,8 @@ Examples:
 				})
 			}
 
-			localAppInfo := applyDefaultAppInfoFallback(localBundle.appInfo, localBundle.defaultAppInfo, remoteAppInfo)
-			localVersion := applyDefaultVersionFallback(localBundle.version, localBundle.defaultVersion, remoteVersion)
+			localAppInfo := applyDefaultAppInfoFallback(localBundle.appInfo, localBundle.defaultAppInfo, remoteAppInfo, *allowDeletes)
+			localVersion := applyDefaultVersionFallback(localBundle.version, localBundle.defaultVersion, remoteVersion, *allowDeletes)
 
 			adds, updates, deletes, appInfoCalls := buildScopePlan(
 				appInfoDirName,
@@ -394,12 +394,13 @@ func applyDefaultAppInfoFallback(
 	explicit map[string]AppInfoLocalization,
 	defaultValue *AppInfoLocalization,
 	remote map[string]AppInfoLocalization,
+	allowDeletes bool,
 ) map[string]AppInfoLocalization {
 	result := make(map[string]AppInfoLocalization, len(explicit))
 	for locale, value := range explicit {
 		result[locale] = value
 	}
-	if defaultValue == nil {
+	if defaultValue == nil || allowDeletes {
 		return result
 	}
 	for locale := range remote {
@@ -418,12 +419,13 @@ func applyDefaultVersionFallback(
 	explicit map[string]VersionLocalization,
 	defaultValue *VersionLocalization,
 	remote map[string]VersionLocalization,
+	allowDeletes bool,
 ) map[string]VersionLocalization {
 	result := make(map[string]VersionLocalization, len(explicit))
 	for locale, value := range explicit {
 		result[locale] = value
 	}
-	if defaultValue == nil {
+	if defaultValue == nil || allowDeletes {
 		return result
 	}
 	for locale := range remote {

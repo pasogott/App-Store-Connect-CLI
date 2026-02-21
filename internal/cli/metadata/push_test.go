@@ -92,3 +92,31 @@ func TestBuildScopePlanCountsDeleteAndCreateForRecreate(t *testing.T) {
 		t.Fatalf("unexpected call counts: %+v", calls)
 	}
 }
+
+func TestApplyDefaultFallbackSkipsRemoteLocalesWhenDeletesAllowed(t *testing.T) {
+	defaultAppInfo := AppInfoLocalization{Name: "Default Name"}
+	appInfo := applyDefaultAppInfoFallback(
+		map[string]AppInfoLocalization{},
+		&defaultAppInfo,
+		map[string]AppInfoLocalization{
+			"fr": {Name: "Remote Name"},
+		},
+		true,
+	)
+	if len(appInfo) != 0 {
+		t.Fatalf("expected no app-info fallback locales when deletes are allowed, got %+v", appInfo)
+	}
+
+	defaultVersion := VersionLocalization{Description: "Default Description"}
+	version := applyDefaultVersionFallback(
+		map[string]VersionLocalization{},
+		&defaultVersion,
+		map[string]VersionLocalization{
+			"fr": {Description: "Remote Description"},
+		},
+		true,
+	)
+	if len(version) != 0 {
+		t.Fatalf("expected no version fallback locales when deletes are allowed, got %+v", version)
+	}
+}
