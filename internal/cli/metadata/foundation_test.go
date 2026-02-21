@@ -42,6 +42,34 @@ func TestEncodeVersionLocalizationDeterministicJSON(t *testing.T) {
 	}
 }
 
+func TestEncodeAppInfoLocalizationDoesNotEscapeHTML(t *testing.T) {
+	got, err := EncodeAppInfoLocalization(AppInfoLocalization{
+		Name:             "App",
+		PrivacyPolicyURL: "https://example.com/privacy?a=1&b=2",
+	})
+	if err != nil {
+		t.Fatalf("EncodeAppInfoLocalization() error: %v", err)
+	}
+	want := `{"name":"App","privacyPolicyUrl":"https://example.com/privacy?a=1&b=2"}`
+	if string(got) != want {
+		t.Fatalf("expected %q, got %q", want, string(got))
+	}
+}
+
+func TestEncodeVersionLocalizationDoesNotEscapeHTML(t *testing.T) {
+	got, err := EncodeVersionLocalization(VersionLocalization{
+		Description: "A & B",
+		SupportURL:  "https://example.com/support?a=1&b=2",
+	})
+	if err != nil {
+		t.Fatalf("EncodeVersionLocalization() error: %v", err)
+	}
+	want := `{"description":"A & B","supportUrl":"https://example.com/support?a=1&b=2"}`
+	if string(got) != want {
+		t.Fatalf("expected %q, got %q", want, string(got))
+	}
+}
+
 func TestBuildWritePlansSortsPathsDeterministically(t *testing.T) {
 	plans, err := BuildWritePlans(
 		"/tmp/metadata",
@@ -88,7 +116,7 @@ func TestLocalizationFilePathRejectsTraversal(t *testing.T) {
 	}
 }
 
-func TestWriteAppInfoLocalizationFileRejectsSymlink(t *testing.T) {
+func TestApplyWritePlansRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.json")
 	if err := os.WriteFile(target, []byte(`{"name":"target"}`), 0o644); err != nil {
@@ -100,7 +128,12 @@ func TestWriteAppInfoLocalizationFileRejectsSymlink(t *testing.T) {
 		t.Skipf("symlink not supported: %v", err)
 	}
 
-	err := WriteAppInfoLocalizationFile(link, AppInfoLocalization{Name: "app"})
+	err := ApplyWritePlans([]WritePlan{
+		{
+			Path:     link,
+			Contents: []byte(`{"name":"app"}`),
+		},
+	})
 	if err == nil {
 		t.Fatal("expected symlink write rejection")
 	}
