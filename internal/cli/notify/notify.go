@@ -25,6 +25,7 @@ const (
 	slackWebhookEnvVar               = "ASC_SLACK_WEBHOOK"
 	slackWebhookAllowLocalEnv        = "ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST"
 	slackWebhookHost                 = "hooks.slack.com"
+	slackWebhookGovHost              = "hooks.slack-gov.com"
 	slackWebhookPathPrefix           = "/services/"
 	slackWebhookMaxResponseBodyBytes = 4096
 )
@@ -47,10 +48,10 @@ func slackFlags(fs *flag.FlagSet) (
 	pretext *string,
 	success *bool,
 ) {
-	webhook = fs.String("webhook", "", "Slack webhook URL (or set "+slackWebhookEnvVar+" env var)")
-	channel = fs.String("channel", "", "Slack channel (#channel or @username)")
+	webhook = fs.String("webhook", "", "Slack webhook URL (https://hooks.slack.com/... or https://hooks.slack-gov.com/...; or set "+slackWebhookEnvVar+" env var)")
+	channel = fs.String("channel", "", "Slack channel override (#channel or @username); incoming webhooks may ignore this based on app config")
 	message = fs.String("message", "", "Message to send to Slack")
-	threadTS = fs.String("thread-ts", "", "Slack thread timestamp (thread_ts) for posting a reply")
+	threadTS = fs.String("thread-ts", "", "Parent message timestamp (thread_ts) for posting a threaded reply")
 	blocksJSON = fs.String("blocks-json", "", "Slack Block Kit JSON array")
 	blocksFile = fs.String("blocks-file", "", "Path to Slack Block Kit JSON array file")
 	payloadJSON = fs.String("payload-json", "", "JSON object of release fields to include as Slack attachment fields")
@@ -97,6 +98,8 @@ func SlackCommand() *ffcli.Command {
 This command sends a JSON payload to a Slack incoming webhook URL.
 The webhook URL can be provided via --webhook flag or ASC_SLACK_WEBHOOK env var.
 When using blocks, keep --message as the top-level text fallback.
+Slack may ignore channel overrides for incoming webhooks based on app settings.
+For --thread-ts, use the parent message ts from Slack APIs/events (webhook POST returns only "ok").
 
 Examples:
   asc notify slack --webhook "https://hooks.slack.com/..." --message "Build uploaded"
@@ -327,7 +330,7 @@ func validateSlackWebhookURL(rawURL string) error {
 	rawURL = strings.TrimSpace(rawURL)
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil {
-		return fmt.Errorf("--webhook must be a valid Slack webhook URL (https://hooks.slack.com/...)")
+		return fmt.Errorf("--webhook must be a valid Slack webhook URL (https://hooks.slack.com/... or https://hooks.slack-gov.com/...)")
 	}
 	host := strings.ToLower(parsed.Hostname())
 	if allowLocalSlackWebhook() && isLocalhost(host) {
@@ -340,15 +343,23 @@ func validateSlackWebhookURL(rawURL string) error {
 		return fmt.Errorf("--webhook must use https")
 	}
 	if ip := net.ParseIP(host); ip != nil {
-		return fmt.Errorf("--webhook must target hooks.slack.com")
+		return fmt.Errorf("--webhook must target %s", slackWebhookAllowedHostsLabel())
 	}
-	if host != slackWebhookHost {
-		return fmt.Errorf("--webhook must target hooks.slack.com")
+	if !isSlackWebhookHost(host) {
+		return fmt.Errorf("--webhook must target %s", slackWebhookAllowedHostsLabel())
 	}
 	if !strings.HasPrefix(parsed.Path, slackWebhookPathPrefix) {
 		return fmt.Errorf("--webhook must start with %s", slackWebhookPathPrefix)
 	}
 	return nil
+}
+
+func isSlackWebhookHost(host string) bool {
+	return host == slackWebhookHost || host == slackWebhookGovHost
+}
+
+func slackWebhookAllowedHostsLabel() string {
+	return slackWebhookHost + " or " + slackWebhookGovHost
 }
 
 func allowLocalSlackWebhook() bool {

@@ -564,8 +564,15 @@ func TestNotifySlackRejectsInvalidWebhookHost(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "hooks.slack.com") {
+	if !strings.Contains(stderr, "hooks.slack.com") || !strings.Contains(stderr, "hooks.slack-gov.com") {
 		t.Fatalf("expected host validation error, got %q", stderr)
+	}
+}
+
+func TestValidateSlackWebhookURLAllowsGovHost(t *testing.T) {
+	err := validateSlackWebhookURL("https://hooks.slack-gov.com/services/test")
+	if err != nil {
+		t.Fatalf("expected GovSlack host to be allowed, got %v", err)
 	}
 }
 

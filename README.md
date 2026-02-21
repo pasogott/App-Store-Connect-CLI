@@ -1300,9 +1300,11 @@ asc notify slack --message "Release failed" --payload-file ./release-event.json 
 
 Notes:
 - Set `ASC_SLACK_WEBHOOK` env var to avoid passing `--webhook` each time
-- Webhook URL must target `hooks.slack.com` over HTTPS
+- Webhook URL must target `hooks.slack.com` (or `hooks.slack-gov.com` for GovSlack) over HTTPS
 - `--payload-json` / `--payload-file` accept a JSON object; entries become Slack attachment fields
-- `--thread-ts` posts the message as a reply in an existing Slack thread
+- `--thread-ts` posts the message as a reply in an existing Slack thread and requires a parent message `ts` from Slack APIs/events
+- `--channel` is sent in payload for compatibility, but incoming webhooks may ignore channel overrides based on app config
+- `--blocks-json` / `--blocks-file` are preferred for new layouts; `--payload-*` uses attachment fields for fastlane parity
 
 ### Apps & Builds
 
