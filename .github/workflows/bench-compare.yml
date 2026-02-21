@@ -29,11 +29,14 @@ jobs:
 
       - name: Run benchmarks on base branch
         run: |
+          mkdir -p .perf
           git checkout ${{ github.event.pull_request.base.sha }}
-          bash scripts/bench-ci.sh .perf/base.txt 5 || {
-            echo "Base branch benchmarks failed (script may not exist yet). Using empty baseline."
-            echo "" > .perf/base.txt
-          }
+          if [ -f scripts/bench-ci.sh ]; then
+            bash scripts/bench-ci.sh .perf/base.txt 5 || echo "Base branch benchmarks failed. Using empty baseline." > .perf/base.txt
+          else
+            echo "Base branch does not have bench-ci.sh yet. Skipping baseline."
+            touch .perf/base.txt
+          fi
 
       - name: Run benchmarks on PR branch
         run: |
