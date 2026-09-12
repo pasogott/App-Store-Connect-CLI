@@ -62,6 +62,13 @@ func TestSnapshotNotarizationArtifactPreservesBytesAndCleansUp(t *testing.T) {
 			t.Fatalf("snapshot permissions = %#o, want owner-only", info.Mode().Perm())
 		}
 	}
+	entries, err := os.ReadDir(snapshotDirectory)
+	if err != nil {
+		t.Fatalf("read snapshot directory: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("snapshot directory entries = %d, want unlinked snapshot", len(entries))
+	}
 
 	if err := rewriteFileInPlace(sourcePath, replacement); err != nil {
 		t.Fatal(err)

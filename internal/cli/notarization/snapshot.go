@@ -161,10 +161,13 @@ func snapshotNotarizationArtifact(ctx context.Context, source *os.File, size int
 		closeAndRemove()
 		return nil, 0, "", nil, fmt.Errorf("notarization snapshot changed while reopening")
 	}
+	if err := openedDirectory.Remove(snapshotName); err != nil {
+		closeAndRemove()
+		return nil, 0, "", nil, fmt.Errorf("unlink notarization snapshot: %w", err)
+	}
 
 	cleanup := func() {
 		_ = snapshot.Close()
-		_ = openedDirectory.Remove(snapshotName)
 		_ = openedDirectory.Close()
 		_ = trustedDirectory.Close()
 		cleanupDirectory()

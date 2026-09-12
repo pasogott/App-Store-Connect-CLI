@@ -1537,7 +1537,15 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("notarization submit: failed to snapshot and compute SHA-256: %w", err)
 			}
-			defer cleanupSnapshot()
+			snapshotReleased := false
+			releaseSnapshot := func() {
+				if snapshotReleased {
+					return
+				}
+				snapshotReleased = true
+				cleanupSnapshot()
+			}
+			defer releaseSnapshot()
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -1583,6 +1591,7 @@ Examples:
 			if err := asc.UploadToS3(uploadCtx, creds, snapshot, sha256Hash, snapshotSize, contentType); err != nil {
 				return fmt.Errorf("notarization submit: upload failed: %w", err)
 			}
+			releaseSnapshot()
 
 			if shared.ProgressEnabled() {
 				fmt.Fprintln(os.Stderr, "Upload complete.")
