@@ -1,7 +1,9 @@
 package xcode
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +12,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
+
+var afterValidationSnapshotCopyForTest func()
 
 // snapshotValidationArtifact copies a safely opened artifact into a private,
 // correctly suffixed path for altool. Apple's validation stack identifies the
@@ -84,7 +88,8 @@ func snapshotValidationArtifact(ctx context.Context, source *os.File, size int64
 		return "", nil, fmt.Errorf("secure validation snapshot: %w", err)
 	}
 
-	written, err := copyValidationSnapshotWithContext(ctx, snapshot, io.NewSectionReader(source, 0, size))
+	copiedHash := sha256.New()
+	written, err := copyValidationSnapshotWithContext(ctx, io.MultiWriter(snapshot, copiedHash), io.NewSectionReader(source, 0, size))
 	if err != nil {
 		cleanup()
 		return "", nil, fmt.Errorf("copy validation snapshot: %w", err)
@@ -92,6 +97,19 @@ func snapshotValidationArtifact(ctx context.Context, source *os.File, size int64
 	if written != size {
 		cleanup()
 		return "", nil, fmt.Errorf("copy validation snapshot: copied %d of %d bytes", written, size)
+	}
+	if afterValidationSnapshotCopyForTest != nil {
+		afterValidationSnapshotCopyForTest()
+	}
+	verifiedHash := sha256.New()
+	verified, err := copyValidationSnapshotWithContext(ctx, verifiedHash, io.NewSectionReader(source, 0, size))
+	if err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("verify validation source after snapshot: %w", err)
+	}
+	if verified != size || !bytes.Equal(copiedHash.Sum(nil), verifiedHash.Sum(nil)) {
+		cleanup()
+		return "", nil, fmt.Errorf("validation source changed during snapshot")
 	}
 
 	afterSourceInfo, err := source.Stat()
