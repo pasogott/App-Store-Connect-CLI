@@ -443,17 +443,22 @@ func Validate(ctx context.Context, opts ValidateOptions) (*ValidateResult, error
 	if err != nil {
 		return nil, fmt.Errorf("inspect validated %s: %w", artifactName, err)
 	}
-	if platform == "" {
-		platform, err = inferValidatePlatformFromFile(validatedArtifact, validatedInfo.Size())
-		if err != nil {
-			return nil, err
-		}
-	}
 	snapshotPath, cleanupSnapshot, err := snapshotValidationArtifact(ctx, validatedArtifact, validatedInfo.Size(), strings.ToLower(filepath.Ext(artifactPath)))
 	if err != nil {
 		return nil, fmt.Errorf("prepare %s for validation: %w", artifactName, err)
 	}
 	defer cleanupSnapshot()
+	snapshotArtifact, snapshotInfo, err := secureopen.OpenExistingRegularFileNoFollow(snapshotPath, artifactName+" validation snapshot", artifactFlag)
+	if err != nil {
+		return nil, fmt.Errorf("open %s validation snapshot: %w", artifactName, err)
+	}
+	defer snapshotArtifact.Close()
+	if platform == "" {
+		platform, err = inferValidatePlatformFromFile(snapshotArtifact, snapshotInfo.Size())
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err := runAltoolValidate(ctx, buildValidateCommand(opts, platform, snapshotPath), opts.LogWriter); err != nil {
 		return nil, err
 	}
