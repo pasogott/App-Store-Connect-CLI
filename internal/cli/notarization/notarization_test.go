@@ -212,8 +212,9 @@ func TestNotarizationSubmitDetectsReplacementBetweenLstatAndOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lstat original: %v", err)
 	}
-	if err := os.Remove(path); err != nil {
-		t.Fatalf("remove original: %v", err)
+	preservedPath := filepath.Join(dir, "original.zip")
+	if err := os.Rename(path, preservedPath); err != nil {
+		t.Fatalf("preserve original: %v", err)
 	}
 	if err := os.WriteFile(path, []byte("replacement"), 0o600); err != nil {
 		t.Fatalf("write replacement: %v", err)
