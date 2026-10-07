@@ -9,15 +9,30 @@ runtime. The initial backend supports one thin arm64 iOS app plus resources;
 nested executable code, extensions, embedded frameworks, watch apps, App Clips,
 and app symlinks are rejected.
 
-## SDK licensing blocker
+## User-supplied tooling and SDK licensing
 
-Apple's standard [Developer Program agreement](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/)
-§2.6 prohibits Apple SDK use on non-Apple computers. The
-[Xcode/SDK agreement](https://www.apple.com/legal/sla/docs/xcode.pdf) authorizes
+ASC provides a local integration with tools installed by the user. It does not
+bundle, download, or redistribute Xcode, Apple SDKs, or Swift toolchains, and it
+does not operate a hosted build service. Users must obtain and configure their
+own toolchain and signing materials and are responsible for reviewing and
+complying with the agreements applicable to their account and build environment.
+
+This follows the tooling boundary described by xtool's author,
+[Kabir Oberai](https://forums.swift.org/t/xtool-cross-platform-xcode-replacement-build-ios-apps-on-linux-and-more/79803/3):
+xtool does not distribute Apple's SDKs or toolchains, asks users to supply Xcode,
+and leaves license compliance to users. He also suggests using macOS CI for the
+final App Store build when concerned about a Linux build environment. Operators
+can use a macOS/Xcode workflow for their final distribution build.
+
+Providing an integration does not establish permission to use an SDK in every
+environment. Apple's standard
+[Developer Program agreement](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/)
+§2.6 restricts Apple SDK use on non-Apple computers and enabling others to do so.
+The [Xcode/SDK agreement](https://www.apple.com/legal/sla/docs/xcode.pdf) authorizes
 execution on Apple hardware running macOS. No applicable exception or written
-Apple permission has been verified. The Linux prototype demonstrates technical
-behavior only; it does not establish permission to use or redistribute SDKs.
-Licensing clearance is a release blocker for this workflow.
+Apple permission has been verified. User-supplied tooling does not waive these
+terms or establish Apple approval of this workflow. Technical verification does
+not establish licensing compliance or App Store acceptance.
 
 For an Xcode project, first prepare a Swift package using the converter from
 [omarchy-apple-dev](https://github.com/joshuaswarren/omarchy-apple-dev):

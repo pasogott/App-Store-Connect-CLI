@@ -5,6 +5,21 @@ and rcodesign. Preserve existing Xcode archive/export and fully verified
 macOS re-signing contracts. xtool consumes a Swift package, not an Xcode scheme;
 its converted product is not an Xcode archive.
 
+## Tooling and license boundary
+
+ASC invokes user-installed tools and does not bundle, download, or redistribute
+Xcode, Apple SDKs, or Swift toolchains. It does not operate a hosted build service.
+Users obtain their toolchain and signing materials and remain responsible for
+the agreements applicable to their account and build environment. Document
+[xtool's author's explanation](https://forums.swift.org/t/xtool-cross-platform-xcode-replacement-build-ios-apps-on-linux-and-more/79803/3)
+of this boundary and the option to use macOS CI for a final distribution build.
+Supplying a wrapper is separate from operating a user's build; it does not waive
+Apple's SDK restrictions or establish permission, licensing compliance, or Apple
+acceptance. Keep that uncertainty explicit without describing publication of
+the CLI itself as a confirmed agreement violation.
+
+## Command contract
+
 Build accepts a prepared `--package-path`, `--product`, exact new `--app-path`,
 `--platform device|simulator`, and `--configuration debug|release`. The installed
 toolchain owns Swift/Apple SDK setup. The existing upstream converter can prepare
