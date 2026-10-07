@@ -1,0 +1,217 @@
+package iosbuild
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
+	"howett.net/plist"
+)
+
+// BuildOptions selects an installed xtool package and a create-only artifact destination.
+type BuildOptions struct {
+	PackagePath, Product, AppPath, Platform, Configuration string
+	LogWriter                                              io.Writer
+}
+
+// ChildEnvironment prevents compiler/signer children inheriting Apple API credentials
+// or rcodesign configuration. Toolchain PATH, SDK and ordinary compiler settings remain.
+func ChildEnvironment() []string {
+	var result []string
+	for _, value := range os.Environ() {
+		key, _, _ := strings.Cut(value, "=")
+		if strings.HasPrefix(key, "ASC_") || strings.HasPrefix(key, "RCODESIGN_") || strings.HasPrefix(key, "E2B_") || strings.HasPrefix(key, "DOPPLER_") {
+			continue
+		}
+		result = append(result, value)
+	}
+	return result
+}
+
+// RunTool sends both compiler output streams to diagnostics, never receipt stdout.
+func RunTool(ctx context.Context, directory string, logs io.Writer, executable string, args ...string) error {
+	return runTool(ctx, directory, logs, ChildEnvironment(), executable, args...)
+}
+
+// RunSigner restricts signer children to basic process and locale settings.
+func RunSigner(ctx context.Context, directory string, logs io.Writer, executable string, args ...string) error {
+	var env []string
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		switch key {
+		case "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "SYSTEMROOT":
+			env = append(env, entry)
+		}
+	}
+	return runTool(ctx, directory, logs, env, executable, args...)
+}
+
+func runTool(ctx context.Context, directory string, logs io.Writer, env []string, executable string, args ...string) error {
+	command := exec.CommandContext(ctx, executable, args...)
+	command.Dir = directory
+	command.Env = env
+	configureProcessCancellation(command)
+	command.WaitDelay = 5 * time.Second
+	command.Stdout = logs
+	command.Stderr = logs
+	if err := command.Run(); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("%s failed: %w", filepath.Base(executable), err)
+	}
+	return nil
+}
+
+// Build compiles using xtool, fixes simulator metadata and signs simulator output ad hoc.
+func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResult, resultErr error) {
+	started := time.Now()
+	result = &asc.IOSArtifactResult{Operation: "build", Backend: "xtool", Platform: opts.Platform, Configuration: opts.Configuration, SigningType: "unsigned", AppleAcceptance: "notVerified"}
+	defer func() { result.DurationMs = time.Since(started).Milliseconds() }()
+	packagePath, err := filepath.Abs(opts.PackagePath)
+	if err != nil {
+		return result, err
+	}
+	destination, err := filepath.Abs(opts.AppPath)
+	if err != nil {
+		return result, err
+	}
+	parent, err := rootfs.New(filepath.Dir(destination))
+	if err != nil {
+		return result, err
+	}
+	defer parent.Close()
+	if err := parent.MkdirAll(".", 0o755); err != nil {
+		return result, fmt.Errorf("create app destination parent: %w", err)
+	}
+	parentOS, err := parent.OpenRoot()
+	if err != nil {
+		return result, err
+	}
+	defer parentOS.Close()
+	if _, err := parentOS.Lstat(filepath.Base(destination)); !errors.Is(err, os.ErrNotExist) {
+		return result, fmt.Errorf("app destination must not exist")
+	}
+	packageRoot, err := rootfs.New(packagePath)
+	if err != nil {
+		return result, err
+	}
+	defer packageRoot.Close()
+	if _, err := packageRoot.ReadFileLimited("Package.swift", 4<<20); err != nil {
+		return result, fmt.Errorf("read prepared Package.swift: %w", err)
+	}
+	packageOS, err := packageRoot.OpenRoot()
+	if err != nil {
+		return result, err
+	}
+	defer packageOS.Close()
+	productPath := "xtool/" + opts.Product + ".app"
+	// Pin an existing output's identity so a different configured product or a
+	// successful no-op cannot cause publication of the previous build.
+	var previousInfo os.FileInfo
+	previous, err := packageOS.Open(productPath)
+	if err == nil {
+		defer previous.Close()
+		previousInfo, err = previous.Stat()
+		if err != nil {
+			return result, err
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return result, err
+	}
+	triple := "arm64-apple-ios"
+	if opts.Platform == "simulator" {
+		triple = "arm64-apple-ios-simulator"
+	}
+	if err := RunTool(ctx, packagePath, opts.LogWriter, "xtool", "dev", "build", "--configuration", opts.Configuration, "--triple", triple); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			code := exit.ExitCode()
+			result.ExitStatus = &code
+		}
+		return result, err
+	}
+	produced, err := packageOS.Lstat(productPath)
+	if err != nil {
+		return result, fmt.Errorf("read compiled product: %w", err)
+	}
+	if !produced.IsDir() || produced.Mode()&os.ModeSymlink != 0 {
+		return result, fmt.Errorf("compiled app must be a real directory")
+	}
+	if previousInfo != nil && os.SameFile(previousInfo, produced) {
+		return result, fmt.Errorf("xtool did not replace requested product; refusing stale app")
+	}
+	source := filepath.Join(packagePath, "xtool", opts.Product+".app")
+	// Validate and sign a private copy before reserving the output directory.
+	stage, err := os.MkdirTemp(filepath.Dir(destination), ".asc-ios-build-")
+	if err != nil {
+		return result, err
+	}
+	defer func() {
+		if err := os.RemoveAll(stage); err != nil {
+			result.Success = false
+			resultErr = errors.Join(resultErr, fmt.Errorf("clean build stage %s failed; inspect output before retry: %w", stage, err))
+		}
+	}()
+	stagedApp := filepath.Join(stage, filepath.Base(destination))
+	if err := CopyBundle(ctx, source, stagedApp); err != nil {
+		return result, err
+	}
+	info, err := ReadAppInfo(stagedApp)
+	if err != nil {
+		return result, err
+	}
+	if opts.Platform == "simulator" {
+		if err := ValidateAppCode(stagedApp, info, 7); err != nil {
+			return result, err
+		}
+		info["CFBundleSupportedPlatforms"] = []string{"iPhoneSimulator"}
+		data, err := plist.Marshal(info, plist.BinaryFormat)
+		if err != nil {
+			return result, err
+		}
+		root, err := rootfs.New(stagedApp)
+		if err != nil {
+			return result, err
+		}
+		err = root.WriteFile("Info.plist", data, 0o644)
+		root.Close()
+		if err != nil {
+			return result, err
+		}
+		if err := RunSigner(ctx, stage, opts.LogWriter, "rcodesign", "--config-file", os.DevNull, "sign", "--timestamp-url", "none", stagedApp); err != nil {
+			return result, err
+		}
+		result.SigningType = "adHoc"
+	} else if err := ValidateDeviceApp(stagedApp, info); err != nil {
+		return result, err
+	}
+	// Reserve the exact destination before copying. On failure it remains visibly
+	// incomplete with no success receipt; callers can inspect it before retrying.
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	if err := parentOS.Mkdir(filepath.Base(destination), 0o755); err != nil {
+		return result, err
+	}
+	if err := CopyBundle(ctx, stagedApp, destination); err != nil {
+		return result, fmt.Errorf("app publication incomplete at %s: %w", destination, err)
+	}
+	if err := ctx.Err(); err != nil {
+		return result, fmt.Errorf("app created at %s; inspect before retry: %w", destination, err)
+	}
+	result.AppPath = destination
+	result.BundleID = info["CFBundleIdentifier"].(string)
+	result.Success = true
+	code := 0
+	result.ExitStatus = &code
+	return result, nil
+}

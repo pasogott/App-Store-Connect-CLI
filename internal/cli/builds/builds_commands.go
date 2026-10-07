@@ -421,7 +421,13 @@ func BuildsCommand() *ffcli.Command {
 		ShortHelp:  "Manage builds in App Store Connect.",
 		LongHelp: `Manage builds in App Store Connect.
 
+compile and package use installed xtool and rcodesign on Linux or macOS.
+They make no Apple requests, install no tools, and create no Apple resources.
+Existing Xcode archive/export commands retain their macOS/Xcode contracts.
+
 Examples:
+  asc builds compile --package-path ./omarchy-xtool --product App --app-path ./artifacts/App.app --platform device
+  asc builds package --app-path ./artifacts/App.app --ipa-path ./artifacts/App.ipa --ad-hoc
   asc builds list --app "123456789"
   asc builds count --app "123456789"
   asc builds wait --build-id "BUILD_ID"
@@ -455,6 +461,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
+			BuildsCompileCommand(),
+			BuildsPackageCommand(),
 			listCmd,
 			BuildsCountCommand(),
 			BuildsNextBuildNumberCommand(),
