@@ -9,6 +9,16 @@ runtime. The initial backend supports one thin arm64 iOS app plus resources;
 nested executable code, extensions, embedded frameworks, watch apps, App Clips,
 and app symlinks are rejected.
 
+## SDK licensing blocker
+
+Apple's standard [Developer Program agreement](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/)
+§2.6 prohibits Apple SDK use on non-Apple computers. The
+[Xcode/SDK agreement](https://www.apple.com/legal/sla/docs/xcode.pdf) authorizes
+execution on Apple hardware running macOS. No applicable exception or written
+Apple permission has been verified. The Linux prototype demonstrates technical
+behavior only; it does not establish permission to use or redistribute SDKs.
+Licensing clearance is a release blocker for this workflow.
+
 For an Xcode project, first prepare a Swift package using the converter from
 [omarchy-apple-dev](https://github.com/joshuaswarren/omarchy-apple-dev):
 

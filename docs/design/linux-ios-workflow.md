@@ -60,3 +60,15 @@ and produced an identical file; `make check-docs` verifies synchronization.
 The new subcommands are documented in `docs/linux-ios.md`, embedded ASC guide,
 and live `asc builds --help`. Expanding the generator's scope is unrelated to
 this change; manually changing its output would fail the synchronization gate.
+
+## Empty entitlement override
+
+The hard audit reproduced a signed-input bug on E2B with rcodesign 0.29.0:
+both an omitted `--entitlements` and an explicitly empty plist preserved the
+input signature's optional entitlement. rcodesign imports previous claims when
+no explicit entitlement setting is provided. Package now always supplies a
+valid XML dictionary, including an empty dictionary to clear old claims. The
+shared macOS marshal helper remains unchanged; its empty-map result is no bytes,
+which cannot be passed to rcodesign as an XML file. Regression tests cover both
+empty selection forms; live Linux verification inspects actual output signature
+entitlements rather than inferring them from signer arguments.

@@ -58,7 +58,7 @@ func TestIOSPackageAdHocStagesSourceAndPublishesCreateOnly(t *testing.T) {
 test "$1" = --config-file && test "$2" = /dev/null || exit 12
 test "$3" = sign && test "$4" = --timestamp-url && test "$5" = none || exit 13
 test -z "$ASC_KEY_ID" && test -z "$RCODESIGN_SIGN_PEM_FILE" && test -z "$AWS_SECRET_ACCESS_KEY" && test -z "$LD_PRELOAD" || exit 14
-for app; do test "$app" != --entitlements-xml-file || exit 15; done
+for app; do :; done
 printf 'signer ran in private stage' > "$app/signer-proof"
 `
 	if err := os.WriteFile(filepath.Join(tools, "rcodesign"), []byte(script), 0o755); err != nil {
@@ -134,6 +134,75 @@ func TestIOSPackageRejectsUntrustedProfileBeforeSigning(t *testing.T) {
 	}
 	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("untrusted profile produced an artifact")
+	}
+}
+
+func TestIOSPackageEmptyEntitlementsAreExplicit(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("POSIX signer fixture")
+	}
+	for _, explicit := range []bool{false, true} {
+		t.Run(map[bool]string{false: "omitted", true: "empty plist"}[explicit], func(t *testing.T) {
+			directory, app := newIOSPackageFixture(t)
+			tools := filepath.Join(directory, "bin")
+			if err := os.Mkdir(tools, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			// rcodesign inherits old claims unless an explicit plist overrides them.
+			script := `#!/bin/sh
+previous=
+entitlements=
+for app; do
+  if test "$previous" = --entitlements-xml-file; then entitlements="$app"; fi
+  previous="$app"
+done
+test -n "$entitlements" && test -s "$entitlements" || exit 15
+while IFS= read -r line; do printf '%s\n' "$line"; done < "$entitlements" > "$app/entitlements-proof.plist"
+`
+			if err := os.WriteFile(filepath.Join(tools, "rcodesign"), []byte(script), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", tools)
+			opts := IOSPackageOptions{AppPath: app, IPAPath: filepath.Join(directory, "App.ipa"), AdHoc: true, LogWriter: io.Discard}
+			if explicit {
+				opts.EntitlementsPath = filepath.Join(directory, "empty.plist")
+				data, err := plist.Marshal(map[string]any{}, plist.XMLFormat)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(opts.EntitlementsPath, data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := PackageIOSApp(context.Background(), opts); err != nil {
+				t.Fatal(err)
+			}
+			archive, err := zip.OpenReader(opts.IPAPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer archive.Close()
+			for _, entry := range archive.File {
+				if entry.Name != "Payload/App.app/entitlements-proof.plist" {
+					continue
+				}
+				reader, err := entry.Open()
+				if err != nil {
+					t.Fatal(err)
+				}
+				data, err := io.ReadAll(reader)
+				reader.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				var claims map[string]any
+				if _, err := plist.Unmarshal(data, &claims); err != nil || claims == nil || len(claims) != 0 {
+					t.Fatalf("signer did not receive a valid empty dictionary: %v %v", claims, err)
+				}
+				return
+			}
+			t.Fatal("signer entitlement proof missing from IPA")
+		})
 	}
 }
 

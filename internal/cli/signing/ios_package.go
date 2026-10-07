@@ -173,16 +173,19 @@ func PackageIOSApp(ctx context.Context, opts IOSPackageOptions) (result *asc.IOS
 			return result, fmt.Errorf("ad hoc input must not contain a provisioning profile")
 		}
 	}
-	if len(requested) > 0 {
-		entitlements, err := marshalSigningResignEntitlements(requested)
-		if err != nil {
-			return result, err
-		}
-		if err := stageRoot.WriteFile("entitlements.plist", entitlements, 0o600); err != nil {
-			return result, err
-		}
-		args = append(args, "--entitlements-xml-file", filepath.Join(stage, "entitlements.plist"))
+	entitlements, err := marshalSigningResignEntitlements(requested)
+	if len(requested) == 0 {
+		// rcodesign otherwise imports optional claims from a previous signature.
+		// The shared macOS helper intentionally returns no bytes for this case.
+		entitlements, err = plist.MarshalIndent(requested, plist.XMLFormat, "\t")
 	}
+	if err != nil {
+		return result, fmt.Errorf("encode signing entitlements: %w", err)
+	}
+	if err := stageRoot.WriteFile("entitlements.plist", entitlements, 0o600); err != nil {
+		return result, err
+	}
+	args = append(args, "--entitlements-xml-file", filepath.Join(stage, "entitlements.plist"))
 	args = append(args, app)
 	// The private staging tree has no rcodesign configuration or inherited ASC auth.
 	if err := iosbuild.RunSigner(ctx, stage, opts.LogWriter, "rcodesign", args...); err != nil {
