@@ -54,10 +54,22 @@ Examples:
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			setsResp, err := client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, locID, asc.WithAppStoreVersionLocalizationPreviewSetsIncludePreviews())
+			firstPage, err := client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, locID, asc.WithAppStoreVersionLocalizationPreviewSetsIncludePreviews())
 			cancel()
 			if err != nil {
 				return fmt.Errorf("video-previews list: failed to fetch sets: %w", err)
+			}
+			allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				defer cancel()
+				return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.WithAppStoreVersionLocalizationPreviewSetsNextURL(nextURL))
+			})
+			if err != nil {
+				return fmt.Errorf("video-previews list: failed to fetch sets: %w", err)
+			}
+			setsResp, ok := allPages.(*asc.AppPreviewSetsResponse)
+			if !ok {
+				return fmt.Errorf("video-previews list: unexpected sets response type %T", allPages)
 			}
 
 			sets, err := client.AppPreviewSetsWithPreviews(ctx, setsResp, shared.ContextWithTimeout)
