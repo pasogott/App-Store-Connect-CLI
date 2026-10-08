@@ -22,18 +22,33 @@ type BuildOptions struct {
 	LogWriter                                              io.Writer
 }
 
-// ChildEnvironment prevents compiler/signer children inheriting Apple API credentials
-// or rcodesign configuration. Toolchain PATH, SDK and ordinary compiler settings remain.
+// ChildEnvironment passes compiler children only process, locale, proxy and
+// toolchain settings, so credentials in the caller's environment never reach them.
 func ChildEnvironment() []string {
 	var result []string
 	for _, value := range os.Environ() {
 		key, _, _ := strings.Cut(value, "=")
-		if strings.HasPrefix(key, "ASC_") || strings.HasPrefix(key, "RCODESIGN_") || strings.HasPrefix(key, "E2B_") || strings.HasPrefix(key, "DOPPLER_") {
-			continue
+		if childEnvironmentAllowed(key) {
+			result = append(result, value)
 		}
-		result = append(result, value)
 	}
 	return result
+}
+
+func childEnvironmentAllowed(key string) bool {
+	switch key {
+	case "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TMP", "TEMP", "TERM", "TZ", "LANG", "SYSTEMROOT",
+		"SDKROOT", "DEVELOPER_DIR", "TOOLCHAINS",
+		"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
+		"SSL_CERT_FILE", "SSL_CERT_DIR", "SSH_AUTH_SOCK":
+		return true
+	}
+	for _, prefix := range []string{"LC_", "XDG_", "XTL_", "XTOOL_", "SWIFT_", "SWIFTPM_"} {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // RunTool sends both compiler output streams to diagnostics, never receipt stdout.

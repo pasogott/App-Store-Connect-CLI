@@ -201,17 +201,20 @@ func TestCopyBundleRejectsSymlinkAndPreservesExecutableMode(t *testing.T) {
 	}
 }
 
-func TestChildEnvironmentRemovesAuthAndSignerConfiguration(t *testing.T) {
-	for _, name := range []string{"ASC_KEY_ID", "ASC_PRIVATE_KEY", "RCODESIGN_SIGN_PEM_FILE", "E2B_API_KEY"} {
+func TestChildEnvironmentPassesOnlyToolchainSettings(t *testing.T) {
+	for _, name := range []string{"ASC_KEY_ID", "ASC_PRIVATE_KEY", "RCODESIGN_SIGN_PEM_FILE", "AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "LD_PRELOAD"} {
 		t.Setenv(name, "must-not-reach-child")
 	}
+	t.Setenv("PATH", "/toolchain/bin")
 	t.Setenv("SWIFT_EXEC", "/compiler/swift")
 	env := strings.Join(ChildEnvironment(), "\n")
 	if strings.Contains(env, "must-not-reach-child") {
-		t.Fatal("child inherited sensitive settings")
+		t.Fatalf("child inherited sensitive settings: %s", env)
 	}
-	if !strings.Contains(env, "SWIFT_EXEC=/compiler/swift") {
-		t.Fatal("compiler setting lost")
+	for _, want := range []string{"PATH=/toolchain/bin", "SWIFT_EXEC=/compiler/swift"} {
+		if !strings.Contains(env, want) {
+			t.Fatalf("toolchain setting %s lost: %s", want, env)
+		}
 	}
 	if err := RunTool(context.Background(), "", io.Discard, "nonexistent-asc-tool-01a11503"); err == nil {
 		t.Fatal("missing tool accepted")

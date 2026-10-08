@@ -36,7 +36,7 @@ rcodesign's verification does not provide Apple's complete bundle verification.
 The receipt reports that boundary; real Apple processing remains a separate
 `asc builds upload --wait` step. Ad hoc IPAs are local pipeline tests and cannot
 be published to Apple. Preserve create-only outputs, rooted reads/writes,
-bounded copies, private key staging, cancellation, and sanitized child env.
+bounded copies, private key staging, cancellation, and an allowlisted child environment.
 
 ## Upstream compile behavior
 

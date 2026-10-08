@@ -127,3 +127,11 @@ asc builds upload --app APP_ID --ipa ./artifacts/App.ipa --wait
 Neither portable command discovers Apple credentials, creates certificates or
 profiles, invokes upstream ship.sh, or uploads anything. rcodesign configuration
 is disabled and timestamp requests are disabled for local signing.
+
+Child tools get an allowlisted environment. xtool receives process, locale,
+proxy, and toolchain settings (`PATH`, `HOME`, `TMPDIR`, `LANG`, `LC_*`, `XDG_*`,
+`XTL_*`, `XTOOL_*`, `SWIFT_*`, `SWIFTPM_*`, `SDKROOT`, `DEVELOPER_DIR`,
+`TOOLCHAINS`, proxy and TLS certificate variables, `SSH_AUTH_SOCK`); rcodesign
+receives only `PATH`, `HOME`, temporary-directory, and locale settings. Other
+variables, including `ASC_*` credentials and cloud or GitHub tokens, are not
+passed.
