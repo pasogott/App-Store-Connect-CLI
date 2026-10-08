@@ -25,6 +25,16 @@ const (
 
 // CopyBundle copies regular files and directories without following bundle symlinks.
 func CopyBundle(ctx context.Context, source, destination string) error {
+	dst, err := rootfs.New(destination)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	return copyBundleInto(ctx, source, dst, ".")
+}
+
+// copyBundleInto writes below an already selected root so path swaps fail closed.
+func copyBundleInto(ctx context.Context, source string, dst rootfs.Root, prefix string) error {
 	src, err := rootfs.New(source)
 	if err != nil {
 		return err
@@ -35,11 +45,6 @@ func CopyBundle(ctx context.Context, source, destination string) error {
 		return err
 	}
 	defer rooted.Close()
-	dst, err := rootfs.New(destination)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
 	var total int64
 	entries := 0
 	return fs.WalkDir(rooted.FS(), ".", func(name string, entry fs.DirEntry, walkErr error) error {
@@ -61,7 +66,7 @@ func CopyBundle(ctx context.Context, source, destination string) error {
 			return err
 		}
 		if entry.IsDir() {
-			return dst.MkdirAll(name, 0o755)
+			return dst.MkdirAll(filepath.Join(prefix, name), 0o755)
 		}
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("unsupported app file: %s", name)
@@ -74,7 +79,7 @@ func CopyBundle(ctx context.Context, source, destination string) error {
 		if err != nil {
 			return err
 		}
-		_, err = dst.CreateNewFrom(name, io.LimitReader(file, info.Size()+1), info.Mode().Perm()&0o755)
+		_, err = dst.CreateNewFrom(filepath.Join(prefix, name), io.LimitReader(file, info.Size()+1), info.Mode().Perm()&0o755)
 		return errors.Join(err, file.Close())
 	})
 }

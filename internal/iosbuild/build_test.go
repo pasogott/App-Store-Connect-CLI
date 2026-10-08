@@ -376,3 +376,54 @@ func TestBundleWalksBoundResourceFileDescriptors(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBuildPublishesOnlyIntoReservedDirectory(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("POSIX compiler fixture")
+	}
+	directory := t.TempDir()
+	prepared := filepath.Join(directory, "package")
+	writeDeviceFixture(t, filepath.Join(prepared, "fixture.app"), 2)
+	if err := os.WriteFile(filepath.Join(prepared, "Package.swift"), []byte("// prepared"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tools := filepath.Join(directory, "bin")
+	if err := os.Mkdir(tools, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\n/bin/mkdir -p xtool\n/bin/cp -R fixture.app xtool/App.app\n"
+	if err := os.WriteFile(filepath.Join(tools, "xtool"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", tools)
+	output := filepath.Join(directory, "output")
+	outside := filepath.Join(directory, "outside")
+	for _, dir := range []string{output, outside} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	afterAppReservedForTest = func() {
+		if err := os.Rename(output, filepath.Join(directory, "moved")); err != nil {
+			t.Error(err)
+		}
+		if err := os.Symlink(outside, output); err != nil {
+			t.Error(err)
+		}
+		stages, err := filepath.Glob(filepath.Join(directory, "moved", ".asc-ios-build-*"))
+		if err != nil || len(stages) != 1 {
+			t.Fatalf("build stage not found: %v %v", stages, err)
+		}
+		if err := os.Rename(stages[0], filepath.Join(outside, filepath.Base(stages[0]))); err != nil {
+			t.Error(err)
+		}
+	}
+	t.Cleanup(func() { afterAppReservedForTest = nil })
+	result, err := Build(context.Background(), BuildOptions{PackagePath: prepared, Product: "App", AppPath: filepath.Join(output, "App.app"), Platform: "device", Configuration: "release", LogWriter: io.Discard})
+	if err == nil || result.Success {
+		t.Fatalf("publication followed a swapped parent: %+v", result)
+	}
+	if _, err := os.Lstat(filepath.Join(outside, "App.app")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("app written outside the selected directory: %v", err)
+	}
+}
