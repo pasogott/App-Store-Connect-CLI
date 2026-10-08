@@ -192,7 +192,7 @@ func TestMetadataPreviewRenditionRoundTrip(t *testing.T) {
 				case "duplicate-content":
 					wantError = "duplicate preview content"
 				case "playlist-missing":
-					wantError = "preview-1.mp4.m3u8 is an App Store Connect streaming playlist, not a video, and no preview in en-US/IPHONE_65 matches it"
+					wantError = "preview-1.mp4.m3u8 is an App Store Connect streaming playlist, not a video, and no preview in en-US/IPHONE_65 matches it; App Store Connect does not provide original preview videos, so replace it with the original video file or skip previews (migrate import --skip-previews, or omit previews from metadata push --include)"
 				case "oversized":
 					wantError = "exceeds 500000000 bytes"
 				case "download-failure":
