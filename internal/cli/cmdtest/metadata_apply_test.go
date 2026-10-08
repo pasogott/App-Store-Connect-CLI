@@ -1154,15 +1154,16 @@ func TestMetadataApplyReconcilesRequestTimeoutWithFreshReadback(t *testing.T) {
 			return jsonHTTPResponse(http.StatusOK, body), nil
 		case "/v1/appStoreVersionLocalizations/loc-ver-en":
 			if req.Method != http.MethodPatch {
-				t.Fatalf("expected PATCH, got %s", req.Method)
+				t.Errorf("expected PATCH, got %s", req.Method)
+				return nil, errors.New("test transport assertion failed")
 			}
 			patchCount++
 			<-req.Context().Done()
 			time.Sleep(5 * time.Millisecond)
 			return nil, req.Context().Err()
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, errors.New("unexpected test transport request")
 		}
 	})
 
@@ -1459,7 +1460,8 @@ func TestMetadataApplyRetriesInitialReadWithFreshDeadline(t *testing.T) {
 				return nil, req.Context().Err()
 			}
 			if err := req.Context().Err(); err != nil {
-				t.Fatalf("retry received expired context: %v", err)
+				t.Errorf("retry received expired context: %v", err)
+				return nil, errors.New("test transport assertion failed")
 			}
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
 		case "/v1/apps/app-1/appInfos":
@@ -1471,8 +1473,8 @@ func TestMetadataApplyRetriesInitialReadWithFreshDeadline(t *testing.T) {
 		case "/v1/appStoreVersions/version-1":
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, errors.New("unexpected test transport request")
 		}
 	})
 
@@ -1532,14 +1534,15 @@ func TestMetadataApplyUsesFreshDeadlineForEachSnapshotPage(t *testing.T) {
 			}
 			deadline, ok := req.Context().Deadline()
 			if !ok || time.Until(deadline) < 70*time.Millisecond {
-				t.Fatalf("expected fresh second-page deadline, remaining=%s", time.Until(deadline))
+				t.Errorf("expected fresh second-page deadline, remaining=%s", time.Until(deadline))
+				return nil, context.DeadlineExceeded
 			}
 			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, errors.New("unexpected test transport request")
 		}
 	})
 

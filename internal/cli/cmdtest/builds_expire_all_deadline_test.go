@@ -180,8 +180,8 @@ func TestBuildsExpireAllUsesFreshRequestDeadlines(t *testing.T) {
 		if got.method != want.method || got.path != want.path {
 			t.Errorf("request %d = %s %s, want %s %s", i+1, got.method, got.path, want.method, want.path)
 		}
-		if got.remaining < 350*time.Millisecond || got.remaining > 500*time.Millisecond {
-			t.Errorf("request %d %s %s deadline remaining = %s, want a fresh timeout near 500ms", i+1, got.method, got.path, got.remaining)
+		if got.remaining != 500*time.Millisecond {
+			t.Errorf("request %d %s %s deadline remaining = %s, want a fresh 500ms timeout", i+1, got.method, got.path, got.remaining)
 		}
 	}
 }

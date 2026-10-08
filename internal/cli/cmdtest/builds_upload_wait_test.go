@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -446,7 +447,8 @@ func TestBuildsUploadPostCommitVerificationUsesFreshTimeoutWindow(t *testing.T) 
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789":
 			deadline, ok := req.Context().Deadline()
 			if !ok {
-				t.Fatal("expected initial request context deadline")
+				t.Error("expected initial request context deadline")
+				return nil, errors.New("test transport assertion failed")
 			}
 			initialRequestDeadline <- deadline
 			return jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`)
@@ -485,8 +487,8 @@ func TestBuildsUploadPostCommitVerificationUsesFreshTimeoutWindow(t *testing.T) 
 				}
 			}`)
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, errors.New("unexpected test transport request")
 		}
 	})
 

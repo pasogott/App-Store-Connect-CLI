@@ -459,8 +459,8 @@ func TestAppInfoLocalizationsUploadUsesFreshReadbackAfterMutationTimeout(t *test
 			<-req.Context().Done()
 			return nil, req.Context().Err()
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, errors.New("unexpected test transport request")
 		}
 	})
 

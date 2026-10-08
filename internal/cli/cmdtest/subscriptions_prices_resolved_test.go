@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -27,7 +28,8 @@ func TestSubscriptionsPricingPricesListResolvedUsesFreshDeadlinePerPage(t *testi
 		}
 		deadline, ok := req.Context().Deadline()
 		if !ok || time.Until(deadline) < 70*time.Millisecond {
-			t.Fatalf("expected fresh second-page deadline, remaining=%s", time.Until(deadline))
+			t.Errorf("expected fresh second-page deadline, remaining=%s", time.Until(deadline))
+			return nil, errors.New("test transport assertion failed")
 		}
 		return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
 	}))

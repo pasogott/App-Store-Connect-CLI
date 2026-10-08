@@ -1268,7 +1268,8 @@ func TestMetadataKeywordsPlanUsesFreshReadinessContextAfterSlowPagination(t *tes
 	readinessReads := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s %s", req.Method, req.URL.Path)
+			t.Errorf("expected GET, got %s %s", req.Method, req.URL.Path)
+			return nil, errors.New("test transport assertion failed")
 		}
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
@@ -1280,7 +1281,8 @@ func TestMetadataKeywordsPlanUsesFreshReadinessContextAfterSlowPagination(t *tes
 			localizationReads++
 			deadline, ok := req.Context().Deadline()
 			if !ok || time.Until(deadline) < 70*time.Millisecond {
-				t.Fatalf("expected fresh localization page deadline, remaining=%s", time.Until(deadline))
+				t.Errorf("expected fresh localization page deadline, remaining=%s", time.Until(deadline))
+				return nil, errors.New("test transport assertion failed")
 			}
 			time.Sleep(60 * time.Millisecond)
 			if localizationReads == 1 {
@@ -1291,12 +1293,13 @@ func TestMetadataKeywordsPlanUsesFreshReadinessContextAfterSlowPagination(t *tes
 			readinessReads++
 			deadline, ok := req.Context().Deadline()
 			if !ok || time.Until(deadline) < 70*time.Millisecond {
-				t.Fatalf("expected fresh readiness deadline, remaining=%s", time.Until(deadline))
+				t.Errorf("expected fresh readiness deadline, remaining=%s", time.Until(deadline))
+				return nil, errors.New("test transport assertion failed")
 			}
 			return metadataKeywordsJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, errors.New("unexpected test transport request")
 		}
 	})
 
