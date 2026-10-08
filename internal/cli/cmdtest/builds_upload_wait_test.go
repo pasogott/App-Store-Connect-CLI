@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -505,7 +506,7 @@ func TestBuildsUploadPostCommitVerificationUsesFreshTimeoutWindow(t *testing.T) 
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 
 	if runErr != nil {

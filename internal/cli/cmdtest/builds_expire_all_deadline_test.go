@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -61,7 +61,7 @@ func TestBuildsExpireAllUsesFreshRequestDeadlines(t *testing.T) {
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
 	var requestCount atomic.Int64
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		index := int(requestCount.Add(1) - 1)
 
 		if req.Header.Get("Authorization") == "" {
@@ -117,20 +117,12 @@ func TestBuildsExpireAllUsesFreshRequestDeadlines(t *testing.T) {
 			t.Errorf("unexpected request %d: %s %s", index+1, req.Method, req.URL.String())
 			http.Error(w, "unexpected request", http.StatusInternalServerError)
 		}
-	}))
-	t.Cleanup(server.Close)
-
-	transport, ok := server.Client().Transport.(*http.Transport)
-	if !ok {
-		t.Fatalf("test server transport type = %T, want *http.Transport", server.Client().Transport)
-	}
-	transport = transport.Clone()
-	transport.TLSClientConfig = transport.TLSClientConfig.Clone()
-	transport.TLSClientConfig.ServerName = "example.com"
-	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
-	}
-	recorder := &buildExpireAllDeadlineTransport{base: transport}
+	})
+	recorder := &buildExpireAllDeadlineTransport{base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, req)
+		return response.Result(), nil
+	})}
 	originalTransport := http.DefaultTransport
 	http.DefaultTransport = recorder
 	t.Cleanup(func() {
@@ -150,7 +142,7 @@ func TestBuildsExpireAllUsesFreshRequestDeadlines(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse command: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 	if runErr != nil {
 		t.Fatalf("run command: %v", runErr)

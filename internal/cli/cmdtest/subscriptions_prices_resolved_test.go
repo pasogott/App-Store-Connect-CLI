@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -41,7 +42,9 @@ func TestSubscriptionsPricingPricesListResolvedUsesFreshDeadlinePerPage(t *testi
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run error: %v", err)
 		}
 	})

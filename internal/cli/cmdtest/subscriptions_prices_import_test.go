@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -464,7 +465,9 @@ func TestSubscriptionsPricesImport_RetriesTimedOutInitialStateRead(t *testing.T)
 		if err := root.Parse([]string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "8000000001", "--input", csvPath, "--output", "json", "--confirm"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run error: %v", err)
 		}
 	})
@@ -509,7 +512,9 @@ func TestSubscriptionsPricesImport_RetriesTimedOutPricePointRead(t *testing.T) {
 		if err := root.Parse([]string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "8000000001", "--input", csvPath, "--dry-run", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run error: %v", err)
 		}
 	})
@@ -564,7 +569,9 @@ func TestSubscriptionsPricesImport_RetriesTimedOutSelectorResolution(t *testing.
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run error: %v", err)
 		}
 	})

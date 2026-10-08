@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -763,7 +764,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 				body := `{
 					"data":[{
 						"type":"subscriptionPrices","id":"price-upfront",
-						"attributes":{"planType":"UPFRONT","startDate":"2024-01-01"},
+						"attributes":{"planType":"UPFRONT","startDate":"1999-01-01"},
 						"relationships":{
 							"territory":{"data":{"type":"territories","id":"NOR"}},
 							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-upfront"}}
@@ -845,7 +846,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)

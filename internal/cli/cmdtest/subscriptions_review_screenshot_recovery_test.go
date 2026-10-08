@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -722,7 +723,7 @@ func runSubscriptionReviewScreenshotCreate(t *testing.T, path string) (string, s
 		}); err != nil {
 			t.Fatalf("parse: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 	return stdout, stderr, runErr
 }

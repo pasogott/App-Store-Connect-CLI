@@ -14,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -1177,7 +1178,9 @@ func TestMetadataApplyReconcilesRequestTimeoutWithFreshReadback(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run error: %v", err)
 		}
 	})
@@ -1485,7 +1488,9 @@ func TestMetadataApplyRetriesInitialReadWithFreshDeadline(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run error: %v", err)
 		}
 	})

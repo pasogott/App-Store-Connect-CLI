@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -1305,7 +1306,9 @@ func TestMetadataKeywordsPlanUsesFreshReadinessContextAfterSlowPagination(t *tes
 		if err := root.Parse([]string{"metadata", "keywords", "plan", "--app", "app-1", "--version", "1.2.3", "--dir", dir}); err != nil {
 			t.Fatalf("parse: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run: %v", err)
 		}
 	})

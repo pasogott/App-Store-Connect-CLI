@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
@@ -471,7 +472,9 @@ func TestAppInfoLocalizationsUploadUsesFreshReadbackAfterMutationTimeout(t *test
 		}); err != nil {
 			t.Fatalf("parse: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run: %v", err)
 		}
 	})

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 )
 
 func TestSubscriptionsIntroductoryOffersImport_CreateSuccessSummary(t *testing.T) {
@@ -809,7 +810,7 @@ func TestSubscriptionsIntroductoryOffersImport_RetriesTimedOutInitialStateRead(t
 		if err := req.Context().Err(); err != nil {
 			t.Fatalf("expected fresh request context, got %v", err)
 		}
-		body := `{"data":[{"type":"subscriptionIntroductoryOffers","id":"offer-existing","attributes":{"startDate":"2020-01-01","duration":"ONE_WEEK","offerMode":"FREE_TRIAL","numberOfPeriods":1,"targetSubscriptionPlanType":"UPFRONT"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{}}`
+		body := `{"data":[{"type":"subscriptionIntroductoryOffers","id":"offer-existing","attributes":{"startDate":"1999-01-01","duration":"ONE_WEEK","offerMode":"FREE_TRIAL","numberOfPeriods":1,"targetSubscriptionPlanType":"UPFRONT"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{}}`
 		return jsonHTTPResponse(http.StatusOK, body), nil
 	})
 
@@ -825,7 +826,9 @@ func TestSubscriptionsIntroductoryOffersImport_RetriesTimedOutInitialStateRead(t
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if err := runErr; err != nil {
 			t.Fatalf("run error: %v", err)
 		}
 	})
