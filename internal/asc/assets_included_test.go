@@ -25,11 +25,12 @@ func TestAppScreenshotSetsWithScreenshotsUsesIncludedScreenshots(t *testing.T) {
 		"links": {}
 	}`
 	fallbackBody := `{"data":[{"type":"appScreenshots","id":"s3","attributes":{"fileName":"three.png"}},{"type":"appScreenshots","id":"s4","attributes":{"fileName":"four.png"}}],"links":{}}`
+	orderBody := `{"data":[{"type":"appScreenshots","id":"s4"},{"type":"appScreenshots","id":"s3"}],"links":{}}`
 
 	var requests []string
 	client := newTestClient(t, func(req *http.Request) {
 		requests = append(requests, req.URL.Path+"?"+req.URL.RawQuery)
-	}, jsonResponse(http.StatusOK, setsBody), jsonResponse(http.StatusOK, fallbackBody))
+	}, jsonResponse(http.StatusOK, setsBody), jsonResponse(http.StatusOK, fallbackBody), jsonResponse(http.StatusOK, orderBody))
 
 	ctx := context.Background()
 	response, err := client.GetAllAppScreenshotSets(ctx, "loc-1", WithAppScreenshotSetsIncludeScreenshots())
@@ -44,6 +45,7 @@ func TestAppScreenshotSetsWithScreenshotsUsesIncludedScreenshots(t *testing.T) {
 	wantRequests := []string{
 		"/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets?include=appScreenshots&limit%5BappScreenshots%5D=50",
 		"/v1/appScreenshotSets/set-c/appScreenshots?",
+		"/v1/appScreenshotSets/set-c/relationships/appScreenshots?limit=200",
 	}
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("requests = %q, want %q", requests, wantRequests)
@@ -57,7 +59,7 @@ func TestAppScreenshotSetsWithScreenshotsUsesIncludedScreenshots(t *testing.T) {
 		}
 		got[set.Set.ID] = ids
 	}
-	want := map[string][]string{"set-a": {"s2", "s1"}, "set-b": {}, "set-c": {"s3", "s4"}}
+	want := map[string][]string{"set-a": {"s2", "s1"}, "set-b": {}, "set-c": {"s4", "s3"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("screenshots by set = %v, want %v", got, want)
 	}

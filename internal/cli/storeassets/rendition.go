@@ -60,7 +60,7 @@ func resolvePreviewMatch(ctx context.Context, client *asc.Client, preview *Previ
 		}
 	}
 	if preview.reference && preview.existingID == "" {
-		return fmt.Errorf("%s is an App Store Connect streaming playlist, not a video, and no preview in %s/%s matches it; App Store Connect does not provide original preview videos, so replace it with the original video file", preview.Path, preview.Locale, strings.ToUpper(preview.DeviceType))
+		return fmt.Errorf("%s is an App Store Connect streaming playlist, not a video, and no preview in %s/%s matches it; App Store Connect does not provide original preview videos, so replace it with the original video file or skip previews (migrate import --skip-previews, or omit previews from metadata push --include)", preview.Path, preview.Locale, strings.ToUpper(preview.DeviceType))
 	}
 	return nil
 }

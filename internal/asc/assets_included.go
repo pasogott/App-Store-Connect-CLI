@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 )
 
@@ -78,6 +79,26 @@ func includedSetMedia[S, T any](response *Response[S], relationship string) map[
 	return result
 }
 
+// orderByLinkages sorts items into the set's relationship order, keeping items
+// missing from the linkages after the linked ones.
+func orderByLinkages[T any](items []Resource[T], linkages *LinkagesResponse) []Resource[T] {
+	position := make(map[string]int, len(linkages.Data))
+	for index, linkage := range linkages.Data {
+		if _, seen := position[linkage.ID]; !seen {
+			position[linkage.ID] = index
+		}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		iPosition, iLinked := position[items[i].ID]
+		jPosition, jLinked := position[items[j].ID]
+		if iLinked && jLinked {
+			return iPosition < jPosition
+		}
+		return iLinked && !jLinked
+	})
+	return items
+}
+
 // withoutLinkage drops the data and meta an include request adds to a set
 // relationship, so set output matches a plain set read.
 func withoutLinkage(relationships json.RawMessage, relationship string) json.RawMessage {
@@ -119,7 +140,13 @@ func (c *Client) AppScreenshotSetsWithScreenshots(ctx context.Context, response 
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch screenshots for set %s: %w", set.ID, err)
 			}
-			screenshots = fetched.Data
+			requestCtx, cancel := requestContextFor(ctx, requestContext)
+			linkages, err := c.GetAppScreenshotSetAppScreenshotsRelationships(requestCtx, set.ID, WithLinkagesLimit(200))
+			cancel()
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch screenshot order for set %s: %w", set.ID, err)
+			}
+			screenshots = orderByLinkages(fetched.Data, linkages)
 		}
 		set.Relationships = withoutLinkage(set.Relationships, "appScreenshots")
 		sets = append(sets, AppScreenshotSetWithScreenshots{Set: set, Screenshots: screenshots})
@@ -141,7 +168,13 @@ func (c *Client) AppPreviewSetsWithPreviews(ctx context.Context, response *AppPr
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch previews for set %s: %w", set.ID, err)
 			}
-			previews = fetched.Data
+			requestCtx, cancel = requestContextFor(ctx, requestContext)
+			linkages, err := c.GetAppPreviewSetAppPreviewsRelationships(requestCtx, set.ID, WithLinkagesLimit(200))
+			cancel()
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch preview order for set %s: %w", set.ID, err)
+			}
+			previews = orderByLinkages(fetched.Data, linkages)
 		}
 		set.Relationships = withoutLinkage(set.Relationships, "appPreviews")
 		sets = append(sets, AppPreviewSetWithPreviews{Set: set, Previews: previews})

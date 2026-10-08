@@ -645,6 +645,61 @@ func TestVideoPreviewsDownload_ByLocalization_WritesFiles(t *testing.T) {
 	}
 }
 
+func TestVideoPreviewsDownload_ByLocalization_ReadsEveryPreviewSetPage(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		body := "MOVDATA"
+		switch {
+		case req.URL.Host == "example.com" && (req.URL.Path == "/one.mov" || req.URL.Path == "/two.mov"):
+		case req.URL.Path != "/v1/appStoreVersionLocalizations/loc-1/appPreviewSets":
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		case req.URL.Query().Get("cursor") == "page-2":
+			body = `{"data":[{"type":"appPreviewSets","id":"set-2","attributes":{"previewType":"IPAD_PRO_3GEN_129"},"relationships":{"appPreviews":{"data":[{"type":"appPreviews","id":"prev-2"}]}}}],"included":[{"type":"appPreviews","id":"prev-2","attributes":{"fileName":"two.mov","videoUrl":"https://example.com/two.mov"}}],"links":{}}`
+		default:
+			body = `{"data":[{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"},"relationships":{"appPreviews":{"data":[{"type":"appPreviews","id":"prev-1"}]}}}],"included":[{"type":"appPreviews","id":"prev-1","attributes":{"fileName":"one.mov","videoUrl":"https://example.com/one.mov"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/appPreviewSets?cursor=page-2&include=appPreviews"}}`
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	outDir := filepath.Join(t.TempDir(), "previews")
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"downloaded":2`) {
+		t.Fatalf("unexpected stdout: %q", stdout)
+	}
+	for _, wantPath := range []string{
+		filepath.Join(outDir, "IPHONE_65", "01_prev-1_one.mov"),
+		filepath.Join(outDir, "IPAD_PRO_3GEN_129", "01_prev-2_two.mov"),
+	} {
+		if _, err := os.Stat(wantPath); err != nil {
+			t.Fatalf("Stat() error: %v", err)
+		}
+	}
+}
+
 func TestVideoPreviewsDownload_ByLocalization_PreservesFallbackDetailErrors(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "0")
