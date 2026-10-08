@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -322,19 +323,25 @@ func TestUploadAssetFromFileUsesUploadTimeoutEnv(t *testing.T) {
 	defer file.Close()
 
 	var callCount int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&callCount, 1)
 		time.Sleep(60 * time.Millisecond)
 		_, _ = io.Copy(io.Discard, r.Body)
 		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
+	})
+	originalTransport := http.DefaultTransport
+	http.DefaultTransport = inProcessTransport(handler)
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
 	ops := []UploadOperation{
-		{Method: http.MethodPut, URL: server.URL + "/part1", Length: 3, Offset: 0},
+		{Method: http.MethodPut, URL: "https://upload.example.test/part1", Length: 3, Offset: 0},
 	}
 
-	if err := UploadAssetFromFile(context.Background(), file, 3, ops); err != nil {
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		err = UploadAssetFromFile(context.Background(), file, 3, ops)
+	})
+	if err != nil {
 		t.Fatalf("UploadAssetFromFile() error: %v", err)
 	}
 	if atomic.LoadInt32(&callCount) != 1 {
@@ -354,18 +361,23 @@ func TestUploadAssetFromFileUsesUploadTimeoutWhenShorter(t *testing.T) {
 	file := createTempAssetFile(t, []byte("abc"))
 	defer file.Close()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(60 * time.Millisecond)
 		_, _ = io.Copy(io.Discard, r.Body)
 		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
+	})
+	originalTransport := http.DefaultTransport
+	http.DefaultTransport = inProcessTransport(handler)
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
 	ops := []UploadOperation{
-		{Method: http.MethodPut, URL: server.URL + "/part1", Length: 3, Offset: 0},
+		{Method: http.MethodPut, URL: "https://upload.example.test/part1", Length: 3, Offset: 0},
 	}
 
-	err := UploadAssetFromFile(context.Background(), file, 3, ops)
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		err = UploadAssetFromFile(context.Background(), file, 3, ops)
+	})
 	if err == nil {
 		t.Fatalf("expected timeout error, got nil")
 	}

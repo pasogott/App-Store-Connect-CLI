@@ -2333,3 +2333,44 @@ func TestStapleKeepsValidationDiagnosticCopyFailureOutOfPartialMutation(t *testi
 		"xcrun|stapler|validate|" + target,
 	})
 }
+
+func TestStaplerDoesNotWaitForDescendantHoldingOutputPipes(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires /bin/sh job control")
+	}
+	pidPath := filepath.Join(t.TempDir(), "descendant.pid")
+	previousToolPath := trustedXcodeToolPathFn
+	trustedXcodeToolPathFn = func(context.Context, string, []string) (string, error) { return "/usr/bin/xcrun", nil }
+	t.Cleanup(func() { trustedXcodeToolPathFn = previousToolPath })
+	previousCommandContext := commandContextFn
+	commandContextFn = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "/bin/sh", "-c", `sleep 3600 & echo $! > "$1"; exit 7`, "sh", pidPath)
+	}
+	t.Cleanup(func() { commandContextFn = previousCommandContext })
+	t.Cleanup(func() {
+		data, err := os.ReadFile(pidPath)
+		if err != nil {
+			return
+		}
+		if pid, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil {
+			if process, err := os.FindProcess(pid); err == nil {
+				_ = process.Kill()
+			}
+		}
+	})
+
+	done := make(chan error, 1)
+	go func() {
+		done <- runStaplerOperation(context.Background(), StaplerOperationStaple, "/tmp/MyApp.dmg", nil)
+	}()
+	var err error
+	select {
+	case err = <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("stapler kept waiting for a descendant holding its output pipes after the child exited")
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 7 {
+		t.Fatalf("runStaplerOperation() error = %T %v, want child exit 7", err, err)
+	}
+}

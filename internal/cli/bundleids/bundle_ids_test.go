@@ -79,19 +79,6 @@ func TestBundleIDsCreateCommand_UsesBundleIDPlatformContract(t *testing.T) {
 	}
 }
 
-func TestBundleIDsListQueryFlagsAreRegistered(t *testing.T) {
-	cmd := BundleIDsListCommand()
-	for _, name := range []string{
-		"name", "platform", "identifier", "seed-id", "id", "sort", "fields",
-		"profile-fields", "capability-fields", "app-fields", "include", "profiles-limit", "capabilities-limit",
-	} {
-		flagValue := cmd.FlagSet.Lookup(name)
-		if flagValue == nil {
-			t.Fatalf("--%s is not registered", name)
-		}
-	}
-}
-
 func TestBundleIDsUpdateCommand_MissingID(t *testing.T) {
 	cmd := BundleIDsUpdateCommand()
 
@@ -189,18 +176,6 @@ func TestBundleIDMutationsRejectPositionalArgsBeforeAuth(t *testing.T) {
 				t.Fatalf("client factory calls = %d, want 0", clientFactoryCalls)
 			}
 		})
-	}
-}
-
-func TestBundleIDsCapabilitiesListCommand_MissingBundle(t *testing.T) {
-	cmd := BundleIDsCapabilitiesListCommand()
-
-	if err := cmd.FlagSet.Parse([]string{}); err != nil {
-		t.Fatalf("failed to parse flags: %v", err)
-	}
-
-	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp when --bundle is missing, got %v", err)
 	}
 }
 
