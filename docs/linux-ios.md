@@ -9,6 +9,11 @@ runtime. The initial backend supports one thin arm64 iOS app plus resources;
 nested executable code, extensions, embedded frameworks, watch apps, App Clips,
 and app symlinks are rejected.
 
+The installed xtool backend owns SDK maintenance. Before compiling, it can
+automatically rebuild and replace an outdated normal SDK using its existing
+Xcode copy. Pin a compatible xtool/SDK pair to avoid that update; a prepared
+Swift package does not isolate or freeze the installed SDK.
+
 ## User-supplied tooling and SDK licensing
 
 ASC provides a local integration with tools installed by the user. It does not
@@ -90,6 +95,22 @@ Compiler and signer diagnostics go to stderr. JSON (or explicit table/Markdown)
 receipts go to stdout. Outputs are create-only; source apps are copied into
 private staging before signing. Inspect a reported incomplete app publication
 before retrying. Existing Xcode archive/export/resign behavior is unchanged.
+
+Only one `asc builds compile` may use a prepared package at a time, including
+different products or configurations. A competing invocation fails before
+starting xtool. The package's `.asc-ios-build.lock` file remains after completion;
+its presence alone does not mean a build is running. Avoid running xtool directly
+against the same package while ASC is compiling it.
+
+On macOS and Linux, signing inputs must belong to the current user and have one
+hard link. Identity and password files must not grant group or other access;
+profiles and entitlements must not be group- or other-writable.
+
+Device compilation reports `signingType: unknown`: xtool may apply an ad hoc
+signature for entitlements in its product configuration, and ASC does not
+determine the device output's signing type during compilation. Package with
+explicit signing inputs before distribution. Simulator compilation reports
+`adHoc` after its explicit rcodesign step.
 
 `signatureVerified: false` is intentional: rcodesign completion is not Apple's
 complete bundle signature verification. `profileValidated: true` reports the

@@ -46,6 +46,22 @@ paths, strict signing validation and output renderer tests. E2B smoke uses the
 saved experimental Linux SDK/toolchain image and an ad hoc fixture without Apple
 credentials. Existing Xcode/resign tests remain unchanged.
 
+## Upstream compile behavior
+
+The merge audit verified two upstream behaviors that the initial help described
+too narrowly. The pinned [build operation](https://github.com/joshuaswarren/xtool/blob/f0a1f90efdbb0dc023e276ff529da92618da7a87/Sources/XToolSupport/DevCommand.swift#L74-L95)
+can apply an ad hoc signature for configured entitlements without `--sign`.
+Device compile receipts now report `signingType: unknown` instead of inferring
+`unsigned` from success. The production build regression test failed with the
+old receipt and passes with the explicit unknown state; simulator and package
+operations keep their explicit signing results.
+
+The pinned [SDK readiness operation](https://github.com/joshuaswarren/xtool/blob/f0a1f90efdbb0dc023e276ff529da92618da7a87/Sources/XToolSupport/SDKCommand.swift#L142-L190)
+can rebuild an outdated normal SDK from an existing local Xcode copy. Help and
+operator docs now describe that backend-owned maintenance and recommend a
+compatible pinned xtool/SDK pair. ASC still does not bootstrap or redistribute
+the toolchain; invoking a compiler does not isolate its configured SDK.
+
 ## Compiler output freshness contract
 
 This backend requires xtool to publish a fresh product directory. The tested

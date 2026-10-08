@@ -12,9 +12,80 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"howett.net/plist"
 )
+
+func TestBuildRejectsConcurrentCompileInSamePackage(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("POSIX compiler fixture")
+	}
+	directory := t.TempDir()
+	prepared := filepath.Join(directory, "package")
+	writeDeviceFixture(t, filepath.Join(prepared, "fixture.app"), 2)
+	if err := os.WriteFile(filepath.Join(prepared, "Package.swift"), []byte("// prepared"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tools := filepath.Join(directory, "bin")
+	if err := os.Mkdir(tools, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := `#!/bin/sh
+/bin/mkdir -p xtool
+/bin/rm -rf xtool/App.app
+/bin/cp -R fixture.app xtool/App.app
+printf '%s' "$4" > xtool/App.app/configuration
+if test "$4" = debug; then
+  : > ready
+  while ! test -f release; do /bin/sleep 0.01; done
+fi
+`
+	if err := os.WriteFile(filepath.Join(tools, "xtool"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", tools)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	opts := BuildOptions{PackagePath: prepared, Product: "App", AppPath: filepath.Join(directory, "debug.app"), Platform: "device", Configuration: "debug", LogWriter: io.Discard}
+	done := make(chan error, 1)
+	go func() {
+		_, err := Build(ctx, opts)
+		done <- err
+	}()
+	for {
+		if _, err := os.Stat(filepath.Join(prepared, "ready")); err == nil {
+			break
+		}
+		select {
+		case err := <-done:
+			t.Fatalf("first compiler did not start: %v", err)
+		case <-ctx.Done():
+			t.Fatal("first compiler did not become ready")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	second := opts
+	second.Configuration = "release"
+	second.AppPath = filepath.Join(directory, "release.app")
+	_, concurrentErr := Build(ctx, second)
+	if err := os.WriteFile(filepath.Join(prepared, "release"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("first compile failed: %v", err)
+	}
+	if concurrentErr == nil || !strings.Contains(concurrentErr.Error(), "already running") {
+		t.Fatalf("overlapping compile was not rejected: %v", concurrentErr)
+	}
+	configuration, err := os.ReadFile(filepath.Join(opts.AppPath, "configuration"))
+	if err != nil || string(configuration) != "debug" {
+		t.Fatalf("wrong invocation's artifact published: %q, %v", configuration, err)
+	}
+	if _, err := Build(ctx, second); err != nil {
+		t.Fatalf("package remained locked after completion: %v", err)
+	}
+}
 
 func writeDeviceFixture(t *testing.T, directory string, platform uint32) {
 	t.Helper()
@@ -218,6 +289,34 @@ func TestBuildSuccessfulChildCannotPublishUnchangedApp(t *testing.T) {
 	}
 	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("stale output exists: %v", err)
+	}
+}
+
+func TestBuildDeviceDoesNotClaimAnUnverifiedSigningType(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("POSIX compiler fixture")
+	}
+	directory := t.TempDir()
+	prepared := filepath.Join(directory, "package")
+	writeDeviceFixture(t, filepath.Join(prepared, "fixture.app"), 2)
+	if err := os.WriteFile(filepath.Join(prepared, "Package.swift"), []byte("// prepared"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tools := filepath.Join(directory, "bin")
+	if err := os.Mkdir(tools, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\n/bin/mkdir -p xtool\n/bin/cp -R fixture.app xtool/App.app\n"
+	if err := os.WriteFile(filepath.Join(tools, "xtool"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", tools)
+	result, err := Build(context.Background(), BuildOptions{PackagePath: prepared, Product: "App", AppPath: filepath.Join(directory, "output.app"), Platform: "device", Configuration: "release", LogWriter: io.Discard})
+	if err != nil || !result.Success {
+		t.Fatalf("compile failed: %+v %v", result, err)
+	}
+	if result.SigningType != "unknown" || result.SignatureVerified || result.ProfileValidated || result.AppleAcceptance != "notVerified" {
+		t.Fatalf("compile must not infer a signing type from successful tool execution: %+v", result)
 	}
 }
 

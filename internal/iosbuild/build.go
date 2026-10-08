@@ -73,8 +73,12 @@ func runTool(ctx context.Context, directory string, logs io.Writer, env []string
 
 // Build compiles using xtool, fixes simulator metadata and signs simulator output ad hoc.
 func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResult, resultErr error) {
+	ctx, stop := ContextWithSignals(ctx)
+	defer stop()
 	started := time.Now()
-	result = &asc.IOSArtifactResult{Operation: "build", Backend: "xtool", Platform: opts.Platform, Configuration: opts.Configuration, SigningType: "unsigned", AppleAcceptance: "notVerified"}
+	// xtool can apply ad hoc entitlements while compiling a device app even
+	// without --sign. Successful compilation does not establish a signing type.
+	result = &asc.IOSArtifactResult{Operation: "build", Backend: "xtool", Platform: opts.Platform, Configuration: opts.Configuration, SigningType: "unknown", AppleAcceptance: "notVerified"}
 	defer func() { result.DurationMs = time.Since(started).Milliseconds() }()
 	packagePath, err := filepath.Abs(opts.PackagePath)
 	if err != nil {
@@ -113,6 +117,16 @@ func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResul
 		return result, err
 	}
 	defer packageOS.Close()
+	lock, err := acquireBuildLock(packageOS)
+	if err != nil {
+		return result, fmt.Errorf("lock prepared package: %w", err)
+	}
+	defer func() {
+		if err := errors.Join(unlockBuildFile(lock), lock.Close()); err != nil {
+			result.Success = false
+			resultErr = errors.Join(resultErr, fmt.Errorf("release package build lock: %w", err))
+		}
+	}()
 	productPath := "xtool/" + opts.Product + ".app"
 	// Pin an existing output's identity so a different configured product or a
 	// successful no-op cannot cause publication of the previous build.

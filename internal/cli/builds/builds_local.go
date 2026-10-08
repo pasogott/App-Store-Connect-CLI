@@ -26,8 +26,12 @@ func BuildsCompileCommand() *ffcli.Command {
 	return &ffcli.Command{Name: "compile", ShortUsage: "asc builds compile --package-path PATH --product NAME --app-path PATH [flags]", ShortHelp: "Compile a prepared xtool package for an iOS device or simulator.", LongHelp: `Compile a prepared Swift package with the installed xtool toolchain.
 
 Both child output streams go to stderr; the artifact receipt goes to stdout.
-Device apps are unsigned. Simulator metadata is corrected and signed ad hoc
-with rcodesign, but running the simulator still requires a Mac runtime host.
+Device signing is controlled by the toolchain and reported as unknown;
+xtool can apply an ad hoc signature for configured entitlements. Simulator
+metadata is corrected and signed ad hoc with rcodesign, but running the
+simulator still requires a Mac runtime host.
+xtool may rebuild an outdated installed SDK before compiling. Pin a compatible
+xtool/SDK pair to avoid automatic SDK updates.
 Existing output directories are rejected. A failed output publication can leave
 an incomplete destination; inspect it before retrying.
 

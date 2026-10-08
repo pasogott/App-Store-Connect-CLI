@@ -33,6 +33,8 @@ type IOSPackageOptions struct {
 var removeIOSPackageStage = os.RemoveAll
 
 func PackageIOSApp(ctx context.Context, opts IOSPackageOptions) (result *asc.IOSArtifactResult, resultErr error) {
+	ctx, stop := iosbuild.ContextWithSignals(ctx)
+	defer stop()
 	started := time.Now()
 	result = &asc.IOSArtifactResult{Operation: "package", Backend: "rcodesign", Platform: "device", SigningType: "adHoc", AppleAcceptance: "notVerified"}
 	defer func() { result.DurationMs = time.Since(started).Milliseconds() }()
@@ -164,13 +166,18 @@ func PackageIOSApp(ctx context.Context, opts IOSPackageOptions) (result *asc.IOS
 		if err != nil {
 			return result, err
 		}
-		_, present, err := appRoot.ReadFileOptional("embedded.mobileprovision")
+		rooted, err := appRoot.OpenRoot()
 		appRoot.Close()
 		if err != nil {
 			return result, err
 		}
-		if present {
+		_, err = rooted.Lstat("embedded.mobileprovision")
+		rooted.Close()
+		if err == nil {
 			return result, fmt.Errorf("ad hoc input must not contain a provisioning profile")
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return result, err
 		}
 	}
 	entitlements, err := marshalSigningResignEntitlements(requested)

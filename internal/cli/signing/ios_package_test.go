@@ -137,6 +137,21 @@ func TestIOSPackageRejectsUntrustedProfileBeforeSigning(t *testing.T) {
 	}
 }
 
+func TestIOSPackageAdHocRejectsExistingProfile(t *testing.T) {
+	directory, app := newIOSPackageFixture(t)
+	if err := os.WriteFile(filepath.Join(app, "embedded.mobileprovision"), []byte("old profile"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(directory, "App.ipa")
+	_, err := PackageIOSApp(context.Background(), IOSPackageOptions{AppPath: app, IPAPath: destination, AdHoc: true, LogWriter: io.Discard})
+	if err == nil || !strings.Contains(err.Error(), "must not contain a provisioning profile") {
+		t.Fatalf("existing profile was not rejected: %v", err)
+	}
+	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("rejected app published an IPA: %v", err)
+	}
+}
+
 func TestIOSPackageEmptyEntitlementsAreExplicit(t *testing.T) {
 	if os.PathSeparator == '\\' {
 		t.Skip("POSIX signer fixture")

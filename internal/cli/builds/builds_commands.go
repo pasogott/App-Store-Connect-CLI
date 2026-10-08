@@ -422,7 +422,8 @@ func BuildsCommand() *ffcli.Command {
 		LongHelp: `Manage builds in App Store Connect.
 
 compile and package use installed xtool and rcodesign on Linux or macOS.
-They make no Apple requests, install no tools, and create no Apple resources.
+ASC does not provision Apple resources or upload the resulting artifacts.
+xtool may rebuild an outdated installed SDK; use a compatible xtool/SDK pair.
 Existing Xcode archive/export commands retain their macOS/Xcode contracts.
 
 Examples:
