@@ -29,14 +29,15 @@ Package accepts one built device app, an exact new IPA destination, and either
 explicit `--ad-hoc` test signing or local PKCS#12 identity and Apple provisioning
 profile. Real signing validates Apple CMS profile trust, expiry, exact bundle ID,
 certificate/profile binding, and requested entitlement authorization using
-existing portable validators. Reject nested code until it has an explicit
-signing plan. Do not provision resources, discover credentials, or upload.
+existing portable validators. The validated identity and password reach rcodesign
+through pipes, so ASC never writes them or a decrypted private key to disk. Reject
+nested code until it has an explicit signing plan. Do not provision resources, discover credentials, or upload.
 
 rcodesign's verification does not provide Apple's complete bundle verification.
 The receipt reports that boundary; real Apple processing remains a separate
 `asc builds upload --wait` step. Ad hoc IPAs are local pipeline tests and cannot
 be published to Apple. Preserve create-only outputs, rooted reads/writes,
-bounded copies, private key staging, cancellation, and an allowlisted child environment.
+bounded copies, cancellation, and an allowlisted child environment.
 
 ## Upstream compile behavior
 

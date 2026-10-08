@@ -69,7 +69,10 @@ asc builds package --app-path ./artifacts/App.app --ipa-path ./artifacts/App.ipa
 The profile must be signed by Apple's trusted provisioning signer, unexpired,
 and match the exact app bundle ID and supplied signing certificate. Requested
 entitlements must be authorized by that profile. Optional capabilities are not
-automatically copied from the profile or an existing code signature. This
+automatically copied from the profile or an existing code signature. ASC passes
+the validated identity and password to rcodesign through pipes and never writes
+them or the decrypted private key to disk; the password file must contain a
+single line. Signing with an identity requires Linux or macOS. This
 command packages fresh build output; use `asc signing resign` on macOS for its
 existing complete IPA re-signing contract.
 

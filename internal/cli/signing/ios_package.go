@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/hex"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -38,6 +37,9 @@ func PackageIOSApp(ctx context.Context, opts IOSPackageOptions) (result *asc.IOS
 	started := time.Now()
 	result = &asc.IOSArtifactResult{Operation: "package", Backend: "rcodesign", Platform: "device", SigningType: "adHoc", AppleAcceptance: "notVerified"}
 	defer func() { result.DurationMs = time.Since(started).Milliseconds() }()
+	if !opts.AdHoc && runtime.GOOS == "windows" {
+		return result, fmt.Errorf("signing with an identity requires Linux or macOS")
+	}
 	destination, err := filepath.Abs(opts.IPAPath)
 	if err != nil {
 		return result, err
@@ -97,6 +99,7 @@ func PackageIOSApp(ctx context.Context, opts IOSPackageOptions) (result *asc.IOS
 		return result, err
 	}
 	args := []string{"--config-file", os.DevNull, "sign", "--timestamp-url", "none"}
+	var signerInputs [][]byte
 	if !opts.AdHoc {
 		profileData, err := readBoundedSigningRunFile(opts.ProfilePath, signingResignProfileMaxBytes, false)
 		if err != nil {
@@ -135,19 +138,16 @@ func PackageIOSApp(ctx context.Context, opts IOSPackageOptions) (result *asc.IOS
 		if err != nil {
 			return result, err
 		}
-		keyDER, err := x509.MarshalPKCS8PrivateKey(identity.PrivateKey)
-		if err != nil {
-			return result, fmt.Errorf("encode signing identity failed")
+		// rcodesign reads the validated identity and password through pipes, so
+		// neither they nor a decrypted key are written to disk. It uses only the
+		// first line of the password input.
+		if bytes.ContainsAny(password, "\r\n") {
+			return result, fmt.Errorf("signing password must be a single line")
 		}
-		defer clear(keyDER)
-		keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
-		defer clear(keyPEM)
-		if err := stageRoot.WriteFile("key.pem", keyPEM, 0o600); err != nil {
-			return result, fmt.Errorf("stage signing key failed")
-		}
-		if err := stageRoot.WriteFile("certificate.der", identity.Certificate.Raw, 0o600); err != nil {
-			return result, fmt.Errorf("stage signing certificate failed")
-		}
+		passwordLine := append(append([]byte(nil), password...), '\n')
+		defer clear(passwordLine)
+		signerInputs = [][]byte{identityData, passwordLine}
+		args = append(args, "--p12-file", "/dev/fd/3", "--p12-password-file", "/dev/fd/4")
 		appRoot, err := rootfs.New(app)
 		if err != nil {
 			return result, err
@@ -157,7 +157,7 @@ func PackageIOSApp(ctx context.Context, opts IOSPackageOptions) (result *asc.IOS
 		if err != nil {
 			return result, fmt.Errorf("stage provisioning profile failed")
 		}
-		args = append(args, "--pem-file", filepath.Join(stage, "key.pem"), "--certificate-der-file", filepath.Join(stage, "certificate.der"), "--team-name", profile.TeamID)
+		args = append(args, "--team-name", profile.TeamID)
 		result.SigningType = profile.Class
 		result.ProfileValidated = true
 	} else {
@@ -195,7 +195,7 @@ func PackageIOSApp(ctx context.Context, opts IOSPackageOptions) (result *asc.IOS
 	args = append(args, "--entitlements-xml-file", filepath.Join(stage, "entitlements.plist"))
 	args = append(args, app)
 	// The private staging tree has no rcodesign configuration or inherited ASC auth.
-	if err := iosbuild.RunSigner(ctx, stage, opts.LogWriter, "rcodesign", args...); err != nil {
+	if err := iosbuild.RunSigner(ctx, stage, opts.LogWriter, signerInputs, "rcodesign", args...); err != nil {
 		return result, err
 	}
 	archive := filepath.Join(stage, "output.ipa")

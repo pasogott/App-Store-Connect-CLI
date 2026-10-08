@@ -4,17 +4,23 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
 )
 
@@ -237,4 +243,135 @@ func TestIOSPackageReportsPrivateStageCleanupFailure(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "private signing stage cleanup failed") || result.Success {
 		t.Fatalf("cleanup failure hidden: %+v %v", result, err)
 	}
+}
+
+func TestIOSPackagePipesIdentityToSignerWithoutStagingKey(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("POSIX signer fixture")
+	}
+	directory, app := newIOSPackageFixture(t)
+	fixture := newSigningRunFixture(t, signingRunFixtureOptions{})
+	for _, now := range []*func() time.Time{&signingResignNowFn, &signingRunNowFn} {
+		original := *now
+		*now = func() time.Time { return fixture.now }
+		t.Cleanup(func() { *now = original })
+	}
+	inputs := map[string][]byte{
+		"App.p12":             fixture.identity,
+		"password":            []byte(fixture.password + "\n"),
+		"App.mobileprovision": appleShapedIOSPackageProfile(t, fixture),
+	}
+	for name, data := range inputs {
+		if err := os.WriteFile(filepath.Join(directory, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tools := filepath.Join(directory, "bin")
+	if err := os.Mkdir(tools, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	proof := filepath.Join(directory, "proof")
+	if err := os.Mkdir(proof, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	script := `#!/bin/sh
+for arg; do printf '%s\n' "$arg"; done > ` + proof + `/args
+for entry in * .*; do printf '%s\n' "$entry"; done > ` + proof + `/stage
+/bin/cat /dev/fd/3 > ` + proof + `/identity
+/bin/cat /dev/fd/4 > ` + proof + `/password
+`
+	if err := os.WriteFile(filepath.Join(tools, "rcodesign"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", tools)
+	opts := IOSPackageOptions{
+		AppPath:      app,
+		IPAPath:      filepath.Join(directory, "App.ipa"),
+		IdentityPath: filepath.Join(directory, "App.p12"),
+		PasswordPath: filepath.Join(directory, "password"),
+		ProfilePath:  filepath.Join(directory, "App.mobileprovision"),
+		LogWriter:    io.Discard,
+	}
+	result, err := PackageIOSApp(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Success || !result.ProfileValidated {
+		t.Fatalf("unexpected receipt: %+v", result)
+	}
+	args, err := os.ReadFile(filepath.Join(proof, "args"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(args), "--p12-file\n/dev/fd/3\n--p12-password-file\n/dev/fd/4\n") || strings.Contains(string(args), "--pem-file") {
+		t.Fatalf("signer did not receive piped identity inputs: %s", args)
+	}
+	for name, want := range map[string][]byte{"identity": fixture.identity, "password": []byte(fixture.password + "\n")} {
+		got, err := os.ReadFile(filepath.Join(proof, name))
+		if err != nil || !bytes.Equal(got, want) {
+			t.Fatalf("signer %s input mismatch: %v", name, err)
+		}
+	}
+	stage, err := os.ReadFile(filepath.Join(proof, "stage"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range strings.Fields(string(stage)) {
+		if name != "." && name != ".." && name != "App.app" && name != "entitlements.plist" {
+			t.Fatalf("signing stage contains %q", name)
+		}
+	}
+}
+
+func appleShapedIOSPackageProfile(t *testing.T, fixture *signingRunFixture) []byte {
+	t.Helper()
+	original, err := pkcs7.Parse(fixture.profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issue := func(subject pkix.Name, isCA bool, parent *x509.Certificate, parentKey *rsa.PrivateKey) (*x509.Certificate, *rsa.PrivateKey) {
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			t.Fatal(err)
+		}
+		template := &x509.Certificate{
+			SerialNumber:          big.NewInt(time.Now().UnixNano()),
+			Subject:               subject,
+			NotBefore:             fixture.now.Add(-24 * time.Hour),
+			NotAfter:              fixture.now.Add(365 * 24 * time.Hour),
+			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+			BasicConstraintsValid: true,
+			IsCA:                  isCA,
+		}
+		if parent == nil {
+			parent, parentKey = template, key
+		}
+		der, err := x509.CreateCertificate(rand.Reader, template, parent, &key.PublicKey, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		certificate, err := x509.ParseCertificate(der)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return certificate, key
+	}
+	root, rootKey := issue(pkix.Name{CommonName: "Apple iPhone Certification Authority"}, true, nil, nil)
+	signer, signerKey := issue(pkix.Name{CommonName: "Apple iPhone OS Provisioning Profile Signing", Organization: []string{"Apple Inc."}}, false, root, rootKey)
+	digest := sha256.Sum256(root.Raw)
+	fingerprint := hex.EncodeToString(digest[:])
+	signingResignAppleProfileRootFingerprints[fingerprint] = struct{}{}
+	t.Cleanup(func() { delete(signingResignAppleProfileRootFingerprints, fingerprint) })
+	signed, err := pkcs7.NewSignedData(original.Content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := signed.AddSignerChain(signer, signerKey, []*x509.Certificate{root}, pkcs7.SignerInfoConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	profile, err := signed.Finish()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return profile
 }

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -53,11 +54,13 @@ func childEnvironmentAllowed(key string) bool {
 
 // RunTool sends both compiler output streams to diagnostics, never receipt stdout.
 func RunTool(ctx context.Context, directory string, logs io.Writer, executable string, args ...string) error {
-	return runTool(ctx, directory, logs, ChildEnvironment(), executable, args...)
+	return runTool(ctx, directory, logs, ChildEnvironment(), nil, executable, args...)
 }
 
 // RunSigner restricts signer children to basic process and locale settings.
-func RunSigner(ctx context.Context, directory string, logs io.Writer, executable string, args ...string) error {
+// Each input is readable by the child at /dev/fd/3, /dev/fd/4, and so on,
+// so secrets reach it through pipes instead of files.
+func RunSigner(ctx context.Context, directory string, logs io.Writer, inputs [][]byte, executable string, args ...string) error {
 	var env []string
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
@@ -66,10 +69,10 @@ func RunSigner(ctx context.Context, directory string, logs io.Writer, executable
 			env = append(env, entry)
 		}
 	}
-	return runTool(ctx, directory, logs, env, executable, args...)
+	return runTool(ctx, directory, logs, env, inputs, executable, args...)
 }
 
-func runTool(ctx context.Context, directory string, logs io.Writer, env []string, executable string, args ...string) error {
+func runTool(ctx context.Context, directory string, logs io.Writer, env []string, inputs [][]byte, executable string, args ...string) error {
 	command := exec.CommandContext(ctx, executable, args...)
 	command.Dir = directory
 	command.Env = env
@@ -77,7 +80,36 @@ func runTool(ctx context.Context, directory string, logs io.Writer, env []string
 	command.WaitDelay = 5 * time.Second
 	command.Stdout = logs
 	command.Stderr = logs
-	if err := command.Run(); err != nil {
+	writers := make([]*os.File, 0, len(inputs))
+	defer func() {
+		for _, file := range append(command.ExtraFiles, writers...) {
+			_ = file.Close()
+		}
+	}()
+	for range inputs {
+		reader, writer, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+		command.ExtraFiles = append(command.ExtraFiles, reader)
+		writers = append(writers, writer)
+	}
+	err := command.Start()
+	if err == nil {
+		for _, reader := range command.ExtraFiles {
+			_ = reader.Close()
+		}
+		var feeding sync.WaitGroup
+		for i, writer := range writers {
+			feeding.Go(func() {
+				_, _ = writer.Write(inputs[i])
+				_ = writer.Close()
+			})
+		}
+		err = command.Wait()
+		feeding.Wait()
+	}
+	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -216,7 +248,7 @@ func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResul
 		if err != nil {
 			return result, err
 		}
-		if err := RunSigner(ctx, stage, opts.LogWriter, "rcodesign", "--config-file", os.DevNull, "sign", "--timestamp-url", "none", stagedApp); err != nil {
+		if err := RunSigner(ctx, stage, opts.LogWriter, nil, "rcodesign", "--config-file", os.DevNull, "sign", "--timestamp-url", "none", stagedApp); err != nil {
 			return result, err
 		}
 		result.SigningType = "adHoc"
