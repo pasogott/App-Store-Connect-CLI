@@ -58,6 +58,8 @@ func TestScreenshotsListWithoutLocaleListsEveryLocalization(t *testing.T) {
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appScreenshotSets","id":"set-en","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
 		case "/v1/appScreenshotSets/set-en/appScreenshots":
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appScreenshots","id":"shot-en","attributes":{"fileName":"home.png","fileSize":42}}],"links":{}}`)
+		case "/v1/appScreenshotSets/set-en/relationships/appScreenshots":
+			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appScreenshots","id":"shot-en"}],"links":{}}`)
 		case "/v1/appStoreVersionLocalizations/loc-de/appScreenshotSets":
 			writeScreenshotsListJSON(t, w, `{"data":[],"links":{}}`)
 		default:
@@ -124,6 +126,8 @@ func TestScreenshotsListWithoutLocaleTableOutputIncludesLocaleColumn(t *testing.
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appScreenshotSets","id":"set-en","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
 		case "/v1/appScreenshotSets/set-en/appScreenshots":
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appScreenshots","id":"shot-en","attributes":{"fileName":"home.png","fileSize":42}}],"links":{}}`)
+		case "/v1/appScreenshotSets/set-en/relationships/appScreenshots":
+			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appScreenshots","id":"shot-en"}],"links":{}}`)
 		default:
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 			http.Error(w, "unexpected request", http.StatusNotFound)
