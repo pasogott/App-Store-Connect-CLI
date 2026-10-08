@@ -3,6 +3,24 @@ name: CodeQL
 on:
   pull_request:
     branches: [main]
+    # Mirror scripts/ci_change_scope.py: skip Wall-, docs-, and website-only PRs.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "docs/openapi/latest.json"
+      - "docs/API_NOTES.md"
+      - "docs/WORKFLOWS.md"
+      - "!*.md"
+      - "!*.mdx"
+      - "!.mintignore"
+      - "!docs.json"
+      - "!.mintlify/**"
+      - "!commands/**"
+      - "!concepts/**"
+      - "!configuration/**"
+      - "!guides/**"
+      - "!resources/**"
+      - "**.go"
   push:
     branches: [main]
   schedule:
@@ -14,6 +32,10 @@ permissions:
   actions: read
   contents: read
   security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:

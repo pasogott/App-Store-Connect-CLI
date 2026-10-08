@@ -30,7 +30,15 @@ OS="$(uname -s)"
 ARCH="$(uname -m)"
 
 case "${OS}" in
-  Darwin) OS="macOS" ;;
+  Darwin)
+    OS="macOS"
+    MACOS_VERSION="$(sw_vers -productVersion 2>/dev/null || true)"
+    if [[ ! "${MACOS_VERSION}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+      echo "Error: Could not determine macOS version." >&2
+      exit 1
+    fi
+    MACOS_MAJOR="${MACOS_VERSION%%.*}"
+    ;;
   Linux) OS="linux" ;;
   *)
     echo "Unsupported OS: ${OS}"
@@ -52,6 +60,39 @@ VERSION="${LATEST_URL##*/}"
 if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
   echo "Could not determine latest version."
   exit 1
+fi
+
+# The installer on main can precede the next release. Only older Macs need
+# this check, and compatibility comes from the selected release's toolchain,
+# which release.yml sources from go.mod, rather than main's Go requirement.
+if [ "${OS}" = "macOS" ] && [ "${MACOS_MAJOR}" -lt 13 ]; then
+  compatibility_unknown() {
+    echo "Error: Could not determine macOS compatibility for release ${VERSION}. No binary was installed." >&2
+    exit 1
+  }
+  RELEASE_GO_MOD="$(curl_with_retry "https://raw.githubusercontent.com/${REPO}/${VERSION}/go.mod")" || compatibility_unknown
+  RELEASE_GO_VERSION="$(printf '%s\n' "${RELEASE_GO_MOD}" | awk '$1 == "go" { print $2; exit }')"
+  RELEASE_TOOLCHAIN="$(printf '%s\n' "${RELEASE_GO_MOD}" | awk '$1 == "toolchain" { print $2; exit }')"
+  if [[ ! "${RELEASE_GO_VERSION}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    compatibility_unknown
+  fi
+  if [ -n "${RELEASE_TOOLCHAIN}" ] && [ "${RELEASE_TOOLCHAIN}" != "default" ] && [[ ! "${RELEASE_TOOLCHAIN}" =~ ^go[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    compatibility_unknown
+  fi
+  for go_version in "${RELEASE_GO_VERSION}" "${RELEASE_TOOLCHAIN:-default}"; do
+    [ "${go_version}" = "default" ] && continue
+    go_version="${go_version#go}"
+    if [[ ! "${go_version}" =~ ^([0-9]+)\.([0-9]+)(\.[0-9]+)?$ ]]; then
+      compatibility_unknown
+    fi
+    go_major="${BASH_REMATCH[1]}"
+    go_minor="${BASH_REMATCH[2]}"
+    if [ "${go_major}" -gt 1 ] || { [ "${go_major}" -eq 1 ] && [ "${go_minor}" -ge 27 ]; }; then
+      echo "Error: Release ${VERSION} requires macOS 13 (Ventura) or later; found ${MACOS_VERSION}." >&2
+      echo "Upgrade macOS or retain an older compatible asc release." >&2
+      exit 1
+    fi
+  done
 fi
 
 ASSET="${BIN_NAME}_${VERSION}_${OS}_${ARCH}"

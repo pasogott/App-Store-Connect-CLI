@@ -190,6 +190,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/1f/a9/bc/1fa9bcd6-5795-038c-d4ec-80dec18706ac/AppIcon-0-0-1x_U007epad-0-0-0-1-0-0-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Bitbook",
+    "link": "https://apps.apple.com/us/app/bitbook/id1672879200?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/3c/b9/15/3cb915f7-d30c-9b35-098a-026c8cb7398b/Bitbook-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "BitLocal: BTC-Friendly Shops",
     "link": "https://apps.apple.com/us/app/bitlocal-btc-friendly-shops/id6447485666?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/71/18/13/71181314-64e0-ab1a-4e44-9f6134f12f01/AppIcon-0-0-1x_U007epad-0-1-0-85-220.png/512x512bb.jpg"
@@ -502,6 +507,11 @@
     "app": "Do? - Sex Tracker & Map Log",
     "link": "https://apps.apple.com/app/id6757778324",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/74/16/00/7416000d-28a9-7c8f-6537-9b6d8b92cc18/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Doc Translator: PDF, EPUB, OCR",
+    "link": "https://apps.apple.com/us/app/doc-translator-pdf-epub-ocr/id6810911331?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/0e/5f/8a/0e5f8ae7-a68b-1495-ec8c-fe0e8206dfd4/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Doco Translate: PDF Translator",
@@ -925,6 +935,11 @@
     "app": "Inline - The inline AI",
     "link": "https://apps.apple.com/us/app/inline-the-inline-ai/id6748410177?mt=12&uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/a2/73/bf/a273bfba-ccb0-61ed-4c7e-0c8c49c3347a/Inline-0-0-85-220-0-0-6-0-2x.png/512x512bb.png"
+  },
+  {
+    "app": "Intake: Calorie Counter & Log",
+    "link": "https://apps.apple.com/us/app/intake-calorie-counter-log/id6757768955?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/9c/df/d1/9cdfd107-e11a-acc5-4859-45921df8cb0e/intake-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Jinshu Reader",

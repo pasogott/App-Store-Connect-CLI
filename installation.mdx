@@ -6,9 +6,11 @@ The App Store Connect CLI (`asc`) is distributed as a single binary with no runt
 
 ## Requirements
 
-* **Operating System**: macOS or Linux
+* **Operating System**: macOS 13 Ventura or later for releases built with Go 1.27, or Linux
 * **Architecture**: x86\_64 (amd64) or ARM64 (arm64/aarch64)
 * **Go**: Not required for released binaries. Source builds use the version declared by `go.mod`.
+
+Go 1.27 raises the minimum macOS version to 13. If you use an older Mac, retain an older compatible release or upgrade macOS before updating `asc`. The installer checks the selected release, so it continues to accept compatible releases published before this transition.
 
 ## Homebrew (recommended)
 
@@ -52,7 +54,7 @@ For automated setups or environments without Homebrew:
 
 <Steps>
   <Step title="Detect your platform">
-    Automatically identifies your OS (macOS/Linux) and architecture (amd64/arm64)
+    Automatically identifies your OS (macOS/Linux) and architecture (amd64/arm64). On Macs older than macOS 13, checks the selected release’s Go requirement and stops before downloading an incompatible binary.
   </Step>
 
   <Step title="Download the latest release">

@@ -20,7 +20,8 @@ Audit the entire PR under the authority and review rules in `AGENTS.md`.
 2. Inspect the full merge-base diff and all PR commits, not only the latest commit.
 3. Compare the implementation with the linked issue and current product behavior. Check architecture fit, compatibility, error paths, permissions, destructive operations, output contracts, and missing cleanup.
 4. Verify claims from bots or reviewers against code, schemas, and tests before editing.
-5. Identify the blast radius: commands, shared helpers, API resources, output formats, auth modes, and release surfaces affected.
+5. Flag added tests that do not meet the test rules in `AGENTS.md`, naming the rule each one breaks.
+6. Identify the blast radius: commands, shared helpers, API resources, output formats, auth modes, and release surfaces affected.
 
 ## Verify behavior
 

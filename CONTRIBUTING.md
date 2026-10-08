@@ -6,6 +6,7 @@ Thanks for your interest in contributing to asc cli!
 
 Requirements:
 - Git
+- macOS 13 Ventura or later when building or running on macOS
 - The Go version declared by `go.mod`; the Go toolchain can download it automatically when needed
 
 Released `asc` binaries are self-contained and do not require Go. Go is only
@@ -27,8 +28,11 @@ Optional tooling:
 ```bash
 make tools   # installs gofumpt + golangci-lint
 make lint    # uses golangci-lint if installed, else go vet
-make format  # gofmt + gofumpt (requires gofumpt; install with make tools)
+make format  # gofumpt (requires gofumpt; install with make tools)
 ```
+
+After a Go toolchain upgrade, rerun `make tools` to rebuild the pinned formatter
+and linter with the version selected by `go.mod`.
 
 ## Integration Tests (Opt-in)
 

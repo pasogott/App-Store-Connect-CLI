@@ -211,6 +211,21 @@ func TestMakeBuildRebuildsBinaryWhenSourceChanges(t *testing.T) {
 	}
 }
 
+// copyTestRunner gives a temporary workspace the script that make test runs.
+func copyTestRunner(t *testing.T, repoRoot, workspaceDir string) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(repoRoot, "scripts", "go_test_shard.py"))
+	if err != nil {
+		t.Fatalf("read test runner: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(workspaceDir, "scripts"), 0o700); err != nil {
+		t.Fatalf("mkdir scripts: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceDir, "scripts", "go_test_shard.py"), data, 0o600); err != nil {
+		t.Fatalf("write test runner: %v", err)
+	}
+}
+
 func TestMakeTestTargetsIsolateDeveloperEnvironment(t *testing.T) {
 	repoRoot, err := os.Getwd()
 	if err != nil {
@@ -226,6 +241,7 @@ func TestMakeTestTargetsIsolateDeveloperEnvironment(t *testing.T) {
 			}
 			envLog := filepath.Join(workspaceDir, "test-env")
 			stateLog := filepath.Join(workspaceDir, "test-state")
+			copyTestRunner(t, repoRoot, workspaceDir)
 			fakeGo := filepath.Join(workspaceDir, "fake-go")
 			script := `#!/bin/sh
 if [ "$1" = "test" ]; then
@@ -328,6 +344,7 @@ func TestMakeTestFailsWhenTestsWriteSharedConfig(t *testing.T) {
 	if err := os.Mkdir(tempDir, 0o700); err != nil {
 		t.Fatalf("mkdir tmp: %v", err)
 	}
+	copyTestRunner(t, repoRoot, workspaceDir)
 	fakeGo := filepath.Join(workspaceDir, "fake-go")
 	// Simulate a test that writes the inherited config path, as a root runner
 	// could despite the read-only directory.
@@ -370,6 +387,7 @@ func TestMakeTestRemovesConfigDirectoryWhenInterrupted(t *testing.T) {
 	if err := os.Mkdir(tempDir, 0o700); err != nil {
 		t.Fatalf("mkdir tmp: %v", err)
 	}
+	copyTestRunner(t, repoRoot, workspaceDir)
 	fakeGo := filepath.Join(workspaceDir, "fake-go")
 	// Terminate the recipe shell while the test command runs, as Ctrl-C or a
 	// cancelled CI job would.
@@ -394,5 +412,46 @@ exit 0
 	}
 	if len(entries) != 0 {
 		t.Fatalf("config directory left behind after termination: %v", entries)
+	}
+}
+
+func TestMakeBuildsPinMacOSDeploymentTarget(t *testing.T) {
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []string{"build", "build-debug", "build-all"} {
+		for _, source := range []string{"environment", "make-argument"} {
+			t.Run(target+"/"+source, func(t *testing.T) {
+				workspace := t.TempDir()
+				fakeGo := filepath.Join(workspace, "fake-go")
+				script := `#!/bin/sh
+if [ "$1" = "env" ]; then
+  [ "$2" != "GOHOSTOS" ] || echo darwin
+  exit 0
+fi
+if [ "$1" = "build" ]; then
+  echo "deployment-target=$MACOSX_DEPLOYMENT_TARGET"
+  [ "$MACOSX_DEPLOYMENT_TARGET" = "13.0" ] || exit 42
+  [ "$CGO_CFLAGS" = "-O0 -g -mmacosx-version-min=13.0" ] || exit 43
+  [ "$CGO_LDFLAGS" = "-O0 -g -mmacosx-version-min=13.0" ] || exit 44
+fi
+`
+				if err := os.WriteFile(fakeGo, []byte(script), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				cmd := exec.Command("make", "-f", filepath.Join(repoRoot, "Makefile"), "-C", workspace, target, "GO="+fakeGo)
+				settings := []string{"MACOSX_DEPLOYMENT_TARGET=27.0", "CGO_CFLAGS=-O0 -g -mmacosx-version-min=27.0", "CGO_LDFLAGS=-O0 -g -mmacosx-version-min=27.0"}
+				if source == "make-argument" {
+					cmd.Args = append(cmd.Args, settings...)
+				} else {
+					cmd.Env = append(os.Environ(), settings...)
+				}
+				output, err := cmd.CombinedOutput()
+				if err != nil || !strings.Contains(string(output), "deployment-target=13.0") {
+					t.Fatalf("make %s must pin the supported macOS minimum despite the host default: %v\n%s", target, err, output)
+				}
+			})
+		}
 	}
 }

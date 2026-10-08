@@ -149,9 +149,12 @@ asc video-previews download --version-localization "LOC_ID" \
 
 This command:
 
-* Downloads all preview videos for the specified localization
+* Downloads every preview for the specified localization
 * Organizes files by device type
-* Preserves video metadata
+
+App Store Connect serves processed previews as HLS streaming playlists, not as
+the original uploaded video. Those previews are saved as `.m3u8` playlist files,
+and each item's `outputPath` reports the path written.
 
 ## Delete Video Previews
 

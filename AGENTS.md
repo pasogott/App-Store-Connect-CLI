@@ -84,6 +84,36 @@ User-facing commands and flags are stable until deprecated or removed. Do not de
 - Use `internal/cli/cmdtest` for CLI-level coverage and `httptest` for HTTP payload coverage.
 - Remove shared wrappers or helpers made obsolete by a refactor.
 
+## Tests
+
+Write a test only when it fails if behavior a user or caller depends on breaks, and no existing test already fails for that break. Name that regression before writing the test.
+
+Write:
+
+- A regression test that fails before every bug fix and passes after it.
+- CLI contract tests: flag validation with its stderr text, exit codes, JSON output fields, and request wiring (method, path, query, body) through `httptest`.
+- Error, partial-failure, and cancellation paths.
+- Security invariants: rootfs anchoring, secret redaction, keychain and `HOME` isolation, credential handling.
+- Concurrency ordering and bounds, run under `-race`.
+
+Do not write tests that:
+
+- Restate the implementation: constants, defaults copied from code, fields the test just set, or a stub returning its input.
+- Exercise the standard library or a dependency, such as a JSON round-trip of a plain struct.
+- Only check for no panic, non-nil, `err == nil`, or `strings.Contains` on one word.
+- Copy another test per endpoint, command, or flag with only names or IDs changed. Add a row to the existing table instead of a sibling test.
+- Drive the same code path with the same or weaker assertions as an existing test.
+- Cover an unexported helper that its callers' tests already cover.
+- Lock incidental text: whitespace, help prose, or the order of unordered output.
+- Target code no production path runs, or always skip.
+
+Also:
+
+- Do not use `time.Sleep` or real timeouts. Inject intervals, clocks, and retry delays.
+- Keep test code proportionate to the change. A small fix gets one small test.
+- Justify every new test in the PR body by naming the regression it catches.
+- Before removing a test, show which remaining test still fails for the same break.
+
 ## Build and validation
 
 Every manual test command must use `ASC_BYPASS_KEYCHAIN=1` to prevent host keychain prompts and profile bleed-through. The `make test` target enforces the same environment internally.

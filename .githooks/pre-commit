@@ -102,12 +102,7 @@ if [ "$needs_code" -eq 0 ]; then
 fi
 
 echo "Running format checks..."
-make format
-if ! git diff --quiet; then
-  echo "Formatting changed files. Please review and re-stage:"
-  git --no-pager diff --name-only
-  exit 1
-fi
+make format-check
 
 echo "Running lint checks..."
 make lint

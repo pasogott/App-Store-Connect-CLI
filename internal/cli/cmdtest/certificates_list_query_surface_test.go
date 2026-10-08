@@ -12,7 +12,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	certificatescli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/certificates"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -292,23 +291,5 @@ func TestCertificatesListPassTypeIDFieldsRequiresInclude(t *testing.T) {
 	}
 	if captured.calls != 0 {
 		t.Fatalf("validation made %d client-factory call(s)", captured.calls)
-	}
-}
-
-func TestCertificatesListQueryFlagsAreRegistered(t *testing.T) {
-	command := certificatescli.CertificatesListCommand()
-	for _, name := range []string{
-		"display-name",
-		"serial-number",
-		"id",
-		"sort",
-		"fields",
-		"pass-type-id-fields",
-		"include",
-	} {
-		flagDef := command.FlagSet.Lookup(name)
-		if flagDef == nil {
-			t.Fatalf("--%s is not registered", name)
-		}
 	}
 }

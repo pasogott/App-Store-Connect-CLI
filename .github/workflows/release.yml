@@ -202,14 +202,17 @@ jobs:
           fi
           echo "published=false" >> "$GITHUB_OUTPUT"
 
-  build:
-    name: Build, sign, and notarize
+  resolve:
+    name: Resolve immutable candidate
     needs: prepare
     if: needs.prepare.outputs.published != 'true'
     runs-on: macos-latest
     permissions:
       actions: read
       contents: read
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+      reused: ${{ steps.candidate_artifact.outputs.reused }}
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
@@ -218,6 +221,10 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.version) || github.ref }}
           persist-credentials: false
+
+      - name: Freeze exact release source
+        id: source
+        run: printf 'sha=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Check for existing immutable build artifact
         id: candidate_artifact
@@ -230,6 +237,16 @@ jobs:
           artifact_id=$(gh api --paginate "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" | \
             jq -sr --arg name "$artifact_name" '[.[].artifacts[] | select(.name == $name and .expired == false)][0].id // empty')
           if [ -n "$artifact_id" ]; then
+            artifact_dir="${RUNNER_TEMP}/same-run-candidate-${artifact_id}"
+            mkdir -p "$artifact_dir"
+            gh api "repos/${GH_REPO}/actions/artifacts/${artifact_id}/zip" > "$artifact_dir/artifact.zip"
+            python3 -m zipfile -e "$artifact_dir/artifact.zip" "$artifact_dir"
+            archive="${artifact_dir}/candidate-release-${VERSION}.tar"
+            provenance="${artifact_dir}/candidate-release-${VERSION}.commit"
+            if [ ! -f "$archive" ] || [ ! -f "$provenance" ] || ! test "$(cat "$provenance")" = "$release_commit"; then
+              echo "::error::Retained candidate artifact does not match release source ${release_commit}" >&2
+              exit 1
+            fi
             echo "Reusing immutable build artifact ${artifact_name}."
             echo "reused=true" >> "$GITHUB_OUTPUT"
             echo "cross_run=false" >> "$GITHUB_OUTPUT"
@@ -330,8 +347,122 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  quality:
+    name: Release quality guardrails
+    needs:
+      - prepare
+      - resolve
+    if: needs.prepare.outputs.published != 'true' && needs.resolve.outputs.reused != 'true'
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Checkout exact release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Install tooling
+        run: make tools
+
+      - name: Self-test docs validators
+        run: python3 scripts/test_check_docs.py
+
+      - name: Run release guardrails
+        run: |
+          PATH_VALUE="$(go env GOPATH)/bin:$PATH"
+          export PATH="$PATH_VALUE"
+          make format-check
+          make check-docs
+          make check-wall-of-apps
+          make lint
+
+  quality-tests:
+    name: Release tests (${{ matrix.name }})
+    needs:
+      - prepare
+      - resolve
+    if: needs.prepare.outputs.published != 'true' && needs.resolve.outputs.reused != 'true'
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: packages
+            shard: packages --packages ./... --exclude ./internal/cli/cmdtest --exclude ./internal/cli/web --shard-index 0 --shard-total 1
+          - name: web 1/2
+            shard: tests --package ./internal/cli/web --shard-index 0 --shard-total 2
+          - name: web 2/2
+            shard: tests --package ./internal/cli/web --shard-index 1 --shard-total 2
+          - name: cmdtest 1/2
+            shard: tests --package ./internal/cli/cmdtest --shard-index 0 --shard-total 2
+          - name: cmdtest 2/2
+            shard: tests --package ./internal/cli/cmdtest --shard-index 1 --shard-total 2
+    steps:
+      - name: Checkout exact release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Run Go test shard
+        env:
+          SHARD: ${{ matrix.shard }}
+          UNSHARDED_FALLBACK: ${{ matrix.name == 'packages' }}
+        run: |
+          config_dir="$(mktemp -d "${RUNNER_TEMP}/asc-test-config.XXXXXX")"
+          chmod 500 "$config_dir"
+          if [ -f scripts/go_test_shard.py ]; then
+            read -r -a shard_args <<< "$SHARD"
+            ASC_BYPASS_KEYCHAIN=1 ASC_CONFIG_PATH="$config_dir/config.json" python3 scripts/go_test_shard.py "${shard_args[@]}" -- -count=1 -v
+          elif [ "$UNSHARDED_FALLBACK" = "true" ]; then
+            echo "::notice::Release source predates scripts/go_test_shard.py; running the full Go suite in this shard"
+            ASC_BYPASS_KEYCHAIN=1 ASC_CONFIG_PATH="$config_dir/config.json" go test -count=1 -v ./...
+          else
+            echo "::notice::Release source predates scripts/go_test_shard.py; the packages shard runs the full Go suite"
+            exit 0
+          fi
+          if [ -n "$(ls -A "$config_dir")" ]; then
+            echo "::error::Tests wrote to the shared test config directory; set ASC_CONFIG_PATH in the test instead"
+            exit 1
+          fi
+
+  macos:
+    name: Build, sign, and notarize macOS
+    needs:
+      - prepare
+      - resolve
+    if: needs.prepare.outputs.published != 'true' && needs.resolve.outputs.reused != 'true'
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Checkout exact release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+
       - name: Validate release secrets
-        if: steps.candidate_artifact.outputs.reused != 'true'
         env:
           APPLE_DEVELOPER_ID_CERT: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
           APPLE_DEVELOPER_ID_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
@@ -352,85 +483,56 @@ jobs:
           fi
 
       - name: Set up Go
-        if: steps.candidate_artifact.outputs.reused != 'true'
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: false
 
-      - name: Install tooling
-        if: steps.candidate_artifact.outputs.reused != 'true'
-        run: make tools
+      - name: Create release directory
+        run: mkdir -p release
+
+      - name: Build macOS binaries
+        env:
+          CGO_CFLAGS: "-O2 -g -mmacosx-version-min=13.0"
+          CGO_LDFLAGS: "-O2 -g -mmacosx-version-min=13.0"
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(git show -s --format=%cI HEAD)
+          MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_amd64" .
+          MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_arm64" .
+
+      - name: Select native release binary for notarization
+        run: |
+          case "$(uname -m)" in
+            arm64) arch=arm64 ;;
+            x86_64) arch=amd64 ;;
+            *) echo "::error::Unsupported macOS runner architecture"; exit 1 ;;
+          esac
+          printf 'NOTARY_CLI=%s/release/asc_%s_macOS_%s\n' "$GITHUB_WORKSPACE" "$VERSION" "$arch" >> "$GITHUB_ENV"
 
       - name: Prepare App Store Connect auth
-        if: steps.candidate_artifact.outputs.reused != 'true'
         env:
           ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
         run: |
           install -m 600 /dev/null "$RUNNER_TEMP/AuthKey.p8"
           python3 -c 'import base64, os; from pathlib import Path; Path(os.environ["RUNNER_TEMP"], "AuthKey.p8").write_bytes(base64.b64decode(os.environ["ASC_PRIVATE_KEY_B64"], validate=True))'
-          go build -trimpath -ldflags "-s -w" -o /tmp/asc-notary-bootstrap .
 
       - name: Verify notarization auth
-        if: steps.candidate_artifact.outputs.reused != 'true'
         env:
           ASC_BYPASS_KEYCHAIN: "1"
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
-        run: /tmp/asc-notary-bootstrap notarization list --limit 1 --output json >/dev/null
-
-      - name: Self-test docs validators
-        if: steps.candidate_artifact.outputs.reused != 'true'
-        run: python3 scripts/test_check_docs.py
-
-      - name: Run release guardrails
-        if: steps.candidate_artifact.outputs.reused != 'true'
         run: |
-          PATH_VALUE="$(go env GOPATH)/bin:$PATH"
-          export PATH="$PATH_VALUE"
-          make format-check
-          make check-docs
-          make check-wall-of-apps
-          make lint
-          ASC_BYPASS_KEYCHAIN=1 make test
-
-      - name: Create release directory
-        if: steps.candidate_artifact.outputs.reused != 'true'
-        run: mkdir -p release
+          "$NOTARY_CLI" notarization list --limit 1 --output json >/dev/null
 
       - name: Import Apple certificate
-        if: steps.candidate_artifact.outputs.reused != 'true'
         uses: apple-actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7
         with:
           p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
           p12-password: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
 
-      - name: Build macOS binaries
-        if: steps.candidate_artifact.outputs.reused != 'true'
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(git show -s --format=%cI HEAD)
-          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_amd64" .
-          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_arm64" .
-
-      - name: Build for Linux
-        if: steps.candidate_artifact.outputs.reused != 'true'
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(git show -s --format=%cI HEAD)
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_linux_amd64" .
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_linux_arm64" .
-
-      - name: Build for Windows
-        if: steps.candidate_artifact.outputs.reused != 'true'
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(git show -s --format=%cI HEAD)
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_windows_amd64.exe" .
-
       - name: Sign and verify macOS binaries
-        if: steps.candidate_artifact.outputs.reused != 'true'
         env:
           APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
           # Pin the code signing identifier. Without it codesign derives one
@@ -451,7 +553,6 @@ jobs:
           done
 
       - name: Notarize macOS binaries
-        if: steps.candidate_artifact.outputs.reused != 'true'
         env:
           ASC_BYPASS_KEYCHAIN: "1"
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -465,7 +566,7 @@ jobs:
             ditto -c -k --keepParent "$binary" "$archive"
 
             set +e
-            /tmp/asc-notary-bootstrap notarization submit \
+            "$NOTARY_CLI" notarization submit \
               --file "$archive" \
               --wait \
               --timeout 1h \
@@ -478,7 +579,7 @@ jobs:
             submission_id=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("data", {}).get("id", ""))' "$output" 2>/dev/null || true)
             if [ "$status" -ne 0 ]; then
               if [ -n "$submission_id" ]; then
-                /tmp/asc-notary-bootstrap notarization log --id "$submission_id" --output json || true
+                "$NOTARY_CLI" notarization log --id "$submission_id" --output json || true
               fi
               exit "$status"
             fi
@@ -501,26 +602,154 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/AuthKey.p8"
 
-      - name: Create checksums
-        if: steps.candidate_artifact.outputs.reused != 'true'
+      - name: Pack macos intermediate
         run: |
-          cd release
-          assets=(asc_*)
-          shasum -a 256 "${assets[@]}" > "asc_${VERSION}_checksums.txt"
+          git rev-parse HEAD > commit
+          mkdir -p workflow-artifact
+          COPYFILE_DISABLE=1 tar -cf workflow-artifact/macos.tar release commit
 
-      - name: Display files
-        if: steps.candidate_artifact.outputs.reused != 'true'
-        run: ls -la release/
+      - name: Upload macos intermediate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: intermediate-macos-${{ github.run_attempt }}
+          path: workflow-artifact/macos.tar
+          if-no-files-found: error
+          retention-days: 14
+
+  portable:
+    name: Build Linux and Windows
+    needs:
+      - prepare
+      - resolve
+    if: needs.prepare.outputs.published != 'true' && needs.resolve.outputs.reused != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Checkout exact release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Create release directory
+        run: mkdir -p release
+
+      - name: Build for Linux
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(git show -s --format=%cI HEAD)
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_linux_amd64" .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_linux_arm64" .
+
+      - name: Build for Windows
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(git show -s --format=%cI HEAD)
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_windows_amd64.exe" .
+
+      - name: Pack portable intermediate
+        run: |
+          git rev-parse HEAD > commit
+          mkdir -p workflow-artifact
+          tar -cf workflow-artifact/portable.tar release commit
+
+      - name: Upload portable intermediate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: intermediate-portable-${{ github.run_attempt }}
+          path: workflow-artifact/portable.tar
+          if-no-files-found: error
+          retention-days: 14
+
+  build:
+    name: Qualify immutable release candidate
+    needs:
+      - prepare
+      - resolve
+      - quality
+      - quality-tests
+      - macos
+      - portable
+    if: >-
+      always() && needs.prepare.result == 'success' && needs.resolve.result == 'success' && (needs.resolve.outputs.reused == 'true' || (needs.quality.result == 'success' && needs.quality-tests.result == 'success' && needs.macos.result == 'success' && needs.portable.result == 'success'))
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.resolve.outputs.sha }}
+    steps:
+      - name: Checkout workflow release tools
+        if: needs.resolve.outputs.reused != 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          persist-credentials: false
+
+      - name: Resolve retained intermediates from this run
+        if: needs.resolve.outputs.reused != 'true'
+        id: intermediates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh api --paginate "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" > "$RUNNER_TEMP/intermediates.json"
+          for lane in macos portable; do
+            artifact_id=$(jq -sr --arg lane "$lane" '[.[].artifacts[] | select(.expired == false) | select(.name | test("^intermediate-" + $lane + "-[0-9]+$"))] | sort_by(.created_at, .id) | last | .id // empty' "$RUNNER_TEMP/intermediates.json")
+            if [ -z "$artifact_id" ]; then
+              echo "::error::Missing retained ${lane} intermediate for this workflow run"
+              exit 1
+            fi
+            printf '%s=%s\n' "$lane" "$artifact_id" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Download macOS intermediate
+        if: needs.resolve.outputs.reused != 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.intermediates.outputs.macos }}
+          path: intermediate-macos
+
+      - name: Download portable intermediate
+        if: needs.resolve.outputs.reused != 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.intermediates.outputs.portable }}
+          path: intermediate-portable
+
+      - name: Create checksums and verify exact-source intermediates
+        if: needs.resolve.outputs.reused != 'true'
+        run: |
+          python3 workflow-source/scripts/test_assemble_release_candidate.py
+          python3 workflow-source/scripts/assemble_release_candidate.py \
+            --macos intermediate-macos/macos.tar \
+            --portable intermediate-portable/portable.tar \
+            --output candidate \
+            --version "$VERSION" \
+            --expected-sha "$RELEASE_SHA"
+          mv candidate/release release
+          python3 workflow-source/scripts/verify_release_assets.py --release-dir release --version "$VERSION"
 
       - name: Pack immutable release artifact
-        if: steps.candidate_artifact.outputs.reused != 'true'
+        if: needs.resolve.outputs.reused != 'true'
         run: |
           mkdir -p workflow-artifact
           tar -cf "workflow-artifact/candidate-release-${VERSION}.tar" release
-          git rev-parse HEAD > "workflow-artifact/candidate-release-${VERSION}.commit"
+          cp candidate/commit "workflow-artifact/candidate-release-${VERSION}.commit"
 
       - name: Upload immutable release artifact
-        if: steps.candidate_artifact.outputs.reused != 'true'
+        if: needs.resolve.outputs.reused != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: candidate-release-${{ needs.prepare.outputs.version }}
@@ -529,6 +758,7 @@ jobs:
             workflow-artifact/candidate-release-${{ needs.prepare.outputs.version }}.commit
           if-no-files-found: error
           retention-days: 14
+
 
   publish:
     name: Publish GitHub release
@@ -755,7 +985,7 @@ jobs:
                 version '{version}'
                 license 'MIT'
 
-                depends_on :macos
+                depends_on macos: :ventura
 
                 on_macos do
                   if Hardware::CPU.arm?

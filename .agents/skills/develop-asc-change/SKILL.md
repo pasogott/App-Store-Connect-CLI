@@ -26,7 +26,7 @@ For a small fix, record the reproduced failure, intended behavior, and focused c
 - For a behavior-changing refactor, use existing characterization coverage where sufficient and add coverage for missing behavior before moving code.
 - Run the focused test and record the expected failure before implementation.
 
-Read [references/test-matrix.md](references/test-matrix.md) for applicable CLI, output, artifact, and auth cases. Reuse sufficient existing coverage; do not duplicate shared parser or renderer tests for every command.
+Read [references/test-matrix.md](references/test-matrix.md) for applicable CLI, output, artifact, and auth cases. Reuse sufficient existing coverage; do not duplicate shared parser or renderer tests for every command. Every new test must meet the test rules in `AGENTS.md`.
 
 ## Validate API support
 

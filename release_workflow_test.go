@@ -1,14 +1,18 @@
 package main
 
 import (
+	"archive/zip"
 	"crypto/sha256"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
@@ -164,11 +168,28 @@ func TestReleaseWorkflowKeepsHistoricalGuardrailsInline(t *testing.T) {
 		`make check-docs`,
 		`make check-wall-of-apps`,
 		`make lint`,
-		`ASC_BYPASS_KEYCHAIN=1 make test`,
 	} {
 		if !strings.Contains(workflow, want) {
 			t.Errorf("release workflow missing historical guardrail %q", want)
 		}
+	}
+	shardScript := "scripts/go_test_shard.py"
+	guard := "if [ -f " + shardScript + " ]; then\n"
+	fallback := "elif [ \"$UNSHARDED_FALLBACK\" = \"true\" ]; then\n"
+	guardStart := strings.Index(workflow, guard)
+	fallbackStart := strings.Index(workflow, fallback)
+	if guardStart == -1 || fallbackStart < guardStart {
+		t.Fatal("release test shards must guard the shard script and fall back for older tags")
+	}
+	if !strings.Contains(workflow[fallbackStart:], `ASC_BYPASS_KEYCHAIN=1 ASC_CONFIG_PATH="$config_dir/config.json" go test -count=1 -v ./...`) {
+		t.Fatal("historical release tags must still run the full Go suite")
+	}
+	if !strings.Contains(workflow, "UNSHARDED_FALLBACK: ${{ matrix.name == 'packages' }}") {
+		t.Fatal("exactly one release test shard must run the historical full suite")
+	}
+	outside := workflow[:guardStart] + workflow[fallbackStart:]
+	if strings.Count(workflow, "python3 "+shardScript) != 1 || strings.Contains(outside, "python3 "+shardScript) {
+		t.Fatal("release workflow may run the shard script only behind its existence guard")
 	}
 	if strings.Contains(workflow, "make release-guardrails") {
 		t.Fatal("release workflow cannot call a target absent from historical tags")
@@ -226,8 +247,13 @@ func TestReleaseWorkflowEnablesCGOForEveryMacOSArchitecture(t *testing.T) {
 		t.Fatalf("read release workflow: %v", err)
 	}
 	workflow := string(data)
+	for _, setting := range []string{`CGO_CFLAGS: "-O2 -g -mmacosx-version-min=13.0"`, `CGO_LDFLAGS: "-O2 -g -mmacosx-version-min=13.0"`} {
+		if !strings.Contains(workflow, setting) {
+			t.Fatalf("release workflow must include its macOS minimum in the CGO cache key: %s", setting)
+		}
+	}
 	for _, arch := range []string{"amd64", "arm64"} {
-		want := "CGO_ENABLED=1 GOOS=darwin GOARCH=" + arch + " go build"
+		want := "MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=" + arch + " go build"
 		if !strings.Contains(workflow, want) {
 			t.Fatalf("release workflow missing cgo-enabled macOS %s build: %q", arch, want)
 		}
@@ -279,9 +305,9 @@ func TestReleaseWorkflowNotarizesMacOSBinariesBeforePublishing(t *testing.T) {
 	}
 
 	workflow := string(data)
-	releaseStart := strings.Index(workflow, "\n  build:\n")
+	releaseStart := strings.Index(workflow, "\n  macos:\n")
 	if releaseStart == -1 {
-		t.Fatal("release workflow missing build job")
+		t.Fatal("release workflow missing macos job")
 	}
 	releaseJob := workflow[releaseStart:]
 	for _, want := range []string{
@@ -425,8 +451,10 @@ func TestReleaseWorkflowReusesOneBuildArtifactForEveryPublisher(t *testing.T) {
 	if got := strings.Count(workflow, "name: candidate-release-${{ needs.prepare.outputs.version }}"); got != 3 {
 		t.Fatalf("release workflow must define two mutually exclusive uploads and one download for the candidate artifact, got %d references", got)
 	}
-	if got := strings.Count(workflow, "actions/download-artifact@"); got != 3 {
-		t.Fatalf("publishers must consume the candidate and published artifacts in three downloads, got %d", got)
+	for _, publisher := range []string{"publish", "homebrew", "winget"} {
+		if got := strings.Count(releaseWorkflowJobBlock(t, workflow, publisher), "actions/download-artifact@"); got != 1 {
+			t.Fatalf("%s must consume one qualified artifact, got %d downloads", publisher, got)
+		}
 	}
 }
 
@@ -480,7 +508,7 @@ func TestReleaseWorkflowReusesArtifactsAcrossRerunAttempts(t *testing.T) {
 		`No retained candidate artifact matches the existing draft assets`,
 		`cross_run=true`,
 		`if: steps.candidate_artifact.outputs.cross_run == 'true'`,
-		`if: steps.candidate_artifact.outputs.reused != 'true'`,
+		`if: needs.resolve.outputs.reused != 'true'`,
 		`if: steps.published_artifact.outputs.reused != 'true'`,
 	} {
 		if !strings.Contains(workflow, want) {
@@ -552,8 +580,16 @@ func TestVerifyReleaseAssetsRequiresExactChecksumCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read release workflow: %v", err)
 	}
-	if got := strings.Count(string(workflowData), "verify_release_assets.py"); got != 6 {
-		t.Fatalf("every release consumer must run exact checksum coverage verification, got %d verifier calls", got)
+	for _, boundary := range []struct {
+		name  string
+		count int
+	}{
+		{"repair-notarization", 1}, {"build", 1}, {"publish", 3}, {"homebrew", 1}, {"winget", 1},
+	} {
+		job := releaseWorkflowJobBlock(t, string(workflowData), boundary.name)
+		if got := strings.Count(job, "verify_release_assets.py"); got != boundary.count {
+			t.Fatalf("%s must verify exact coverage at every consumer boundary: want %d, got %d", boundary.name, boundary.count, got)
+		}
 	}
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Fatalf("python3 is required for release asset verification tests: %v", err)
@@ -813,5 +849,391 @@ func TestReleaseWorkflowSignsMacOSBinariesWithStableCodeSigningIdentifier(t *tes
 		if !strings.Contains(line, `--identifier "${ASC_CODESIGN_IDENTIFIER}"`) {
 			t.Errorf("codesign invocation must pin the identifier: %s", strings.TrimSpace(line))
 		}
+	}
+}
+
+func TestReleaseWorkflowHomebrewRequiresVentura(t *testing.T) {
+	data, err := readReleaseWorkflow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := releaseWorkflowJobBlock(t, string(data), "homebrew")
+	if !strings.Contains(job, "depends_on macos: :ventura") || strings.Contains(job, "depends_on :macos") {
+		t.Fatal("Go 1.27 release formula must require macOS Ventura or later")
+	}
+}
+
+func validateReleaseFanout(data []byte) error {
+	var workflow struct {
+		Jobs map[string]struct {
+			Needs   any               `yaml:"needs"`
+			If      string            `yaml:"if"`
+			RunsOn  string            `yaml:"runs-on"`
+			Outputs map[string]string `yaml:"outputs"`
+			Steps   []struct {
+				Uses string         `yaml:"uses"`
+				With map[string]any `yaml:"with"`
+				Run  string         `yaml:"run"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		return err
+	}
+	resolve, ok := workflow.Jobs["resolve"]
+	if !ok || resolve.Outputs["sha"] != "${{ steps.source.outputs.sha }}" || resolve.Outputs["reused"] != "${{ steps.candidate_artifact.outputs.reused }}" {
+		return fmt.Errorf("missing frozen source/reuse outputs")
+	}
+	freshCondition := "needs.prepare.outputs.published != 'true' && needs.resolve.outputs.reused != 'true'"
+	for _, name := range []string{"quality", "quality-tests", "macos", "portable"} {
+		job, ok := workflow.Jobs[name]
+		if !ok || job.If != freshCondition {
+			return fmt.Errorf("%s must run only for fresh candidates", name)
+		}
+		if fmt.Sprint(job.Needs) != "[prepare resolve]" {
+			return fmt.Errorf("%s must depend on source resolver", name)
+		}
+		runner := "macos-latest"
+		if name == "portable" {
+			runner = "ubuntu-latest"
+		}
+		if job.RunsOn != runner {
+			return fmt.Errorf("%s has wrong platform", name)
+		}
+		checkout, cleanGo := false, false
+		for _, step := range job.Steps {
+			if strings.HasPrefix(step.Uses, "actions/checkout@") && fmt.Sprint(step.With["ref"]) == "${{ needs.resolve.outputs.sha }}" {
+				checkout = true
+			}
+			if strings.HasPrefix(step.Uses, "actions/setup-go@") && fmt.Sprint(step.With["cache"]) == "false" {
+				cleanGo = true
+			}
+			if strings.HasPrefix(step.Uses, "actions/cache@") || strings.Contains(fmt.Sprint(step.With["name"]), "candidate-release-") {
+				return fmt.Errorf("%s exposes unqualified candidate or shared cache", name)
+			}
+		}
+		if !checkout || !cleanGo {
+			return fmt.Errorf("%s must compile exact source without shared cache", name)
+		}
+	}
+	build := workflow.Jobs["build"]
+	tools, join := false, false
+	for _, step := range build.Steps {
+		if strings.HasPrefix(step.Uses, "actions/checkout@") && fmt.Sprint(step.With["ref"]) == "${{ github.workflow_sha }}" && fmt.Sprint(step.With["path"]) == "workflow-source" {
+			tools = true
+		}
+		if strings.Contains(step.Run, "python3 workflow-source/scripts/assemble_release_candidate.py") && strings.Contains(step.Run, `--expected-sha "$RELEASE_SHA"`) && strings.Contains(step.Run, "python3 workflow-source/scripts/verify_release_assets.py") {
+			join = true
+		}
+	}
+	if !tools || !join {
+		return fmt.Errorf("assembly must use current workflow tools and validate exact-source canonical assets")
+	}
+	if fmt.Sprint(build.Needs) != "[prepare resolve quality quality-tests macos portable]" {
+		return fmt.Errorf("candidate join missing a fresh gate")
+	}
+	expected := "always() && needs.prepare.result == 'success' && needs.resolve.result == 'success' && (needs.resolve.outputs.reused == 'true' || (needs.quality.result == 'success' && needs.quality-tests.result == 'success' && needs.macos.result == 'success' && needs.portable.result == 'success'))"
+	if build.If != expected {
+		return fmt.Errorf("candidate join permits failed gates or blocks qualified reuse")
+	}
+	return nil
+}
+
+func TestReleaseWorkflowFreshFanoutGates(t *testing.T) {
+	data, err := readReleaseWorkflow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateReleaseFanout(data); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutation := range [][2]string{
+		{"needs.quality.result == 'success'", "needs.quality.result != 'cancelled'"},
+		{"needs.quality-tests.result == 'success'", "needs.quality-tests.result != 'cancelled'"},
+		{"      - quality-tests\n", ""},
+		{"needs.macos.result == 'success'", "needs.macos.result != 'cancelled'"},
+		{"needs.portable.result == 'success'", "needs.portable.result != 'cancelled'"},
+		{"cache: false", "cache: true"},
+		{"      - quality\n", ""},
+		{"needs.resolve.outputs.reused != 'true'", "needs.resolve.outputs.reused == 'true'"},
+		{"ref: ${{ needs.resolve.outputs.sha }}", "ref: main"},
+		{"name: intermediate-macos-", "name: candidate-release-"},
+		{"ref: ${{ github.workflow_sha }}", "ref: ${{ needs.resolve.outputs.sha }}"},
+		{`--expected-sha "$RELEASE_SHA"`, `--expected-sha "unknown"`},
+	} {
+		changed := strings.ReplaceAll(string(data), mutation[0], mutation[1])
+		if changed == string(data) {
+			t.Fatalf("mutation target absent: %s", mutation[0])
+		}
+		if err := validateReleaseFanout([]byte(changed)); err == nil {
+			t.Errorf("unsafe mutation accepted: %s", mutation[0])
+		}
+	}
+}
+
+func TestReleaseCandidateAssembler(t *testing.T) {
+	command := exec.Command("python3", "scripts/test_assemble_release_candidate.py")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("assembler tests: %v\n%s", err, output)
+	}
+}
+
+func TestReleaseWorkflowNativeNotaryUsesReleaseBinary(t *testing.T) {
+	data, err := readReleaseWorkflow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := releaseWorkflowJobBlock(t, string(data), "macos")
+	if strings.Contains(job, "asc-notary-bootstrap") || strings.Count(job, "go build") != 2 {
+		t.Fatal("macOS must compile each release architecture exactly once")
+	}
+	for _, required := range []string{`arm64) arch=arm64`, `x86_64) arch=amd64`, `"$NOTARY_CLI" notarization list`, `"$NOTARY_CLI" notarization submit`, `"$NOTARY_CLI" notarization log`} {
+		if !strings.Contains(job, required) {
+			t.Errorf("native release notarization missing %q", required)
+		}
+	}
+	build := strings.Index(job, "- name: Build macOS binaries")
+	auth := strings.Index(job, "- name: Verify notarization auth")
+	sign := strings.Index(job, "- name: Sign and verify macOS binaries")
+	notarize := strings.Index(job, "- name: Notarize macOS binaries")
+	if build < 0 || auth <= build || sign <= auth || notarize <= sign {
+		t.Fatal("native release must build, validate auth, sign, then notarize")
+	}
+}
+
+func TestReleaseWorkflowRecoversIntermediatesAcrossPartialReruns(t *testing.T) {
+	data, err := readReleaseWorkflow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := releaseWorkflowJobBlock(t, string(data), "build")
+	for _, required := range []string{`actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100`, `select(.expired == false)`, `sort_by(.created_at, .id)`, `artifact-ids: ${{ steps.intermediates.outputs.macos }}`, `artifact-ids: ${{ steps.intermediates.outputs.portable }}`} {
+		if !strings.Contains(job, required) {
+			t.Errorf("partial rerun recovery missing %q", required)
+		}
+	}
+	if strings.Contains(job, "name: intermediate-macos-${{ github.run_attempt }}") || strings.Contains(job, "name: intermediate-portable-${{ github.run_attempt }}") {
+		t.Fatal("join must reuse prior successful lanes from this run")
+	}
+}
+
+func releaseWorkflowStepRun(t *testing.T, job, name string) string {
+	t.Helper()
+	data, err := readReleaseWorkflow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Name string `yaml:"name"`
+				Run  string `yaml:"run"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range workflow.Jobs[job].Steps {
+		if step.Name == name {
+			return step.Run
+		}
+	}
+	t.Fatalf("missing %s step %q", job, name)
+	return ""
+}
+
+func TestReleaseWorkflowMacOSIntermediateOmitsAppleDouble(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("requires native macOS tar and extended attributes")
+	}
+	script := releaseWorkflowStepRun(t, "macos", "Pack macos intermediate")
+	dir := t.TempDir()
+	release := filepath.Join(dir, "release")
+	if err := os.Mkdir(release, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	names := []string{"asc_1.2.3_macOS_amd64", "asc_1.2.3_macOS_arm64"}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(release, name), []byte("release fixture"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Native tar otherwise serializes this attribute into an extra ._release member.
+	if output, err := exec.Command("xattr", "-w", "com.asc.release-test", "fixture", release).CombinedOutput(); err != nil {
+		t.Fatalf("set macOS archive attribute: %v %s", err, output)
+	}
+	stub := "#!/bin/sh\nprintf '%s\\n' " + strings.Repeat("a", 40) + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command("bash", "-e", "-o", "pipefail", "-c", script)
+	command.Dir = dir
+	command.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("pack native macOS intermediate: %v %s", err, output)
+	}
+	// Feed the actual producer's archive into the production validator.
+	args := []string{"-c", "import sys; sys.path.insert(0, 'scripts'); from assemble_release_candidate import read_lane; read_lane(sys.argv[1], sys.argv[2:], 'a' * 40)", filepath.Join(dir, "workflow-artifact", "macos.tar")}
+	args = append(args, names...)
+	if output, err := exec.Command("python3", args...).CombinedOutput(); err != nil {
+		t.Fatalf("native intermediate rejected by assembler: %v %s", err, output)
+	}
+}
+
+func TestReleaseWorkflowIntermediatesResolverBehavior(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("release artifact resolver runs in a Unix shell")
+	}
+	for _, tool := range []string{"bash", "jq"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s is required to execute the release resolver: %v", tool, err)
+		}
+	}
+	script := releaseWorkflowStepRun(t, "build", "Resolve retained intermediates from this run")
+	for _, fixture := range []struct {
+		name, json, want string
+		failure          bool
+	}{
+		{name: "paginated partial retry", json: `{"artifacts":[
+    {"id":11,"name":"intermediate-macos-1","created_at":"2026-10-08T01:00:00Z","expired":false},
+    {"id":21,"name":"intermediate-portable-1","created_at":"2026-10-08T01:00:00Z","expired":false},
+    {"id":99,"name":"intermediate-macos-3","created_at":"2026-10-08T03:00:00Z","expired":true}]}
+   {"artifacts":[
+    {"id":22,"name":"intermediate-portable-2","created_at":"2026-10-08T02:00:00Z","expired":false},
+    {"id":98,"name":"intermediate-portable-3","created_at":"2026-10-08T03:00:00Z","expired":true},
+    {"id":97,"name":"intermediate-macos-unqualified","created_at":"2026-10-08T04:00:00Z","expired":false},
+    {"id":96,"name":"intermediate-other-4","created_at":"2026-10-08T04:00:00Z","expired":false},
+    {"id":95,"name":"candidate-release-1.2.3","created_at":"2026-10-08T04:00:00Z","expired":false}]}`, want: "macos=11\nportable=22\n"},
+		{name: "missing portable fails", json: `{"artifacts":[{"id":11,"name":"intermediate-macos-1","created_at":"2026-10-08T01:00:00Z","expired":false}]}`, failure: true},
+		{name: "only expired macos fails", json: `{"artifacts":[{"id":11,"name":"intermediate-macos-1","created_at":"2026-10-08T01:00:00Z","expired":true},{"id":22,"name":"intermediate-portable-2","created_at":"2026-10-08T02:00:00Z","expired":false}]}`, failure: true},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			dir := t.TempDir()
+			jsonPath, outputPath := filepath.Join(dir, "fixture.json"), filepath.Join(dir, "output")
+			if err := os.WriteFile(jsonPath, []byte(fixture.json), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			stub := `#!/bin/sh
+if [ "$*" != "api --paginate repos/test/repo/actions/runs/123/artifacts?per_page=100" ]; then
+ echo "unexpected artifact API request" >&2
+ exit 7
+fi
+cat "$GH_STUB_JSON"
+`
+			if err := os.WriteFile(filepath.Join(dir, "gh"), []byte(stub), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			command := exec.Command("bash", "-e", "-o", "pipefail", "-c", script)
+			command.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "GH_STUB_JSON="+jsonPath, "RUNNER_TEMP="+dir, "GITHUB_OUTPUT="+outputPath, "GITHUB_RUN_ID=123", "GH_REPO=test/repo")
+			output, err := command.CombinedOutput()
+			if fixture.failure {
+				if err == nil || !strings.Contains(string(output), "Missing retained") {
+					t.Fatalf("missing lane must fail closed: err=%v output=%s", err, output)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolver failed: %v %s", err, output)
+			}
+			got, err := os.ReadFile(outputPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != fixture.want {
+				t.Fatalf("resolved incorrect lane attempts: want %q got %q", fixture.want, got)
+			}
+		})
+	}
+}
+
+func TestReleaseWorkflowSameRunCandidateProvenance(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("release artifact resolver runs in a Unix shell")
+	}
+	for _, tool := range []string{"bash", "jq", "python3"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s is required to execute the release resolver: %v", tool, err)
+		}
+	}
+	script := releaseWorkflowStepRun(t, "resolve", "Check for existing immutable build artifact")
+	sha := strings.Repeat("a", 40)
+	for _, fixture := range []struct {
+		name, commit, failure string
+		missingTar, corrupt   bool
+		downloadFailure       bool
+	}{
+		{name: "same source", commit: sha},
+		{name: "moved tag", commit: strings.Repeat("b", 40), failure: "does not match release source"},
+		{name: "missing provenance", failure: "does not match release source"},
+		{name: "missing archive", commit: sha, missingTar: true, failure: "does not match release source"},
+		{name: "damaged ZIP", corrupt: true, failure: "BadZipFile"},
+		{name: "download fails", downloadFailure: true, failure: "download failed"},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			dir := t.TempDir()
+			zipPath, outputPath := filepath.Join(dir, "fixture.zip"), filepath.Join(dir, "output")
+			archive, err := os.Create(zipPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writer := zip.NewWriter(archive)
+			entries := map[string]string{}
+			if !fixture.missingTar {
+				entries["candidate-release-1.2.3.tar"] = "retained candidate"
+			}
+			if fixture.commit != "" {
+				entries["candidate-release-1.2.3.commit"] = fixture.commit + "\n"
+			}
+			for name, contents := range entries {
+				entry, err := writer.Create(name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := entry.Write([]byte(contents)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := archive.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if fixture.corrupt {
+				if err := os.WriteFile(zipPath, []byte("damaged ZIP"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			stub := `#!/bin/sh
+case "$*" in
+ "api --paginate repos/test/repo/actions/runs/123/artifacts?per_page=100")
+  printf '%s\n' '{"artifacts":[{"id":7,"name":"candidate-release-1.2.3","expired":false}]}' ;;
+ "api repos/test/repo/actions/artifacts/7/zip")
+  if [ "$DOWNLOAD_FAILURE" = true ]; then echo 'download failed' >&2; exit 7; fi
+  cat "$GH_STUB_ZIP" ;;
+ *) echo "unexpected artifact API request" >&2; exit 8 ;;
+esac
+`
+			for name, contents := range map[string]string{"gh": stub, "git": "#!/bin/sh\nprintf '%s\\n' " + sha + "\n"} {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(contents), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			command := exec.Command("bash", "-e", "-o", "pipefail", "-c", script)
+			command.Dir = dir
+			command.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "GH_STUB_ZIP="+zipPath, "RUNNER_TEMP="+dir, "GITHUB_OUTPUT="+outputPath, "GITHUB_RUN_ID=123", "GH_REPO=test/repo", "VERSION=1.2.3", fmt.Sprintf("DOWNLOAD_FAILURE=%t", fixture.downloadFailure))
+			output, err := command.CombinedOutput()
+			got, _ := os.ReadFile(outputPath)
+			if fixture.failure != "" {
+				if err == nil || !strings.Contains(string(output), fixture.failure) || strings.Contains(string(got), "reused=true") {
+					t.Fatalf("invalid candidate must fail before reuse: err=%v output=%s outputs=%q", err, output, got)
+				}
+				return
+			}
+			if err != nil || string(got) != "reused=true\ncross_run=false\n" {
+				t.Fatalf("same-source candidate must remain reusable: err=%v output=%s outputs=%q", err, output, got)
+			}
+		})
 	}
 }

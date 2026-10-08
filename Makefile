@@ -16,14 +16,24 @@ RELEASE_BUILD_FLAGS := -trimpath
 
 # Go variables
 GO := go
+# CGO's external linker otherwise inherits the installed macOS SDK minimum.
+override MACOSX_DEPLOYMENT_TARGET := 13.0
+export MACOSX_DEPLOYMENT_TARGET
+ifeq ($(shell $(GO) env GOHOSTOS),darwin)
+# Include the target in Go's CGO cache key, preserving other compiler flags.
+override CGO_CFLAGS := $(filter-out -mmacosx-version-min=%,$(or $(CGO_CFLAGS),-O2 -g)) -mmacosx-version-min=13.0
+override CGO_LDFLAGS := $(filter-out -mmacosx-version-min=%,$(or $(CGO_LDFLAGS),-O2 -g)) -mmacosx-version-min=13.0
+export CGO_CFLAGS CGO_LDFLAGS
+endif
 GOMOD := go.mod
 GOBIN := $(shell $(GO) env GOPATH)/bin
 GO_TOOLCHAIN_VERSION := $(shell $(GO) env GOVERSION)
+GOFMT := $(shell $(GO) env GOROOT)/bin/gofmt
 # Cold hosted runners can require more than ten minutes for the full-module lint.
 GOLANGCI_LINT_TIMEOUT ?= 15m
 INSTALL_PREFIX ?= /usr/local/bin
-GOFUMPT_VERSION ?= v0.10.0
-GOLANGCI_LINT_VERSION ?= v2.12.1
+GOFUMPT_VERSION ?= v0.12.0
+GOLANGCI_LINT_VERSION ?= v2.14.0
 GOVULNCHECK_VERSION ?= v1.6.0
 
 # Test environment
@@ -39,7 +49,8 @@ GOVULNCHECK_VERSION ?= v1.6.0
 TEST_ENV_PASSTHROUGH := ASC_UPDATE_GOLDEN ASC_SIGNING_RUN_LIVE_TEST ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST
 TEST_ENV = env $(foreach var,$(sort $(filter-out $(TEST_ENV_PASSTHROUGH),$(filter ASC_%,$(.VARIABLES)))),-u $(var)) -u DO_NOT_TRACK ASC_BYPASS_KEYCHAIN=1
 
-# $(call run_isolated_tests,<go test arguments>)
+# $(call run_isolated_tests,<go test arguments>[,<test command>])
+# The test command defaults to `go test`.
 # The EXIT trap removes the directory however the run ends, including Ctrl-C.
 define run_isolated_tests
 	@config_dir="$$(mktemp -d "$${TMPDIR:-/tmp}/asc-test-config.XXXXXX")" || exit 1; \
@@ -47,8 +58,8 @@ define run_isolated_tests
 	trap 'exit 130' INT; \
 	trap 'exit 143' TERM; \
 	chmod 500 "$$config_dir"; \
-	echo "ASC_CONFIG_PATH=$$config_dir/config.json $(GO) test $(1)"; \
-	$(TEST_ENV) ASC_CONFIG_PATH="$$config_dir/config.json" $(GO) test $(1); \
+	echo "ASC_CONFIG_PATH=$$config_dir/config.json $(or $(2),$(GO) test) $(1)"; \
+	$(TEST_ENV) ASC_CONFIG_PATH="$$config_dir/config.json" $(or $(2),$(GO) test) $(1); \
 	status=$$?; \
 	if [ -n "$$(ls -A "$$config_dir")" ]; then \
 		echo "error: tests wrote to the shared test config directory $$config_dir; set ASC_CONFIG_PATH in the test instead" >&2; \
@@ -100,17 +111,25 @@ build-all: clean
 build-debug:
 	$(GO) build -gcflags="all=-N -l" -o $(BINARY_NAME)-debug .
 
+# Per-run config isolation and high-volume filesystem logs make test-result
+# caching costly. Disable result caching while retaining Go's compile cache.
+# The slowest packages run as concurrent test shards beside the rest of ./...;
+# TEST_JOBS sets the CPU budget (default: GOMAXPROCS, else the CPU count). It is
+# a soft budget: it sizes shard and package fan-out, not a hard CPU limit.
+TEST_JOBS ?=
+LOCAL_TEST = GO="$(GO)" python3 scripts/go_test_shard.py local --split ./internal/cli/cmdtest --split ./internal/cli/web $(if $(TEST_JOBS),--jobs $(TEST_JOBS)) --
+
 # Run tests
 .PHONY: test
 test:
 	@echo "$(BLUE)Running tests...$(NC)"
-	$(call run_isolated_tests,-v ./...)
+	$(call run_isolated_tests,-count=1 -v,$(LOCAL_TEST))
 
 # Run the short test suite (used by the pre-commit hook)
 .PHONY: test-short
 test-short:
 	@echo "$(BLUE)Running short tests...$(NC)"
-	$(call run_isolated_tests,-short ./...)
+	$(call run_isolated_tests,-count=1 -short,$(LOCAL_TEST))
 
 # Run tests with parallel package compilation
 # Defaults to GOMAXPROCS; set PARALLEL to override (e.g. PARALLEL=4)
@@ -138,32 +157,39 @@ test-integration:
 lint:
 	@echo "$(BLUE)Linting code...$(NC)"
 	@if command -v golangci-lint >/dev/null 2>&1; then \
+		case "$$(golangci-lint version 2>&1)" in \
+			*"has version $(GOLANGCI_LINT_VERSION:v%=%) built with $(GO_TOOLCHAIN_VERSION) "*) ;; \
+			*) echo "$(YELLOW)golangci-lint does not match $(GOLANGCI_LINT_VERSION) built with $(GO_TOOLCHAIN_VERSION): $$(golangci-lint version 2>&1)$(NC)"; \
+			   echo "$(YELLOW)Run: make tools$(NC)"; exit 1;; \
+		esac; \
 		GOLANGCI_LINT_CACHE="$(CURDIR)/.golangci-cache" golangci-lint run --timeout=$(GOLANGCI_LINT_TIMEOUT) ./...; \
 	else \
 		echo "$(YELLOW)golangci-lint not found; falling back to 'go vet ./...'.$(NC)"; \
-		echo "$(YELLOW)Install with: make tools (or: GOTOOLCHAIN=$(GO_TOOLCHAIN_VERSION) $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest)$(NC)"; \
+		echo "$(YELLOW)Install with: make tools$(NC)"; \
 		$(GO) vet ./...; \
 	fi
 
 # Format code
 .PHONY: format
-format:
+format: check-gofumpt
 	@echo "$(BLUE)Formatting code...$(NC)"
-	@if ! command -v gofumpt >/dev/null 2>&1; then \
-		echo "$(YELLOW)gofumpt not found; install with: make tools (or: $(GO) install mvdan.cc/gofumpt@latest)$(NC)"; \
-		exit 1; \
-	fi
-	$(GO) fmt ./...
 	gofumpt -w .
 
-.PHONY: format-check
-format-check:
-	@echo "$(BLUE)Checking formatting (no writes)...$(NC)"
+.PHONY: check-gofumpt
+check-gofumpt:
 	@if ! command -v gofumpt >/dev/null 2>&1; then \
-		echo "$(YELLOW)gofumpt not found; install with: make tools (or: $(GO) install mvdan.cc/gofumpt@latest)$(NC)"; \
+		echo "$(YELLOW)gofumpt not found; install with: make tools$(NC)"; \
 		exit 1; \
 	fi
-	@unformatted_gofmt="$$(gofmt -l .)"; \
+	@if [ "$$(gofumpt --version)" != "$(GOFUMPT_VERSION) ($(GO_TOOLCHAIN_VERSION))" ]; then \
+		echo "$(YELLOW)gofumpt $$(gofumpt --version) does not match $(GOFUMPT_VERSION) ($(GO_TOOLCHAIN_VERSION)); run: make tools$(NC)"; \
+		exit 1; \
+	fi
+
+.PHONY: format-check
+format-check: check-gofumpt
+	@echo "$(BLUE)Checking formatting (no writes)...$(NC)"
+	@unformatted_gofmt="$$($(GOFMT) -l .)"; \
 	unformatted_gofumpt="$$(gofumpt -l .)"; \
 	if [ -n "$$unformatted_gofmt" ] || [ -n "$$unformatted_gofumpt" ]; then \
 		echo "Formatting issues detected."; \
@@ -182,7 +208,7 @@ format-check:
 .PHONY: tools
 tools:
 	@echo "$(BLUE)Installing dev tools...$(NC)"
-	$(GO) install mvdan.cc/gofumpt@$(GOFUMPT_VERSION)
+	GOTOOLCHAIN=$(GO_TOOLCHAIN_VERSION) $(GO) install mvdan.cc/gofumpt@$(GOFUMPT_VERSION)
 	GOTOOLCHAIN=$(GO_TOOLCHAIN_VERSION) $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 	@echo "$(GREEN)✓ Tools installed$(NC)"
 	@echo "$(YELLOW)Make sure '$(GOBIN)' is on your PATH$(NC)"
@@ -235,8 +261,7 @@ generate-command-docs:
 check-command-docs:
 	@echo "$(BLUE)Checking command docs sync...$(NC)"
 	python3 ./scripts/test_generate_command_docs.py
-	python3 ./scripts/generate-command-docs.py --check
-	python3 ./scripts/check-commands-docs.py
+	python3 ./scripts/check-commands-docs.py --check-generated
 
 .PHONY: check-repo-docs
 check-repo-docs:
@@ -264,7 +289,11 @@ check-openapi:
 	python3 ./scripts/generate-schema-index.py --check
 
 .PHONY: check-docs
-check-docs: check-command-docs check-repo-docs check-website-docs check-agent-skills check-openapi
+check-docs: check-repo-docs check-agent-skills check-openapi
+	python3 ./scripts/test_generate_command_docs.py
+	python3 ./scripts/test_check_docs_commands.py
+	python3 ./scripts/check_website_docs.py
+	python3 ./scripts/check_docs_commands.py
 
 .PHONY: check-wall-of-apps
 check-wall-of-apps:
@@ -325,8 +354,8 @@ help:
 	@echo "  build          Build the binary"
 	@echo "  build-all      Build release binaries for supported platforms"
 	@echo "  build-debug    Build with debug symbols"
-	@echo "  test           Run tests"
-	@echo "  test-short     Run the short test suite"
+	@echo "  test           Run tests (TEST_JOBS=<n> sets a soft CPU budget)"
+	@echo "  test-short     Run the short test suite (TEST_JOBS=<n> sets a soft CPU budget)"
 	@echo "  test-parallel  Run tests with optional package parallelism (PARALLEL=<n>)"
 	@echo "  test-coverage  Run tests with coverage"
 	@echo "  test-integration  Run opt-in integration tests"

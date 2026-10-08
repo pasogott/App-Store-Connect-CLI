@@ -18,6 +18,15 @@ App Clip default-experience files use `metadata/<locale>/app_clip/subtitle.txt`,
 `app_previews/<locale>/<device_type>/*.mp4`, `*.mov`, or `*.m4v`, with an optional
 `<name>.poster_frame.txt` sidecar (`HH:MM:SS:FF` or `HH:MM:SS.mmm`).
 
+App Store Connect does not provide original preview videos, only an HLS
+streaming playlist. Exports save each preview, such as `preview.mp4`, as
+`preview.mp4.m3u8` with a `preview.mp4.preview.json` sidecar recording its ID,
+file name, size, and source checksum. Imports never upload a playlist. They
+keep the target preview with the recorded ID, or else one with the same source
+checksum. Playlists saved as `.mp4` by older exports match a target preview by
+file name plus delivered bytes. When no preview matches, the import fails
+before any changes and asks for the original video file.
+
 ```bash theme={null}
 asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane
 asc migrate validate --fastlane-dir ./fastlane

@@ -92,6 +92,8 @@ release binaries directly from the
 For source builds and contributor setup, see [CONTRIBUTING.md](CONTRIBUTING.md).
 Released binaries are self-contained and do not require a Go installation;
 source builds use the toolchain version declared by `go.mod`.
+Releases built with Go 1.27 require macOS 13 Ventura or later. On older Macs,
+retain an older compatible release or upgrade macOS before updating `asc`.
 
 ### 2. Authenticate
 

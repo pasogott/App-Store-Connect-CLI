@@ -1,11 +1,10 @@
 # ASC CLI behavior test matrix
 
-Apply the cases relevant to the changed behavior, using existing coverage when it proves the contract. Add tests for distinct observable behavior or demonstrated regressions; shared parser and renderer coverage need not be repeated for each command.
+Apply the cases relevant to the changed behavior, under the test rules in `AGENTS.md`. Use existing coverage when it proves the contract. Add tests only for distinct observable behavior or demonstrated regressions; do not repeat shared parser and renderer coverage for each command.
 
 ## Flags and parsing
 
-- Add one valid-path test for every new or changed flag.
-- Add one invalid-value test that asserts stderr and exit code `2`.
+- Cover the valid path and one invalid value (stderr and exit code `2`) of a new or changed flag, unless an existing test already does. Add them as rows in an existing table when one exists.
 - When parsing or dispatch changes, cover affected flag ordering and values that look like subcommand names.
 - Assert required-flag errors on stderr; do not test only for `flag.ErrHelp`.
 - Never accept and silently ignore an unsupported flag or value.
@@ -21,7 +20,7 @@ Apply the cases relevant to the changed behavior, using existing coverage when i
 ## HTTP and API behavior
 
 - Use `httptest` to assert method, path, query, headers, and request body.
-- Cover a realistic non-empty response, validation failure, and API error.
+- Cover a realistic non-empty response per response family. Test validation and API errors only where the endpoint handles them differently from the shared client.
 - Keep representative response-decoding assertions when consolidating table-driven tests.
 - Test pagination and empty responses where applicable.
 

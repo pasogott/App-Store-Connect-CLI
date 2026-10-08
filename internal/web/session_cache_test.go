@@ -22,35 +22,50 @@ import (
 
 type countingKeyring struct {
 	keyring.Keyring
+	mu        sync.Mutex
 	getCounts map[string]int
 }
 
 func (kr *countingKeyring) Get(key string) (keyring.Item, error) {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	kr.getCounts[key]++
 	return kr.Keyring.Get(key)
 }
 
 func (kr *countingKeyring) GetMetadata(key string) (keyring.Metadata, error) {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	return kr.Keyring.GetMetadata(key)
 }
 
 func (kr *countingKeyring) Set(item keyring.Item) error {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	return kr.Keyring.Set(item)
 }
 
 func (kr *countingKeyring) Remove(key string) error {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	return kr.Keyring.Remove(key)
 }
 
 func (kr *countingKeyring) Keys() ([]string, error) {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	return kr.Keyring.Keys()
 }
 
 func (kr *countingKeyring) ResetCounts() {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	kr.getCounts = map[string]int{}
 }
 
 func (kr *countingKeyring) GetCount(key string) int {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	return kr.getCounts[key]
 }
 
