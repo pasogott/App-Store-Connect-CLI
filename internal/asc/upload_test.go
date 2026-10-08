@@ -14,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -380,10 +381,13 @@ func TestExecuteUploadOperations_UsesFreshTimeoutForEachOperation(t *testing.T) 
 		}, nil
 	})}
 
-	err := ExecuteUploadOperations(context.Background(), filePath, []UploadOperation{
-		{Method: http.MethodPut, URL: "https://example.test/part-1", Length: 3, Offset: 0},
-		{Method: http.MethodPut, URL: "https://example.test/part-2", Length: 3, Offset: 3},
-	}, WithUploadConcurrency(1), WithUploadHTTPClient(client), withUploadRetryOptions(0))
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		err = ExecuteUploadOperations(context.Background(), filePath, []UploadOperation{
+			{Method: http.MethodPut, URL: "https://example.test/part-1", Length: 3, Offset: 0},
+			{Method: http.MethodPut, URL: "https://example.test/part-2", Length: 3, Offset: 3},
+		}, WithUploadConcurrency(1), WithUploadHTTPClient(client), withUploadRetryOptions(0))
+	})
 	if err != nil {
 		t.Fatalf("ExecuteUploadOperations() error: %v", err)
 	}

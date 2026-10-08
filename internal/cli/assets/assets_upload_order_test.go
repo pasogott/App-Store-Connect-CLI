@@ -155,6 +155,36 @@ func newAssetsUploadTestServerClient(t *testing.T, handler http.Handler) *asc.Cl
 	return client
 }
 
+func newAssetsUploadTestHandlerClient(t *testing.T, handler http.Handler) *asc.Client {
+	t.Helper()
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+
+	httpClient := &http.Client{Transport: assetsHandlerTransport(handler)}
+	pemBytes := newAssetsUploadTestPrivateKeyPEM(t)
+	keyPath := filepath.Join(t.TempDir(), "AuthKey_TEST.p8")
+	if err := os.WriteFile(keyPath, pemBytes, 0o600); err != nil {
+		t.Fatalf("write private key: %v", err)
+	}
+	client, err := asc.NewClientWithHTTPClient("KEY_ID", "ISSUER_ID", keyPath, httpClient)
+	if err != nil {
+		t.Fatalf("new client with test handler: %v", err)
+	}
+	return client
+}
+
+// assetsHandlerTransport serves requests in-process so tests can run inside a
+// synctest bubble, where loopback network I/O would not be durably blocking.
+func assetsHandlerTransport(handler http.Handler) http.RoundTripper {
+	return assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, req)
+		if err := req.Context().Err(); err != nil {
+			return nil, err
+		}
+		return recorder.Result(), nil
+	})
+}
+
 func writeAssetsTestJSON(w http.ResponseWriter, status int, body string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
