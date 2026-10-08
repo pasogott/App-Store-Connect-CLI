@@ -141,14 +141,36 @@ func TestBuildActualChildFailureCannotPublishStaleApp(t *testing.T) {
 	if !errors.As(err, &exit) || exit.ExitCode() != 17 {
 		t.Fatalf("wrong child failure: %v", err)
 	}
-	if result.Success || result.ExitStatus == nil || *result.ExitStatus != 17 {
-		t.Fatalf("false success: %+v", result)
+	if result.Success || result.Operation != "compile" {
+		t.Fatalf("wrong receipt: %+v", result)
 	}
 	if !strings.Contains(logs.String(), "intentional compiler failure") {
 		t.Fatalf("missing compiler diagnostics: %q", logs.String())
 	}
 	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("stale artifact published: %v", err)
+	}
+}
+
+func TestBuildWithoutToolsLeavesNoOutputOrLock(t *testing.T) {
+	directory := t.TempDir()
+	prepared := filepath.Join(directory, "package")
+	if err := os.MkdirAll(prepared, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(prepared, "Package.swift"), []byte("// prepared"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+	parent := filepath.Join(directory, "new-parent")
+	_, err := Build(context.Background(), BuildOptions{PackagePath: prepared, Product: "App", AppPath: filepath.Join(parent, "App.app"), Platform: "device", Configuration: "debug", LogWriter: io.Discard})
+	if err == nil || !strings.Contains(err.Error(), "xtool") {
+		t.Fatalf("missing xtool not reported: %v", err)
+	}
+	for _, path := range []string{parent, filepath.Join(prepared, ".asc-ios-build.lock")} {
+		if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%s created before tool check: %v", path, err)
+		}
 	}
 }
 

@@ -19,7 +19,6 @@ type IOSArtifactResult struct {
 	SHA256            string `json:"sha256,omitempty"`
 	Success           bool   `json:"success"`
 	DurationMs        int64  `json:"durationMs"`
-	ExitStatus        *int   `json:"exitStatus,omitempty"`
 }
 
 func iosArtifactResultRows(r *IOSArtifactResult) ([]string, [][]string) {

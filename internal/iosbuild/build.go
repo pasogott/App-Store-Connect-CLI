@@ -125,8 +125,17 @@ func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResul
 	started := time.Now()
 	// xtool can apply ad hoc entitlements while compiling a device app even
 	// without --sign. Successful compilation does not establish a signing type.
-	result = &asc.IOSArtifactResult{Operation: "build", Backend: "xtool", Platform: opts.Platform, Configuration: opts.Configuration, SigningType: "unknown", AppleAcceptance: "notVerified"}
+	result = &asc.IOSArtifactResult{Operation: "compile", Backend: "xtool", Platform: opts.Platform, Configuration: opts.Configuration, SigningType: "unknown", AppleAcceptance: "notVerified"}
 	defer func() { result.DurationMs = time.Since(started).Milliseconds() }()
+	tools := []string{"xtool"}
+	if opts.Platform == "simulator" {
+		tools = append(tools, "rcodesign")
+	}
+	for _, tool := range tools {
+		if _, err := exec.LookPath(tool); err != nil {
+			return result, fmt.Errorf("%s is not installed: %w", tool, err)
+		}
+	}
 	packagePath, err := filepath.Abs(opts.PackagePath)
 	if err != nil {
 		return result, err
@@ -193,11 +202,6 @@ func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResul
 		triple = "arm64-apple-ios-simulator"
 	}
 	if err := RunTool(ctx, packagePath, opts.LogWriter, "xtool", "dev", "build", "--configuration", opts.Configuration, "--triple", triple); err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			code := exit.ExitCode()
-			result.ExitStatus = &code
-		}
 		return result, err
 	}
 	produced, err := packageOS.Lstat(productPath)
@@ -272,7 +276,5 @@ func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResul
 	result.AppPath = destination
 	result.BundleID = info["CFBundleIdentifier"].(string)
 	result.Success = true
-	code := 0
-	result.ExitStatus = &code
 	return result, nil
 }
