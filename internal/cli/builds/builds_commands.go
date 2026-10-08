@@ -427,7 +427,7 @@ xtool may rebuild an outdated installed SDK; use a compatible xtool/SDK pair.
 Existing Xcode archive/export commands retain their macOS/Xcode contracts.
 
 Examples:
-  asc builds compile --package-path ./omarchy-xtool --product App --app-path ./artifacts/App.app --platform device
+  asc builds compile --package-path ./AppPackage --product App --app-path ./artifacts/App.app --platform device
   asc builds package --app-path ./artifacts/App.app --ipa-path ./artifacts/App.ipa --ad-hoc
   asc builds list --app "123456789"
   asc builds count --app "123456789"

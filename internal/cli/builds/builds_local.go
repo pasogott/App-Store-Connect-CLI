@@ -36,7 +36,7 @@ Existing output directories are rejected. A failed output publication can leave
 an incomplete destination; inspect it before retrying.
 
 Example:
-  asc builds compile --package-path ./omarchy-xtool --product App --app-path ./artifacts/App.app --platform device --configuration release`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+  asc builds compile --package-path ./AppPackage --product App --app-path ./artifacts/App.app --platform device --configuration release`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		if len(args) != 0 {
 			return shared.UsageError("builds compile does not accept positional arguments")
 		}

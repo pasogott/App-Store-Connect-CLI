@@ -53,7 +53,7 @@ func TestIOSPackageAdHocStagesSourceAndPublishesCreateOnly(t *testing.T) {
 	if err := os.Mkdir(tools, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// This is the unavailable third-party signer boundary. Live E2B exercises rcodesign.
+	// Fake rcodesign: the real signer is not installed in unit tests.
 	script := `#!/bin/sh
 test "$1" = --config-file && test "$2" = /dev/null || exit 12
 test "$3" = sign && test "$4" = --timestamp-url && test "$5" = none || exit 13
