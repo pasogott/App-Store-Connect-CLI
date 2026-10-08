@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -16,16 +17,21 @@ func TestRetryReadWithFreshTimeoutRetriesChildDeadline(t *testing.T) {
 	t.Setenv("ASC_MAX_DELAY", "1ms")
 
 	requests := 0
-	value, err := RetryReadWithFreshTimeout(context.Background(), func(ctx context.Context) (string, error) {
-		requests++
-		if requests == 1 {
-			<-ctx.Done()
-			return "", ctx.Err()
-		}
-		if err := ctx.Err(); err != nil {
-			t.Fatalf("expected a fresh request context, got %v", err)
-		}
-		return "ok", nil
+	var value string
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		value, err = RetryReadWithFreshTimeout(context.Background(), func(ctx context.Context) (string, error) {
+			requests++
+			if requests == 1 {
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
+			if err := ctx.Err(); err != nil {
+				t.Errorf("expected a fresh request context, got %v", err)
+				return "", err
+			}
+			return "ok", nil
+		})
 	})
 	if err != nil {
 		t.Fatalf("RetryReadWithFreshTimeout() error: %v", err)

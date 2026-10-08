@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -186,16 +187,20 @@ func TestUploadVersionLocalizations_SkipsExactExistingValuesOnSecondPage(t *test
 	client.onGet = func(ctx context.Context, call int) {
 		deadline, ok := ctx.Deadline()
 		if !ok || time.Until(deadline) < 100*time.Millisecond {
-			t.Fatalf("page %d did not receive a fresh timeout: %s", call, time.Until(deadline))
+			t.Errorf("page %d did not receive a fresh timeout: %s", call, time.Until(deadline))
 		}
 		if call == 1 {
 			time.Sleep(75 * time.Millisecond)
 		}
 	}
 
-	results, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
-		"en-US": {"description": "Existing description"},
-	}, false)
+	var results []asc.LocalizationUploadLocaleResult
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		results, err = UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+			"en-US": {"description": "Existing description"},
+		}, false)
+	})
 	if err != nil {
 		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
@@ -428,12 +433,15 @@ func TestUploadVersionLocalizations_ReconcilesAmbiguousUpdateWithoutReplay(t *te
 func TestUploadVersionLocalizations_UsesFreshContextForReadbackAfterRequestTimeout(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "20ms")
 	client := &expiringVersionLocalizationClient{}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	results, err := UploadVersionLocalizations(ctx, client, "version-id", map[string]map[string]string{
-		"en-US": {"description": "New description"},
-	}, false)
+	var results []asc.LocalizationUploadLocaleResult
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		results, err = UploadVersionLocalizations(ctx, client, "version-id", map[string]map[string]string{
+			"en-US": {"description": "New description"},
+		}, false)
+	})
 	if err != nil {
 		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}

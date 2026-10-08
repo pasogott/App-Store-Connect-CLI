@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 )
 
 func TestBuildsWaitByBuildIDPollsUntilValid(t *testing.T) {
@@ -762,7 +763,7 @@ func TestBuildsWaitByBuildNumberDiscoveryPollsUntilTimeout(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 
 	if runErr == nil {

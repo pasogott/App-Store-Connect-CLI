@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -759,6 +760,10 @@ func TestBuildEventTreatsLocalRorkProfileAsTerminal(t *testing.T) {
 }
 
 func TestBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
+	synctest.Test(t, testBuildEventDoesNotWaitForInstallIDLock)
+}
+
+func testBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")

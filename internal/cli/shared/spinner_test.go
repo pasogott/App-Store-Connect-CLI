@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -331,7 +332,11 @@ func TestWithSpinnerDelayed_NoOpWhenFast(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		withTTYStub(t, true, true)
 
-		if err := WithSpinnerDelayed("Working", 200*time.Millisecond, func() error { return nil }); err != nil {
+		var err error
+		synctest.Test(t, func(*testing.T) {
+			err = WithSpinnerDelayed("Working", 200*time.Millisecond, func() error { return nil })
+		})
+		if err != nil {
 			t.Fatalf("WithSpinnerDelayed() error: %v", err)
 		}
 	})
@@ -350,10 +355,14 @@ func TestWithSpinnerDelayed_StartsWhenSlow(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		withTTYStub(t, true, true)
 
-		if err := WithSpinnerDelayed("Working", 10*time.Millisecond, func() error {
-			time.Sleep(30 * time.Millisecond)
-			return nil
-		}); err != nil {
+		var err error
+		synctest.Test(t, func(*testing.T) {
+			err = WithSpinnerDelayed("Working", 10*time.Millisecond, func() error {
+				time.Sleep(30 * time.Millisecond)
+				return nil
+			})
+		})
+		if err != nil {
 			t.Fatalf("WithSpinnerDelayed() error: %v", err)
 		}
 	})

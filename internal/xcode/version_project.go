@@ -1406,6 +1406,7 @@ func (project *structuredVersionProject) signingXCConfigConsumersWithOptionalMis
 		var collectionErrorPath string
 		var collectionErrorExternal bool
 		observedPaths := make([]string, 0)
+		observedPathSet := make(map[string]struct{})
 		var identify func(string) (os.FileInfo, error)
 		if xcconfigUsesIdentityTraversal() {
 			identify = signingXCConfigIdentityFn
@@ -1447,7 +1448,11 @@ func (project *structuredVersionProject) signingXCConfigConsumersWithOptionalMis
 				// An external path remains protected from artifact writes even
 				// when the operator opted into reading it.
 				addProtectedPath(filePath)
-				observedPaths = appendUniqueSigningPaths(observedPaths, filePath)
+				absolute := normalizeSigningLexicalPath(filePath)
+				if _, exists := observedPathSet[absolute]; !exists {
+					observedPathSet[absolute] = struct{}{}
+					observedPaths = append(observedPaths, absolute)
+				}
 			},
 			func(filePath string, _ error) {
 				collectionErrorPath = filePath

@@ -487,7 +487,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 			// alias checks. The collector has already authorized this path, so a
 			// no-follow prospective lookup is within the requested scope.
 			(opts.AllowExternalXCConfig && !contained) {
-			authorizedProtectedConfigPaths = appendUniqueSigningPaths(authorizedProtectedConfigPaths, protectedPath)
+			authorizedProtectedConfigPaths = append(authorizedProtectedConfigPaths, protectedPath)
 		}
 	}
 	hasUnauthorizedExternal := func(paths []string) bool {
@@ -1296,6 +1296,8 @@ type signingSettingResolver struct {
 	// require membership in authorizedPath (the successfully collected files).
 	lexicalConfigPaths map[string][]string
 	authorizedPath     map[string]bool
+	collectedPaths     map[string]signingAuthorizedPathIndex
+	lexicalPaths       map[string]map[string]struct{}
 	allowExternal      bool
 	// stagedXCConfig contains private bytes for xcconfigs changed by the
 	// current planning pass. The map is keyed by normalized lexical path;
@@ -1309,12 +1311,22 @@ func newSigningSettingResolver(project *structuredVersionProject, configFiles ma
 		configFiles:        configFiles,
 		lexicalConfigPaths: lexicalConfigPaths,
 		authorizedPath:     make(map[string]bool),
+		collectedPaths:     make(map[string]signingAuthorizedPathIndex, len(configFiles)),
+		lexicalPaths:       make(map[string]map[string]struct{}, len(lexicalConfigPaths)),
 		allowExternal:      allowExternal,
 	}
-	for _, paths := range configFiles {
+	for configurationID, paths := range configFiles {
 		for _, path := range paths {
 			resolver.authorizedPath[normalizeSigningLexicalPath(path)] = true
 		}
+		resolver.collectedPaths[configurationID] = newSigningAuthorizedPathIndex(paths)
+	}
+	for configurationID, paths := range lexicalConfigPaths {
+		observed := make(map[string]struct{}, len(paths))
+		for _, path := range paths {
+			observed[normalizeSigningLexicalPath(path)] = struct{}{}
+		}
+		resolver.lexicalPaths[configurationID] = observed
 	}
 	return resolver
 }
@@ -1350,14 +1362,11 @@ func (resolver *signingSettingResolver) configurationXCConfigPath(
 	if configuration == nil {
 		return absolute, false, nil
 	}
-	for _, collected := range resolver.configFiles[configuration.id] {
-		collected = normalizeSigningLexicalPath(collected)
-		if collected == absolute {
-			return collected, true, nil
-		}
+	collectedPaths := resolver.collectedPaths[configuration.id]
+	if _, ok := collectedPaths.exact[absolute]; ok {
+		return absolute, true, nil
 	}
-	for _, collected := range resolver.configFiles[configuration.id] {
-		collected = normalizeSigningLexicalPath(collected)
+	for _, collected := range collectedPaths.folded[signingPathCaseFoldKey(absolute)] {
 		if !signingPathCaseEquivalent(absolute, collected) {
 			continue
 		}
@@ -1374,13 +1383,8 @@ func (resolver *signingSettingResolver) configurationLexicallyObservedPath(confi
 	if configuration == nil {
 		return false
 	}
-	key := normalizeSigningLexicalPath(path)
-	for _, observed := range resolver.lexicalConfigPaths[configuration.id] {
-		if normalizeSigningLexicalPath(observed) == key {
-			return true
-		}
-	}
-	return false
+	_, ok := resolver.lexicalPaths[configuration.id][normalizeSigningLexicalPath(path)]
+	return ok
 }
 
 func (resolver *signingSettingResolver) statXCConfigFor(configuration *versionConfiguration, path string) (os.FileInfo, error) {
@@ -2732,14 +2736,20 @@ func validateSigningArtifactAliasesWithAuthorizedProtectedPaths(planPath, receip
 		}
 	}
 
-	seenInputs := make([]string, 0, len(inputPaths))
+	seenInputKeys := make(map[string]struct{}, len(inputPaths))
+	seenInputsByFold := make(map[string][]string, len(inputPaths))
 	for _, inputPath := range inputPaths {
 		if strings.TrimSpace(inputPath) == "" {
 			continue
 		}
 		inputPath = normalize(inputPath)
+		inputKey := signingLexicalPathKey(inputPath)
+		if _, duplicate := seenInputKeys[inputKey]; duplicate {
+			continue
+		}
+		foldKey := signingPathCaseFoldKey(inputPath)
 		duplicate := false
-		for _, seenInput := range seenInputs {
+		for _, seenInput := range seenInputsByFold[foldKey] {
 			if signingArtifactLexicalPathEqual(seenInput, inputPath) {
 				duplicate = true
 				break
@@ -2748,7 +2758,8 @@ func validateSigningArtifactAliasesWithAuthorizedProtectedPaths(planPath, receip
 		if duplicate {
 			continue
 		}
-		seenInputs = append(seenInputs, inputPath)
+		seenInputKeys[inputKey] = struct{}{}
+		seenInputsByFold[foldKey] = append(seenInputsByFold[foldKey], inputPath)
 		for _, artifact := range artifacts {
 			if signingArtifactLexicalPathEqual(inputPath, artifact.path) {
 				return newSigningInputError(newSigningArtifactAliasError(fmt.Errorf("%s path aliases project input %s", artifact.label, inputPath)))

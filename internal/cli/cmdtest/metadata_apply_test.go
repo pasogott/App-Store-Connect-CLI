@@ -14,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -1527,7 +1528,8 @@ func TestMetadataApplyUsesFreshDeadlineForEachSnapshotPage(t *testing.T) {
 			}
 			deadline, ok := req.Context().Deadline()
 			if !ok || time.Until(deadline) < 70*time.Millisecond {
-				t.Fatalf("expected fresh second-page deadline, remaining=%s", time.Until(deadline))
+				t.Errorf("expected fresh second-page deadline, remaining=%s", time.Until(deadline))
+				return nil, context.DeadlineExceeded
 			}
 			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
@@ -1538,12 +1540,16 @@ func TestMetadataApplyUsesFreshDeadlineForEachSnapshotPage(t *testing.T) {
 		}
 	})
 
-	result, _, err := metadatacli.ExecutePushWithWarnings(context.Background(), metadatacli.PushExecutionOptions{
-		CommandName: "apply",
-		AppID:       "app-1",
-		Version:     "1.2.3",
-		Dir:         dir,
-		DryRun:      true,
+	var result metadatacli.PushPlanResult
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		result, _, err = metadatacli.ExecutePushWithWarnings(context.Background(), metadatacli.PushExecutionOptions{
+			CommandName: "apply",
+			AppID:       "app-1",
+			Version:     "1.2.3",
+			Dir:         dir,
+			DryRun:      true,
+		})
 	})
 	if err != nil {
 		t.Fatalf("ExecutePushWithWarnings() error: %v", err)
