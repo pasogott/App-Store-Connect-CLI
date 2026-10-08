@@ -143,6 +143,24 @@ func TestBumpVersionType_Validate(t *testing.T) {
 	}
 }
 
+func TestIsVariableReference(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"$(MARKETING_VERSION)", true},
+		{"1.2.3", false},
+		{"$(CURRENT_PROJECT_VERSION)", true},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		if got := isVariableReference(tt.input); got != tt.want {
+			t.Errorf("isVariableReference(%q) = %v, want %v", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestIncrementBuildString(t *testing.T) {
 	tests := []struct {
 		current string
