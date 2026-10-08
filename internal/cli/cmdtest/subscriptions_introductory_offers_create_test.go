@@ -655,7 +655,8 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesTimeoutStopsContinue
 			var ok bool
 			operationDeadline, ok = req.Context().Deadline()
 			if !ok {
-				t.Fatal("expected availability request deadline")
+				t.Error("expected availability request deadline")
+				return nil, errors.New("test transport assertion failed")
 			}
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1"}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionAvailabilities/avail-1/availableTerritories":
@@ -675,7 +676,8 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesTimeoutStopsContinue
 				} `json:"data"`
 			}
 			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-				t.Fatalf("decode payload: %v", err)
+				t.Errorf("decode payload: %v", err)
+				return nil, errors.New("test transport assertion failed")
 			}
 			postedTerritories = append(postedTerritories, payload.Data.Relationships.Territory.Data.ID)
 			if len(postedTerritories) == 1 {
@@ -686,8 +688,8 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesTimeoutStopsContinue
 			}
 			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"intro-new"}}`), nil
 		default:
-			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-			return nil, nil
+			t.Errorf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			return nil, errors.New("unexpected test transport request")
 		}
 	})
 
