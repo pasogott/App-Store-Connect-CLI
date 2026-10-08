@@ -134,11 +134,20 @@ var (
 	sessionGenerationReader     = func(b []byte) (int, error) { return rand.Read(b) }
 )
 
-var errSessionKeychainBypassed = errors.New("web session keychain backend is disabled by ASC_BYPASS_KEYCHAIN; unset " + webSessionBackendEnv + " or set it to file")
+var ErrSessionKeychainBypassed = errors.New("web session keychain backend is disabled by ASC_BYPASS_KEYCHAIN; unset " + webSessionBackendEnv + " or set it to file")
+
+// SessionBackendConflict reports ErrSessionKeychainBypassed when the keychain
+// backend is explicitly selected while ASC_BYPASS_KEYCHAIN disables it.
+func SessionBackendConflict() error {
+	if auth.ShouldBypassKeychain() && resolveBackendSelection().backend == sessionBackendKeychain {
+		return ErrSessionKeychainBypassed
+	}
+	return nil
+}
 
 func openSessionKeyring() (keyring.Keyring, error) {
 	if auth.ShouldBypassKeychain() {
-		return nil, errSessionKeychainBypassed
+		return nil, ErrSessionKeychainBypassed
 	}
 	return sessionKeyringOpen()
 }
