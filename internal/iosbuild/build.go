@@ -118,6 +118,8 @@ func runTool(ctx context.Context, directory string, logs io.Writer, env []string
 	return nil
 }
 
+var afterAppReservedForTest func()
+
 // Build compiles using xtool, fixes simulator metadata and signs simulator output ad hoc.
 func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResult, resultErr error) {
 	ctx, stop := ContextWithSignals(ctx)
@@ -267,7 +269,10 @@ func Build(ctx context.Context, opts BuildOptions) (result *asc.IOSArtifactResul
 	if err := parentOS.Mkdir(filepath.Base(destination), 0o755); err != nil {
 		return result, err
 	}
-	if err := CopyBundle(ctx, stagedApp, destination); err != nil {
+	if afterAppReservedForTest != nil {
+		afterAppReservedForTest()
+	}
+	if err := copyBundleInto(ctx, stagedApp, parent, filepath.Base(destination)); err != nil {
 		return result, fmt.Errorf("app publication incomplete at %s: %w", destination, err)
 	}
 	if err := ctx.Err(); err != nil {
