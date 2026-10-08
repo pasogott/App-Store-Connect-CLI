@@ -559,6 +559,10 @@ GitHub: https://github.com/semihcihan/App-Store-Optimization-CLI
 
 ## Contributing
 
+For portable Linux iOS builds and local IPA packaging with xtool and rcodesign,
+see [the Linux iOS workflow](docs/linux-ios.md). Native simulator execution still
+requires a Mac host; existing Xcode archive/export helpers retain their contracts.
+
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
