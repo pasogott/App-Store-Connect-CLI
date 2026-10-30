@@ -92,8 +92,14 @@ func TestResolveSigningAssetsAvoidsProfileNamesHeldInTheAccount(t *testing.T) {
 		}
 	}
 
-	for _, identifier := range []string{"com.example.app", longBundle} {
-		t.Run("another bundle ID the same day", func(t *testing.T) {
+	bundles := []struct{ label, identifier string }{
+		{label: "short bundle ID", identifier: "com.example.app"},
+		{label: "long bundle ID", identifier: longBundle},
+	}
+	for _, bundle := range bundles {
+		identifier := bundle.identifier
+
+		t.Run(bundle.label+"/another bundle ID the same day", func(t *testing.T) {
 			account := &accountProfiles{t: t}
 			client := newSigningFetchTestClient(t, account.roundTrip)
 
@@ -101,7 +107,7 @@ func TestResolveSigningAssetsAvoidsProfileNamesHeldInTheAccount(t *testing.T) {
 			resolve(t, client, "bundle-b", identifier+".widget")
 		})
 
-		t.Run("rotation while an invalid profile holds the name", func(t *testing.T) {
+		t.Run(bundle.label+"/rotation while an invalid profile holds the name", func(t *testing.T) {
 			account := &accountProfiles{t: t}
 			client := newSigningFetchTestClient(t, account.roundTrip)
 
@@ -109,6 +115,18 @@ func TestResolveSigningAssetsAvoidsProfileNamesHeldInTheAccount(t *testing.T) {
 				resolve(t, client, "bundle-a", identifier)
 				account.profiles[rotation].state = string(asc.ProfileStateInvalid)
 			}
+		})
+
+		t.Run(bundle.label+"/name held on another bundle ID", func(t *testing.T) {
+			account := &accountProfiles{t: t, profiles: []accountProfile{{
+				id:     "profile-elsewhere",
+				bundle: "bundle-elsewhere",
+				name:   profileCreateNameForTarget("IOS_APP_STORE", identifier, signingFetchNowFn()),
+				state:  string(asc.ProfileStateActive),
+			}}}
+			client := newSigningFetchTestClient(t, account.roundTrip)
+
+			resolve(t, client, "bundle-a", identifier)
 		})
 	}
 }

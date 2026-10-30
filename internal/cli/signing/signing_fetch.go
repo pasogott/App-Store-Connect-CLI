@@ -33,6 +33,9 @@ const maxProfileNameLength = 64
 
 const profileNameHashSuffixLen = 6
 
+// maxProfileNameRotations bounds the default names tried for one profile.
+const maxProfileNameRotations = 20
+
 var signingFetchNowFn = time.Now
 
 // rejectDeviceWithoutCreateMissing fails before any App Store Connect call when
@@ -968,11 +971,13 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	}
 	certificateType = signingCertificateTypesForClient(client, options.CertificateType, certificateType)
 
-	profiles, heldNames, err := findActiveProfiles(ctx, client, options.BundleIDResourceID, options.ProfileType)
+	now := signingFetchNowFn()
+	profileName := profileCreateNameForTarget(options.ProfileType, options.BundleIdentifier, now)
+
+	profiles, err := findActiveProfiles(ctx, client, options.BundleIDResourceID, options.ProfileType)
 	if err != nil {
 		return nil, nil, false, err
 	}
-	profileName := availableProfileCreateName(options.ProfileType, options.BundleIdentifier, signingFetchNowFn(), heldNames)
 	var (
 		desiredDevices  []string
 		desiredResolved bool
@@ -1149,6 +1154,12 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 		certificates.Data = []asc.Resource[asc.CertificateAttributes]{created}
 	}
 	profile, err := createSigningProfile(ctx, client, options, profileName, certificates.Data, deviceIDs, replacement)
+	// A replacement keeps the name of the profile it deleted, so only a default
+	// name moves on. Each attempt reruns the caller's preflight for its name.
+	for rotation := 2; replacement == nil && profileNameIsHeld(err) && rotation <= maxProfileNameRotations; rotation++ {
+		profileName = rotatedProfileCreateName(options.ProfileType, options.BundleIdentifier, now, rotation)
+		profile, err = createSigningProfile(ctx, client, options, profileName, certificates.Data, deviceIDs, replacement)
+	}
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -1442,12 +1453,8 @@ func deleteStaleSigningProfiles(ctx context.Context, client *asc.Client, report 
 	}
 }
 
-// findActiveProfiles returns the bundle ID's usable profiles of profileType and
-// the name of every profile it lists, including INVALID ones, because App Store
-// Connect keeps a name reserved until its profile is deleted.
-func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) ([]asc.Resource[asc.ProfileAttributes], map[string]struct{}, error) {
+func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) ([]asc.Resource[asc.ProfileAttributes], error) {
 	var matches []asc.Resource[asc.ProfileAttributes]
-	heldNames := make(map[string]struct{})
 	next := ""
 	page := 1
 	seenNext := make(map[string]struct{})
@@ -1459,11 +1466,10 @@ func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourc
 			asc.WithBundleIDProfilesNextURL(next),
 		)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		for _, profile := range profiles.Data {
-			heldNames[profile.Attributes.Name] = struct{}{}
 			if profile.Attributes.ProfileState != asc.ProfileStateActive {
 				continue
 			}
@@ -1476,10 +1482,10 @@ func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourc
 		}
 
 		if strings.TrimSpace(profiles.Links.Next) == "" {
-			return matches, heldNames, nil
+			return matches, nil
 		}
 		if _, ok := seenNext[profiles.Links.Next]; ok {
-			return nil, nil, fmt.Errorf("page %d: %w", page+1, asc.ErrRepeatedPaginationURL)
+			return nil, fmt.Errorf("page %d: %w", page+1, asc.ErrRepeatedPaginationURL)
 		}
 		seenNext[profiles.Links.Next] = struct{}{}
 		page++
@@ -1582,18 +1588,15 @@ func profileCreateName(profileType string, now time.Time) string {
 	return fmt.Sprintf("%s-%s", profileType, now.Format("20060102"))
 }
 
-// availableProfileCreateName returns the default name for a new profile. App
-// Store Connect rejects a name any profile in the account already holds, so a
-// same-day rotation numbers its name past the ones the bundle ID still holds.
-func availableProfileCreateName(profileType, bundleIdentifier string, now time.Time, heldNames map[string]struct{}) string {
-	prefix := profileCreateName(profileType, now)
-	name := profileNameWithPrefix(prefix, bundleIdentifier)
-	for rotation := 2; ; rotation++ {
-		if _, held := heldNames[name]; !held {
-			return name
-		}
-		name = profileNameWithPrefix(fmt.Sprintf("%s-%d", prefix, rotation), bundleIdentifier)
-	}
+// rotatedProfileCreateName numbers a default name that a profile already holds.
+func rotatedProfileCreateName(profileType, bundleIdentifier string, now time.Time, rotation int) string {
+	return profileNameWithPrefix(fmt.Sprintf("%s-%d", profileCreateName(profileType, now), rotation), bundleIdentifier)
+}
+
+// profileNameIsHeld reports App Store Connect's rejection of a name that any
+// profile in the account holds, including an INVALID one.
+func profileNameIsHeld(err error) bool {
+	return errors.Is(err, asc.ErrConflict) && strings.Contains(strings.ToLower(err.Error()), "multiple profiles found")
 }
 
 // profileCreateNameForTarget preserves the historical type/date prefix while

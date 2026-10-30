@@ -28,7 +28,7 @@ func TestSigningInventoryPageSizeReducesRequests(t *testing.T) {
 			return signingInventoryIDs(response.Data), nil
 		}},
 		{"active profiles", "/v1/bundleIds/bundle-main/profiles", "profiles", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			profiles, _, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE")
+			profiles, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE")
 			return signingInventoryIDs(profiles), err
 		}},
 		{"profile certificates", "/v1/profiles/profile-main/certificates", "certificates", func(ctx context.Context, client *asc.Client) ([]string, error) {
