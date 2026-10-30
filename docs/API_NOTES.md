@@ -4,6 +4,13 @@ Operational contracts, endpoint quirks, filter/include rules, and live-verificat
 
 Dated maintainer canary transcripts, authenticated browser/source captures, and disposable test fixture records live in the repository at [API_CANARY_LOG.md](API_CANARY_LOG.md) and are intentionally excluded from the embedded `asc docs show api-notes` guide to keep CLI output concise.
 
+## Enterprise Program API
+
+- `asc auth login --key-type enterprise` (or `ASC_KEY_TYPE=enterprise`) sends requests to `https://api.enterprise.developer.apple.com` with the JWT audience `apple-developer-enterprise-v1`. Enterprise keys are created at developer.apple.com under Users and Access > Integrations, and they work only with this API.
+- The API has 40 operations covering bundle IDs, capabilities, certificates, devices, profiles, pass type IDs, users, and user invitations. Other requests fail before any network call with `not available on the Enterprise Program API`, as do notarization and `asc xcode validate`, which use other Apple services. `asc api` skips that check.
+- Compared with App Store Connect: no `UNIVERSAL` platform, no G2 Developer ID or Apple Pay certificate types, no `activated` certificate attribute, no `/relationships/` reads, and no app visibility on users or invitations. `asc users invite` takes neither `--all-apps` nor `--visible-app` on an Enterprise key, and `asc users update` does not take `--visible-app`. `asc certificates links pass-type-id` is unavailable there; use `asc certificates view --include passTypeId`. The client does not follow redirects on this API.
+- Built from Apple's Enterprise Program API 1.0 OpenAPI document and not yet live-verified against an Enterprise account.
+
 ## Web App Privacy Data Usage Updates
 
 - `PATCH /iris/v1/appDataUsages/{usageID}` supports only a same-category, same-purpose identity flip between `DATA_LINKED_TO_YOU` and `DATA_NOT_LINKED_TO_YOU` using the `appDataUsages` JSON:API resource and its `dataProtection` relationship (live-verified).
