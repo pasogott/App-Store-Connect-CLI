@@ -67,12 +67,6 @@ func WithUnlistedOperations(ctx context.Context) context.Context {
 	return context.WithValue(ctx, unlistedOperationsKey{}, true)
 }
 
-// IsEnterpriseProgramAPI reports whether the client targets the Enterprise
-// Program API.
-func (c *Client) IsEnterpriseProgramAPI() bool {
-	return c.enterprise
-}
-
 func (c *Client) validateEnterpriseOperation(ctx context.Context, method, target string) error {
 	if !c.enterprise || ctx.Value(unlistedOperationsKey{}) != nil {
 		return nil
