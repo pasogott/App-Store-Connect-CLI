@@ -16,6 +16,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/schema"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -241,7 +242,7 @@ func normalizePath(raw string) (string, url.Values, error) {
 		if strings.Contains(trimmed, "#") {
 			return "", nil, shared.UsageError("api: PATH must not include a fragment")
 		}
-		if parsed.Scheme != "https" || parsed.Host != apiHost {
+		if parsed.Scheme != "https" || !asc.IsAPIHost(parsed.Host) {
 			return "", nil, shared.UsageErrorf("api: PATH must be an App Store Connect URL (https://%s/...)", apiHost)
 		}
 		// Validate the escaped form. Parsed.Path decodes %2F and %3F before the
