@@ -70,11 +70,11 @@ Register and store App Store Connect API key credentials.
 </ParamField>
 
 <ParamField path="--issuer-id" type="string">
-  App Store Connect Issuer ID. Required for team keys; omit for individual keys.
+  App Store Connect Issuer ID. Required for team and enterprise keys; omit for individual keys.
 </ParamField>
 
 <ParamField path="--key-type" type="string" default="team">
-  App Store Connect API key type: `team` or `individual`
+  API key type: `team`, `individual`, or `enterprise` (Enterprise Program API)
 </ParamField>
 
 <ParamField path="--private-key" type="string" required>
@@ -301,7 +301,7 @@ No issues found.
 * `ASC_PRIVATE_KEY_PATH` - Path to .p8 file
 * `ASC_PRIVATE_KEY` - PEM-encoded private key
 * `ASC_PRIVATE_KEY_B64` - Base64-encoded private key
-* `ASC_KEY_TYPE` - API key type: `team` (default) or `individual`
+* `ASC_KEY_TYPE` - API key type: `team` (default), `individual`, or `enterprise`
 * `ASC_BYPASS_KEYCHAIN` - Set to `1`, `true`, `yes`, or `on` to bypass keychain
 * `ASC_STRICT_AUTH` - Set to `true`, `1`, `yes`, `y`, or `on` to fail when required credential fields mix sources
 * `ASC_PROFILE` - Select a named profile
