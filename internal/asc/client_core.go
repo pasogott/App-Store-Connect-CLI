@@ -758,6 +758,7 @@ func newClientWithPrivateKey(keyID, issuerID string, privateKey *ecdsa.PrivateKe
 // takes its own host and token audience. Call it before the first request.
 func (c *Client) UseEnterpriseProgramAPI() {
 	c.enterprise = true
+	c.httpClient = clientWithoutRedirects(c.httpClient)
 }
 
 // IsAPIHost reports whether host serves the App Store Connect or Enterprise

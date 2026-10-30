@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -193,6 +194,145 @@ func TestEnterpriseUsersRejectAppVisibilityFlags(t *testing.T) {
 			}
 			if got := requests.Snapshot(); len(got) != 0 {
 				t.Fatalf("requests = %v, want none", got)
+			}
+		})
+	}
+}
+
+func TestEnterpriseUserReadsDoNotInventAppVisibility(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		body string
+	}{
+		{
+			name: "users table",
+			args: []string{"users", "list", "--output", "table"},
+			body: `{"data":[{"type":"users","id":"1","attributes":{"username":"jane","firstName":"Jane","lastName":"Doe","roles":["ADMIN"]}}]}`,
+		},
+		{
+			name: "invitations json",
+			args: []string{"users", "invites", "list", "--output", "json"},
+			body: `{"data":[{"type":"userInvitations","id":"1","attributes":{"email":"jane@example.com","firstName":"Jane","lastName":"Doe","roles":["ADMIN"]}}]}`,
+		},
+		{
+			name: "invitations table",
+			args: []string{"users", "invites", "list", "--output", "table"},
+			body: `{"data":[{"type":"userInvitations","id":"1","attributes":{"email":"jane@example.com","firstName":"Jane","lastName":"Doe","roles":["ADMIN"]}}]}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupEnterpriseAuth(t)
+			installDefaultTransport(t, roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return enterpriseResponse(test.body), nil
+			}))
+
+			stdout, _ := captureOutput(t, func() {
+				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitSuccess {
+					t.Fatalf("exit code = %d", code)
+				}
+			})
+			for _, invented := range []string{"false", "allAppsVisible", "provisioningAllowed"} {
+				if strings.Contains(stdout, invented) {
+					t.Fatalf("stdout contains %q: %s", invented, stdout)
+				}
+			}
+		})
+	}
+}
+
+func TestEnterpriseValidationNamesTheBundleIDProbe(t *testing.T) {
+	clearAuthEnvWithConfig(t)
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/bundleIds" {
+			t.Fatalf("unexpected request: %s", req.URL)
+		}
+		response := enterpriseResponse(`{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"Forbidden","detail":"No access"}]}`)
+		response.StatusCode = http.StatusForbidden
+		return response, nil
+	}))
+
+	stdout, _ := captureOutput(t, func() {
+		args := []string{
+			"auth", "login", "--skip-validation", "--bypass-keychain", "--name", "enterprise",
+			"--key-id", "ABC123", "--issuer-id", "00000000-0000-0000-0000-000000000000",
+			"--key-type", "enterprise", "--private-key", keyPath,
+		}
+		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
+			t.Fatalf("auth login exit code = %d", code)
+		}
+		rootcmd.Run([]string{"auth", "status", "--validate", "--output", "json"}, "1.2.3")
+	})
+	if !strings.Contains(stdout, "insufficient permissions for bundle IDs list") {
+		t.Fatalf("stdout = %s", stdout)
+	}
+}
+
+func TestEnterpriseKeyRefusesAltool(t *testing.T) {
+	setupEnterpriseAuth(t)
+	ipaPath := filepath.Join(t.TempDir(), "App.ipa")
+	if err := os.WriteFile(ipaPath, []byte("ipa"), 0o600); err != nil {
+		t.Fatalf("write ipa: %v", err)
+	}
+
+	_, stderr := captureOutput(t, func() {
+		if code := rootcmd.Run([]string{"xcode", "validate", "--ipa", ipaPath}, "1.2.3"); code == rootcmd.ExitSuccess {
+			t.Fatal("xcode validate succeeded on an Enterprise key")
+		}
+	})
+	if !strings.Contains(stderr, "not available on the Enterprise Program API") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestEnterpriseCertificateFilterOnlyTrimsInferredTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "inferred by signing",
+			args: []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "MAC_APP_DIRECT", "--create-missing", "--output", "OUTPUT"},
+			want: "DEVELOPER_ID_APPLICATION",
+		},
+		{
+			name: "named by the caller",
+			args: []string{"certificates", "list", "--certificate-type", "DEVELOPER_ID_APPLICATION,DEVELOPER_ID_APPLICATION_G2", "--output", "json"},
+			want: "DEVELOPER_ID_APPLICATION,DEVELOPER_ID_APPLICATION_G2",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupEnterpriseAuth(t)
+			var got string
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch req.URL.Path {
+				case "/v1/certificates":
+					got = req.URL.Query().Get("filter[certificateType]")
+				case "/v1/bundleIds":
+					return enterpriseResponse(`{"data":[{"type":"bundleIds","id":"B1","attributes":{"identifier":"com.example.app","name":"App","platform":"MAC_OS"}}]}`), nil
+				}
+				return enterpriseResponse(`{"data":[]}`), nil
+			}))
+
+			args := make([]string, len(test.args))
+			for index, arg := range test.args {
+				if arg == "OUTPUT" {
+					arg = t.TempDir()
+				}
+				args[index] = arg
+			}
+			captureOutput(t, func() {
+				rootcmd.Run(args, "1.2.3")
+			})
+			if got != test.want {
+				t.Fatalf("filter = %q, want %q", got, test.want)
 			}
 		})
 	}

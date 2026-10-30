@@ -396,6 +396,13 @@ func credentialSigningIssuerID(cred authsvc.Credential) string {
 	return cred.IssuerID
 }
 
+func credentialProbeName(keyType string) string {
+	if config.IsEnterpriseCredentialKeyType(keyType) {
+		return "bundle IDs list"
+	}
+	return "apps list"
+}
+
 // probeCredential makes one cheap authenticated read on the key's API.
 func probeCredential(ctx context.Context, client *asc.Client, keyType string) error {
 	if config.IsEnterpriseCredentialKeyType(keyType) {
@@ -1242,9 +1249,9 @@ Examples:
 						if err := statusValidateCredential(ctx, cred); err != nil {
 							if _, ok := errors.AsType[*permissionWarning](err); ok {
 								credentialEntry.Validation = "works"
-								credentialEntry.ValidationDetail = "insufficient permissions for apps list"
+								credentialEntry.ValidationDetail = "insufficient permissions for " + credentialProbeName(cred.KeyType)
 								if normalizedOutput == "table" {
-									fmt.Printf("    %s (Key ID: %s): works (insufficient permissions for apps list)\n", cred.Name, cred.KeyID)
+									fmt.Printf("    %s (Key ID: %s): works (%s)\n", cred.Name, cred.KeyID, credentialEntry.ValidationDetail)
 								}
 							} else {
 								validationFailures++

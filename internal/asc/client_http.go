@@ -70,13 +70,20 @@ func (c *Client) validateRequestHost(target string) error {
 	if err != nil {
 		return fmt.Errorf("invalid request URL: %w", err)
 	}
+	if parsedURL.User != nil {
+		return fmt.Errorf("rejected request URL containing userinfo")
+	}
 
 	expectedHost := ascAPIHost
 	if c.enterprise {
 		expectedHost = enterpriseAPIHost
 	}
-	if parsedURL.Host != expectedHost && (c.enterprise || IsAPIHost(parsedURL.Host)) {
+	host := strings.TrimSuffix(strings.ToLower(parsedURL.Hostname()), ".")
+	if host != expectedHost && (c.enterprise || IsAPIHost(host)) {
 		return fmt.Errorf("rejected request URL from host %q (expected %q)", parsedURL.Host, expectedHost)
+	}
+	if c.enterprise && (parsedURL.Scheme != "https" || parsedURL.Host != expectedHost) {
+		return fmt.Errorf("rejected request URL %q (expected https://%s)", parsedURL.Scheme+"://"+parsedURL.Host, expectedHost)
 	}
 	return nil
 }

@@ -67,6 +67,12 @@ func WithUnlistedOperations(ctx context.Context) context.Context {
 	return context.WithValue(ctx, unlistedOperationsKey{}, true)
 }
 
+// IsEnterpriseProgramAPI reports whether the client targets the Enterprise
+// Program API.
+func (c *Client) IsEnterpriseProgramAPI() bool {
+	return c.enterprise
+}
+
 func (c *Client) validateEnterpriseOperation(ctx context.Context, method, target string) error {
 	if !c.enterprise || ctx.Value(unlistedOperationsKey{}) != nil {
 		return nil
@@ -76,8 +82,8 @@ func (c *Client) validateEnterpriseOperation(ctx context.Context, method, target
 	if err != nil {
 		return fmt.Errorf("invalid request URL: %w", err)
 	}
-	segments := strings.Split(parsedURL.Path, "/")
-	if len(segments) > 3 {
+	segments := strings.Split(parsedURL.EscapedPath(), "/")
+	if len(segments) > 3 && segments[3] != "" && segments[3] != "." && segments[3] != ".." {
 		segments[3] = "{id}"
 	}
 	if _, ok := enterpriseOperations[strings.ToUpper(method)+" "+strings.Join(segments, "/")]; !ok {

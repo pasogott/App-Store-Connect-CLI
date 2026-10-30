@@ -616,7 +616,6 @@ func resolveCredentialsMetadataForProfile(profileOverride string) (ResolvedAuthC
 		return ResolvedAuthCredentials{
 			KeyID:    envKeyID,
 			IssuerID: strings.TrimSpace(os.Getenv("ASC_ISSUER_ID")),
-			KeyType:  normalizedResolvedKeyType(os.Getenv(keyTypeEnvVar)),
 		}, nil
 	}
 
@@ -1966,14 +1965,6 @@ func ResolveAuthCredentials(profile string) (ResolvedAuthCredentials, error) {
 // without loading private key material from keychain or disk.
 func ResolveAuthCredentialsMetadata(profile string) (ResolvedAuthCredentials, error) {
 	return resolveCredentialsMetadataForProfile(profile)
-}
-
-// UsesEnterpriseProgramAPI reports whether the selected credentials are an
-// Enterprise Program API key, for flags that need the answer before a client
-// exists. Unresolvable credentials report false and fail when the client is built.
-func UsesEnterpriseProgramAPI() bool {
-	resolved, err := resolveCredentialsMetadataForProfile("")
-	return err == nil && config.IsEnterpriseCredentialKeyType(resolved.KeyType)
 }
 
 func ResolveProfileName() string {
