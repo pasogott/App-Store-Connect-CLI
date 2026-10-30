@@ -1879,7 +1879,7 @@ func validateNextURL(next string) error {
 	if err != nil {
 		return fmt.Errorf("--next must be a valid URL: %w", err)
 	}
-	if parsed.Scheme != "https" || parsed.Host != "api.appstoreconnect.apple.com" {
+	if parsed.Scheme != "https" || !asc.IsAPIHost(parsed.Host) {
 		return fmt.Errorf("--next must be an App Store Connect URL")
 	}
 	return nil
