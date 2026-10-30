@@ -973,6 +973,7 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	if err != nil {
 		return nil, nil, false, err
 	}
+	certificateType = signingCertificateTypesForClient(client, options.CertificateType, certificateType)
 	profileName := strings.TrimSpace(options.ProfileName)
 	if profileName == "" {
 		profileName = profileCreateName(options.ProfileType, signingFetchNowFn())
@@ -1373,6 +1374,22 @@ func resolveSigningCertificateTypes(profileType, raw string) (string, error) {
 		certificateTypes[index] = canonical
 	}
 	return strings.Join(certificateTypes, ","), nil
+}
+
+// signingCertificateTypesForClient removes the G2 types signing infers for
+// Developer ID profiles, which the Enterprise Program API does not have. Types
+// the caller named stay as given so that Apple reports them.
+func signingCertificateTypesForClient(client *asc.Client, explicit, resolved string) string {
+	if strings.TrimSpace(explicit) != "" || !client.IsEnterpriseProgramAPI() {
+		return resolved
+	}
+	var supported []string
+	for _, certificateType := range strings.Split(resolved, ",") {
+		if !strings.HasSuffix(certificateType, "_G2") {
+			supported = append(supported, certificateType)
+		}
+	}
+	return strings.Join(supported, ",")
 }
 
 func profileIsStale(profile asc.Resource[asc.ProfileAttributes], profileType string, now time.Time) bool {

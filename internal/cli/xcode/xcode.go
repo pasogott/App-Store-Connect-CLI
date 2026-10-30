@@ -14,6 +14,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
@@ -598,6 +599,9 @@ func resolveAltoolCredentials() (keyID, issuerID, p8FilePath string, err error) 
 	creds, err := shared.ResolveAuthCredentials("")
 	if err != nil {
 		return "", "", "", err
+	}
+	if config.IsEnterpriseCredentialKeyType(creds.KeyType) {
+		return "", "", "", fmt.Errorf("altool: %w", asc.ErrEnterpriseProgramAPIUnsupported)
 	}
 	p8FilePath, err = shared.AltoolPrivateKeyPath(creds)
 	if err != nil {
