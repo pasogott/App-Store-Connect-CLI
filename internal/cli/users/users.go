@@ -318,6 +318,9 @@ Examples:
 				)
 			}
 			warnDeprecatedUserRoles(roleValues)
+			if len(visibleAppIDs) > 0 && shared.UsesEnterpriseProgramAPI() {
+				return shared.UsageError("users update: --visible-app is not available on the Enterprise Program API")
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -456,7 +459,11 @@ Examples:
 
 			visibleAppIDs := shared.SplitCSV(visibleApps.String())
 
-			if !*allApps && len(visibleAppIDs) == 0 {
+			enterprise := shared.UsesEnterpriseProgramAPI()
+			if enterprise && (*allApps || len(visibleAppIDs) > 0) {
+				return shared.UsageError("users invite: --all-apps and --visible-app are not available on the Enterprise Program API")
+			}
+			if !enterprise && !*allApps && len(visibleAppIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --all-apps or --visible-app is required")
 				return shared.MissingRequiredUsageError("")
 			}
@@ -475,11 +482,8 @@ Examples:
 				LastName:  lastNameValue,
 				Roles:     roleValues,
 			}
-			if *allApps {
-				allAppsVisible := true
-				attrs.AllAppsVisible = &allAppsVisible
-			} else {
-				allAppsVisible := false
+			if !enterprise {
+				allAppsVisible := *allApps
 				attrs.AllAppsVisible = &allAppsVisible
 			}
 

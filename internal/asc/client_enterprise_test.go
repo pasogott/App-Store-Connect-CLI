@@ -2,6 +2,7 @@ package asc
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -98,5 +99,59 @@ func TestPaginationURLIdentityTreatsEnterpriseLinksAsRelative(t *testing.T) {
 	relative := PaginationURLIdentity("/v1/certificates?cursor=two&limit=10")
 	if absolute != relative {
 		t.Fatalf("identity = %q, want %q", absolute, relative)
+	}
+}
+
+func TestEnterpriseClientRejectsOperationsOutsideTheAPIBeforeSending(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "unknown resource", method: http.MethodGet, path: "/v1/apps"},
+		{name: "unknown method on known path", method: http.MethodPatch, path: "/v1/certificates/CERT"},
+		{name: "relationship read", method: http.MethodGet, path: "/v1/profiles/PROFILE/relationships/devices"},
+		{name: "visible apps", method: http.MethodGet, path: "/v1/users/USER/visibleApps"},
+		{name: "absolute next link", method: http.MethodGet, path: EnterpriseBaseURL + "/v1/apps?cursor=two"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				t.Fatalf("unexpected request to %s", req.URL)
+			}, jsonResponse(http.StatusOK, `{"data":[]}`))
+			client.UseEnterpriseProgramAPI()
+
+			_, err := client.do(context.Background(), test.method, test.path, nil)
+			if !errors.Is(err, ErrEnterpriseProgramAPIUnsupported) {
+				t.Fatalf("do() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestEnterpriseClientAllowsListedOperationsWithIDAndQuery(t *testing.T) {
+	var requested string
+	client := newTestClient(t, func(req *http.Request) {
+		requested = req.Method + " " + req.URL.RequestURI()
+	}, jsonResponse(http.StatusOK, `{"data":[]}`))
+	client.UseEnterpriseProgramAPI()
+
+	if _, err := client.do(context.Background(), http.MethodGet, "/v1/profiles/PROFILE/devices?limit=1", nil); err != nil {
+		t.Fatalf("do() error: %v", err)
+	}
+	if requested != "GET /v1/profiles/PROFILE/devices?limit=1" {
+		t.Fatalf("requested = %q", requested)
+	}
+}
+
+func TestEnterpriseClientRefusesNotarization(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatalf("unexpected request to %s", req.URL)
+	}, jsonResponse(http.StatusOK, `{"data":[]}`))
+	client.UseEnterpriseProgramAPI()
+
+	if _, err := client.ListNotarizations(context.Background()); !errors.Is(err, ErrEnterpriseProgramAPIUnsupported) {
+		t.Fatalf("ListNotarizations() error = %v", err)
 	}
 }

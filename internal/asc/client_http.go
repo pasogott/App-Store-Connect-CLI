@@ -34,6 +34,9 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	if err := c.validateRequestHost(path); err != nil {
 		return nil, err
 	}
+	if err := c.validateEnterpriseOperation(ctx, method, path); err != nil {
+		return nil, err
+	}
 
 	// Generate JWT token
 	token, err := c.generateJWT()

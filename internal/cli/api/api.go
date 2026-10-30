@@ -94,6 +94,7 @@ Examples:
 				return fmt.Errorf("api: %w", err)
 			}
 
+			ctx = asc.WithUnlistedOperations(ctx)
 			var response []byte
 			if request.paginate {
 				response, err = client.RawPaginatedGET(ctx, request.target, shared.ContextWithTimeout)

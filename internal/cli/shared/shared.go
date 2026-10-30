@@ -438,7 +438,7 @@ func resolveEnvCredentialsWithPrivateKey(includePrivateKey bool) (envCredentials
 		return envCredentials{}, nil
 	}
 	if !config.IsValidCredentialKeyType(keyType) {
-		return envCredentials{}, fmt.Errorf("%s must be one of: team, individual", keyTypeEnvVar)
+		return envCredentials{}, fmt.Errorf("%s must be one of: team, individual, enterprise", keyTypeEnvVar)
 	}
 
 	keyPath := ""
@@ -616,6 +616,7 @@ func resolveCredentialsMetadataForProfile(profileOverride string) (ResolvedAuthC
 		return ResolvedAuthCredentials{
 			KeyID:    envKeyID,
 			IssuerID: strings.TrimSpace(os.Getenv("ASC_ISSUER_ID")),
+			KeyType:  normalizedResolvedKeyType(os.Getenv(keyTypeEnvVar)),
 		}, nil
 	}
 
@@ -980,6 +981,9 @@ func newASCClientFromResolvedCredentials(resolved resolvedCredentials, timeout t
 		// An unusable private key leaves the command without working
 		// credentials, so report it like missing authentication.
 		return nil, WithPrivateKeyDiagnostic(missingAuthError{msg: err.Error(), cause: err}, err)
+	}
+	if err == nil && config.IsEnterpriseCredentialKeyType(resolved.keyType) {
+		client.UseEnterpriseProgramAPI()
 	}
 	return client, err
 }
@@ -1962,6 +1966,14 @@ func ResolveAuthCredentials(profile string) (ResolvedAuthCredentials, error) {
 // without loading private key material from keychain or disk.
 func ResolveAuthCredentialsMetadata(profile string) (ResolvedAuthCredentials, error) {
 	return resolveCredentialsMetadataForProfile(profile)
+}
+
+// UsesEnterpriseProgramAPI reports whether the selected credentials are an
+// Enterprise Program API key, for flags that need the answer before a client
+// exists. Unresolvable credentials report false and fail when the client is built.
+func UsesEnterpriseProgramAPI() bool {
+	resolved, err := resolveCredentialsMetadataForProfile("")
+	return err == nil && config.IsEnterpriseCredentialKeyType(resolved.KeyType)
 }
 
 func ResolveProfileName() string {
