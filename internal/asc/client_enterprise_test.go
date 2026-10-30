@@ -2,6 +2,7 @@ package asc
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -98,5 +99,109 @@ func TestPaginationURLIdentityTreatsEnterpriseLinksAsRelative(t *testing.T) {
 	relative := PaginationURLIdentity("/v1/certificates?cursor=two&limit=10")
 	if absolute != relative {
 		t.Fatalf("identity = %q, want %q", absolute, relative)
+	}
+}
+
+func TestEnterpriseClientRejectsOperationsOutsideTheAPIBeforeSending(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "unknown resource", method: http.MethodGet, path: "/v1/apps"},
+		{name: "unknown method on known path", method: http.MethodPatch, path: "/v1/certificates/CERT"},
+		{name: "relationship read", method: http.MethodGet, path: "/v1/profiles/PROFILE/relationships/devices"},
+		{name: "visible apps", method: http.MethodGet, path: "/v1/users/USER/visibleApps"},
+		{name: "absolute next link", method: http.MethodGet, path: EnterpriseBaseURL + "/v1/apps?cursor=two"},
+		{name: "trailing slash", method: http.MethodGet, path: "/v1/devices/"},
+		{name: "encoded separator", method: http.MethodGet, path: EnterpriseBaseURL + "/v1/devices%2FDEVICE"},
+		{name: "dot segment", method: http.MethodGet, path: EnterpriseBaseURL + "/v1/profiles/../devices"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				t.Fatalf("unexpected request to %s", req.URL)
+			}, jsonResponse(http.StatusOK, `{"data":[]}`))
+			client.UseEnterpriseProgramAPI()
+
+			_, err := client.do(context.Background(), test.method, test.path, nil)
+			if !errors.Is(err, ErrEnterpriseProgramAPIUnsupported) {
+				t.Fatalf("do() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestEnterpriseClientAllowsListedOperationsWithIDAndQuery(t *testing.T) {
+	var requested string
+	client := newTestClient(t, func(req *http.Request) {
+		requested = req.Method + " " + req.URL.RequestURI()
+	}, jsonResponse(http.StatusOK, `{"data":[]}`))
+	client.UseEnterpriseProgramAPI()
+
+	if _, err := client.do(context.Background(), http.MethodGet, "/v1/profiles/PROFILE/devices?limit=1", nil); err != nil {
+		t.Fatalf("do() error: %v", err)
+	}
+	if requested != "GET /v1/profiles/PROFILE/devices?limit=1" {
+		t.Fatalf("requested = %q", requested)
+	}
+}
+
+func TestEnterpriseClientRefusesNotarization(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatalf("unexpected request to %s", req.URL)
+	}, jsonResponse(http.StatusOK, `{"data":[]}`))
+	client.UseEnterpriseProgramAPI()
+
+	if _, err := client.ListNotarizations(context.Background()); !errors.Is(err, ErrEnterpriseProgramAPIUnsupported) {
+		t.Fatalf("ListNotarizations() error = %v", err)
+	}
+}
+
+func TestEnterpriseClientDoesNotFollowRedirects(t *testing.T) {
+	var requests int
+	client := newTestClient(t, func(*http.Request) { requests++ }, &http.Response{
+		Status:     "307 Temporary Redirect",
+		StatusCode: http.StatusTemporaryRedirect,
+		Header:     http.Header{"Location": []string{"http://api.enterprise.developer.apple.com/v1/certificates"}},
+		Body:       http.NoBody,
+	})
+	client.UseEnterpriseProgramAPI()
+
+	if _, err := client.GetCertificates(context.Background()); err == nil {
+		t.Fatal("GetCertificates() succeeded on a redirect")
+	}
+	if requests != 1 {
+		t.Fatalf("requests = %d, want 1", requests)
+	}
+}
+
+func TestClientRejectsAlternateSpellingsOfTheOtherHost(t *testing.T) {
+	tests := []struct {
+		name       string
+		enterprise bool
+		target     string
+	}{
+		{name: "uppercase", target: "https://API.ENTERPRISE.DEVELOPER.APPLE.COM/v1/certificates"},
+		{name: "trailing dot", target: "https://api.enterprise.developer.apple.com./v1/certificates"},
+		{name: "explicit port", target: "https://api.enterprise.developer.apple.com:443/v1/certificates"},
+		{name: "userinfo", target: "https://user@api.appstoreconnect.apple.com/v1/certificates"},
+		{name: "cleartext enterprise", enterprise: true, target: "http://api.enterprise.developer.apple.com/v1/certificates"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				t.Fatalf("unexpected request to %s", req.URL)
+			}, jsonResponse(http.StatusOK, `{"data":[]}`))
+			if test.enterprise {
+				client.UseEnterpriseProgramAPI()
+			}
+
+			if _, err := client.do(context.Background(), http.MethodGet, test.target, nil); err == nil || !strings.Contains(err.Error(), "rejected request URL") {
+				t.Fatalf("do() error = %v", err)
+			}
+		})
 	}
 }

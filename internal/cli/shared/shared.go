@@ -438,7 +438,7 @@ func resolveEnvCredentialsWithPrivateKey(includePrivateKey bool) (envCredentials
 		return envCredentials{}, nil
 	}
 	if !config.IsValidCredentialKeyType(keyType) {
-		return envCredentials{}, fmt.Errorf("%s must be one of: team, individual", keyTypeEnvVar)
+		return envCredentials{}, fmt.Errorf("%s must be one of: team, individual, enterprise", keyTypeEnvVar)
 	}
 
 	keyPath := ""
@@ -980,6 +980,9 @@ func newASCClientFromResolvedCredentials(resolved resolvedCredentials, timeout t
 		// An unusable private key leaves the command without working
 		// credentials, so report it like missing authentication.
 		return nil, WithPrivateKeyDiagnostic(missingAuthError{msg: err.Error(), cause: err}, err)
+	}
+	if err == nil && config.IsEnterpriseCredentialKeyType(resolved.keyType) {
+		client.UseEnterpriseProgramAPI()
 	}
 	return client, err
 }
