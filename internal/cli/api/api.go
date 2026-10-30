@@ -207,6 +207,10 @@ func parseRequest(positional []string, query []string, body, bodyFile string, bo
 	if len(values) > 0 {
 		target += "?" + values.Encode()
 	}
+	// Keep a full URL's host so the client refuses one meant for the other API.
+	if parsed, err := url.Parse(strings.TrimSpace(positional[1])); err == nil && parsed.Host != "" {
+		target = "https://" + parsed.Host + target
+	}
 	return rawRequest{method: method, target: target, body: payload, paginate: paginate}, nil
 }
 
