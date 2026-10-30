@@ -400,7 +400,7 @@ func TestFindActiveProfilesUseBundleIDRelationship(t *testing.T) {
 		}
 	})
 
-	profiles, err := findActiveProfiles(
+	profiles, _, err := findActiveProfiles(
 		context.Background(),
 		client,
 		"bundle-main",
@@ -441,7 +441,7 @@ func TestSigningFetchPaginationRejectsRepeatedNextURL(t *testing.T) {
 			path:     "/v1/bundleIds/bundle-main/profiles",
 			response: `{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/bundleIds/bundle-main/profiles?cursor=repeat"}}`,
 			fetch: func(ctx context.Context, client *asc.Client) error {
-				_, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE")
+				_, _, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE")
 				return err
 			},
 			wantSecond: "https://api.appstoreconnect.apple.com/v1/bundleIds/bundle-main/profiles?cursor=repeat",
@@ -517,7 +517,7 @@ func TestSigningFetchPaginationFollowsDistinctNextURLs(t *testing.T) {
 			first:  `{"data":[{"type":"profiles","id":"profile-1","attributes":{"profileType":"IOS_APP_STORE","profileState":"ACTIVE"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/bundleIds/bundle-main/profiles?cursor=page-2"}}`,
 			second: `{"data":[{"type":"profiles","id":"profile-2","attributes":{"profileType":"IOS_APP_STORE","profileState":"ACTIVE"}}],"links":{}}`,
 			fetch: func(ctx context.Context, client *asc.Client) (int, error) {
-				response, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE")
+				response, _, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE")
 				return len(response), err
 			},
 			wantSecond: "https://api.appstoreconnect.apple.com/v1/bundleIds/bundle-main/profiles?cursor=page-2",
@@ -1342,7 +1342,7 @@ func TestResolveSigningAssetsPreflightsBeforeCreatingProfile(t *testing.T) {
 			CreateMissing:      true,
 			BeforeCreate: func(plan profileCreatePlan) error {
 				events = append(events, "repository preflight")
-				if plan.ProfileName != profileCreateName("IOS_APP_STORE", time.Now()) {
+				if plan.ProfileName != profileCreateNameForTarget("IOS_APP_STORE", "com.example.signing.profile", time.Now()) {
 					t.Errorf("preflight profile name = %q, want the name used to create the profile", plan.ProfileName)
 				}
 				if got := extractIDs(plan.Certificates); len(got) != 1 || got[0] != "cert-1" {
