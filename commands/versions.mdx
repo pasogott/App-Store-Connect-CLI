@@ -354,6 +354,8 @@ asc versions attach-build --app "123456789" --version "1.2.0" --build-number "46
 
 Release an approved version in the Pending Developer Release state.
 
+The request is sent once. If Apple answers with a server error or the request times out, `asc` reads the version back. When the version has left Pending Developer Release, the command succeeds with `"reconciled": true`, the current `versionState`, an empty `releaseRequestId`, and a note on stderr. Otherwise it reports the original error.
+
 <ParamField path="--version-id" type="string" required>
   App Store version ID
 </ParamField>
