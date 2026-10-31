@@ -164,6 +164,8 @@ Alternatively, pass the key content directly:
   ```
 </CodeGroup>
 
+`ASC_PRIVATE_KEY` also accepts a key whose newlines a secret store flattened: escaped `\n`, spaces, everything on one line, or the base64 body without its `BEGIN` and `END` lines.
+
 <Warning>
   Never commit private keys to version control. Use secret management tools in CI/CD (GitHub Secrets, GitLab CI Variables, etc.).
 </Warning>
