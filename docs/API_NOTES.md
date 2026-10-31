@@ -4,6 +4,13 @@ Operational contracts, endpoint quirks, filter/include rules, and live-verificat
 
 Dated maintainer canary transcripts, authenticated browser/source captures, and disposable test fixture records live in the repository at [API_CANARY_LOG.md](API_CANARY_LOG.md) and are intentionally excluded from the embedded `asc docs show api-notes` guide to keep CLI output concise.
 
+## Enterprise Program API
+
+- `asc auth login --key-type enterprise` (or `ASC_KEY_TYPE=enterprise`) sends requests to `https://api.enterprise.developer.apple.com` with the JWT audience `apple-developer-enterprise-v1`. Enterprise keys are created at developer.apple.com under Users and Access > Integrations, and they work only with this API.
+- The API has 40 operations covering bundle IDs, capabilities, certificates, devices, profiles, pass type IDs, users, and user invitations. Other requests fail before any network call with `not available on the Enterprise Program API`, as do notarization and `asc xcode validate`, which use other Apple services. `asc api` skips that check.
+- Compared with App Store Connect: no `UNIVERSAL` platform, no G2 Developer ID or Apple Pay certificate types, no `activated` certificate attribute, no `/relationships/` reads, and no app visibility on users or invitations. `asc users invite` takes neither `--all-apps` nor `--visible-app` on an Enterprise key, and `asc users update` does not take `--visible-app`. `asc certificates links pass-type-id` is unavailable there; use `asc certificates view --include passTypeId`. The client does not follow redirects on this API.
+- Built from Apple's Enterprise Program API 1.0 OpenAPI document and not yet live-verified against an Enterprise account.
+
 ## Web App Privacy Data Usage Updates
 
 - `PATCH /iris/v1/appDataUsages/{usageID}` supports only a same-category, same-purpose identity flip between `DATA_LINKED_TO_YOU` and `DATA_NOT_LINKED_TO_YOU` using the `appDataUsages` JSON:API resource and its `dataProtection` relationship (live-verified).
@@ -273,6 +280,13 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 - `asc web agreements status|accept|download` uses `POST /services-account/QH65B2/account/getAgreementHistory` and `POST /services-account/QH65B2/account/acceptAgreements` (HTTP 200 with `resultCode=0` on success). `accept` re-reads `getAgreementHistory` to verify `dateAccepted >= dateEffective`. `download` resolves root-relative `agreementDownloadUrl` paths against the Developer Portal origin (same-origin HTTPS only, non-empty/non-HTML) and redacts the URL from download receipts and errors.
 
 - Outstanding notifications may omit dates, version, license classification, and download URL; `status` does not infer those fields. Pending records whose classification is absent from both history and notifications include `programLicenseClassificationUnknown: true`; this additive field is omitted when classification is known. Deep validation treats unknown classification as unverified; a known pending program license remains actionable without an effective date and is not hidden by dated history. `download` remains history-only, so an ID found only in notifications may require review in the Apple Developer account.
+
+## App Store Connect Business agreements (web session)
+
+- `asc web business agreements list` reads `GET /WebObjects/iTunesConnect.woa/ra/v1/contentProviders/{publicProviderId}/agreements` and preserves Apple's full envelope. This uses the selected session's public provider GUID, not its numeric provider ID or a Developer Portal team ID. An in-effect agreement can still have `configIsLatestVersion=false` and an `availableNewContractConfigId`; `configVersion` describes the current configuration, not the pending replacement.
+- `accept --contract-config-id ID --confirm` resolves one outstanding configuration and its assigned `legalEntity.legalEntityId`, then reads `/agreementTerms/{ID}/locales/{locale}`. It validates provider, configuration, locale, and supported consent constraints before one non-redirecting `POST /legalEntities/{legalEntityId}/agreementTerms/{ID}/locales/{locale}` under the same provider prefix. The Business form initializes both `agreeToTerms` and `agreeToFamilyShare` to true at submission even when the Family Sharing checkbox is hidden; `--confirm` acknowledges both fields. Unknown outcomes are never retried automatically.
+- Acceptance succeeds only when a fresh agreements read shows the requested configuration current, latest, and in effect for the same legal entity, with no replacement pending. Failed or inconclusive verification returns an error without a success receipt. The pending list, terms reads, and consent POST contract are live-verified. The captured POST was rejected with HTTP 401 and `NOT_AUTHORIZED.FRESH_2FA_REQUIRED`; follow-up state remained pending. Successful acceptance remains live-unverified.
+- The consent POST includes `Origin: https://appstoreconnect.apple.com`, matching the captured Business request. An exact HTTP 401 with `NOT_AUTHORIZED.FRESH_2FA_REQUIRED` produces safe fresh-2FA guidance and preserves the authentication exit code. `asc web auth login` can resume a valid cache, so recovery requires `asc web auth logout --apple-id EMAIL`, then `asc web auth login --apple-id EMAIL --public-provider-id PROVIDER_ID` and completion of 2FA for the same account and provider. The CLI does not perform this recovery or retry acceptance automatically.
 
 ## Transaction Tax reports (web session)
 

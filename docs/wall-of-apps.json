@@ -703,6 +703,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/84/23/23/8423230f-6766-b3f1-3880-ad95174413a5/iOSAppIcon-0-0-1x_U007epad-0-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Even Spacing Calculator",
+    "link": "https://apps.apple.com/us/app/even-spacing-calculator/id1597748322?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/24/e1/d0/24e1d03c-c9ba-d81e-a1e8-10c89717ab5b/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "Expense Tracker: ExpenseKit",
     "link": "https://apps.apple.com/us/app/expense-tracker-expensekit/id6756433597?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a5/14/d8/a514d826-9475-8c8e-b4f5-6fe7b4fa660c/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg"
@@ -965,6 +970,11 @@
     "app": "Greenie: Plant Identifier AI",
     "link": "https://apps.apple.com/us/app/greenie-plant-identifier-ai/id6746816013?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/91/ba/28/91ba28b2-dba6-24bc-c191-bb21508e55f0/GreenieIcon-0-0-1x_U007ephone-0-1-0-sRGB-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Group Gift Lists",
+    "link": "https://apps.apple.com/us/app/group-gift-lists/id1601306910?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/0f/f7/10/0ff71003-05b4-3736-9963-f3182f510f49/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Grove ◦ Fiber Tracker",
