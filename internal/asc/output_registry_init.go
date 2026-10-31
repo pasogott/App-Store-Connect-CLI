@@ -32,6 +32,7 @@ func registerAllOutputRenderers() {
 	registerRows(xcodeBumpVersionRows)
 	registerDirect(webAgreementsStatusTables)
 	registerRows(webAgreementsAcceptRows)
+	registerRows(webBusinessAgreementAcceptRows)
 	registerRows(webAgreementDownloadRows)
 	registerRows(webTransactionTaxDownloadRows)
 	registerRows(webAppDeleteRows)
