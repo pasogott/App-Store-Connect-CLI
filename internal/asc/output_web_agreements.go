@@ -25,6 +25,8 @@ type WebAgreement struct {
 	DateAccepted              string `json:"dateAccepted,omitempty"`
 	DateAgreeBy               string `json:"dateAgreeBy,omitempty"`
 	DownloadURL               string `json:"downloadUrl,omitempty"`
+
+	ProgramLicenseClassificationUnknown bool `json:"programLicenseClassificationUnknown,omitempty"`
 }
 
 // WebAgreementsStatusResult reports agreement state for a web session team.
