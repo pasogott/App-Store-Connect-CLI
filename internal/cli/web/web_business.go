@@ -64,6 +64,13 @@ After the request, a fresh read must show the selected configuration current,
 latest, and in effect for the same legal entity, with no replacement pending.
 An inconclusive or failed read returns an error without a success receipt.
 
+If Apple requires fresh 2FA, clear only that account's cached session, then
+sign in again for the same account and provider and complete 2FA:
+  asc web auth logout --apple-id EMAIL
+  asc web auth login --apple-id EMAIL --public-provider-id PROVIDER_ID
+For non-interactive login, configure --two-factor-code-command or
+ASC_WEB_2FA_CODE_COMMAND.
+
 Example:
   asc web business agreements accept --contract-config-id CONFIG_ID --confirm
 `,

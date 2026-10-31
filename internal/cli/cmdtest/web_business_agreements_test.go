@@ -20,6 +20,8 @@ const businessAgreementsFixture = `{"constraints":{},"messages":[],"extra":"pres
 
 const businessTermsFixture = `{"constraints":{"$[0].agreeToTerms":{"attributeName":"agreeToTerms","required":true,"isEditable":true,"sizeType":"chars"}},"messages":[],"data":{"agreeToTerms":false,"agreeToFamilyShare":false,"agreementHTML":"<p>Example agreement terms</p>","contractConfigId":"config-new","providerPublicId":"provider-public","selectedLocaleCode":"en-US","availableLocales":["en-US"],"termFilePublicId":"file-test","auxStorageInfoTOs":[]}}`
 
+const businessFreshTwoFactorFixture = `{"errors":[{"id":"private-example-marker","status":"401","code":"NOT_AUTHORIZED.FRESH_2FA_REQUIRED","title":"private-example-marker","detail":"private-example-marker"}]}`
+
 // This transition is synthetic. The current-agreement fields are captured API
 // fields; this is not an observed Paid Applications acceptance response.
 const businessAcceptedFixture = `{"constraints":{},"messages":[],"data":{"agreements":[{"contractId":"contract-new","contractDisplayName":"Paid Applications","configId":"config-new","configVersion":13,"configIsLatestVersion":true,"availableNewContractConfigId":"","isInEffect":true,"status":"ITC.ATB.Agmnt.Status.Active","legalEntity":{"legalEntityId":"entity-test"}}],"messages":[]}}`
@@ -133,11 +135,15 @@ func TestWebBusinessAgreementsAcceptPreflightAndSingleWrite(t *testing.T) {
 		`"availableNewContractConfigId":"config-new"`, `"availableNewContractConfigId":""`,
 	).Replace(string(duplicateJSON))
 	for _, tc := range []struct {
-		name, list, terms, after, want, output string
-		postStatus, readStatus                 int
-		readOnly                               bool
+		name, list, terms, after, want, output, postBody string
+		postStatus, readStatus                           int
+		readOnly, freshTwoFactor                         bool
 	}{
 		{name: "one source-backed POST", want: "outcome is unknown", postStatus: http.StatusServiceUnavailable},
+		{name: "fresh two factor required", want: "fresh 2FA challenge", postStatus: http.StatusUnauthorized, postBody: businessFreshTwoFactorFixture, freshTwoFactor: true},
+		{name: "unrelated unauthorized", want: "outcome is unknown", postStatus: http.StatusUnauthorized},
+		{name: "different machine code", want: "outcome is unknown", postStatus: http.StatusUnauthorized, postBody: strings.ReplaceAll(businessFreshTwoFactorFixture, "FRESH_2FA_REQUIRED", "FRESH_2FA_REQUIRED_OTHER")},
+		{name: "fresh two factor code on other status", want: "outcome is unknown", postStatus: http.StatusForbidden, postBody: businessFreshTwoFactorFixture},
 		{name: "default terms locale", list: strings.ReplaceAll(businessAgreementsFixture, `"availableNewConfigLocales":["en-US"]`, `"availableNewConfigLocales":[]`), want: "outcome is unknown", postStatus: http.StatusServiceUnavailable},
 		{name: "no redirect replay", want: "outcome is unknown", postStatus: http.StatusTemporaryRedirect},
 		{name: "configuration not outstanding", list: strings.ReplaceAll(businessAgreementsFixture, `"availableNewContractConfigId":"config-new"`, `"availableNewContractConfigId":"other-config"`), want: "not an outstanding configuration"},
@@ -193,6 +199,14 @@ func TestWebBusinessAgreementsAcceptPreflightAndSingleWrite(t *testing.T) {
 					_, _ = w.Write([]byte(tc.terms))
 				case "POST /WebObjects/iTunesConnect.woa/ra/v1/contentProviders/provider-public/legalEntities/entity-test/agreementTerms/config-new/locales/en-US":
 					postCalls++
+					for key, want := range map[string]string{
+						"Origin": "https://appstoreconnect.apple.com", "Accept": "application/json", "Content-Type": "application/json",
+						"X-CSRF-ITC": "agreements-ui", "X-Connect-Team-Type": "PURPLESOFTWARE", "X-Connect-Team-ID": "provider-public",
+					} {
+						if got := req.Header.Get(key); got != want {
+							t.Errorf("POST header %s=%q, want %q", key, got, want)
+						}
+					}
 					var body map[string]any
 					if err := json.NewDecoder(req.Body).Decode(&body); err != nil || !reflect.DeepEqual(body, map[string]any{"agreeToTerms": true, "agreeToFamilyShare": true}) {
 						t.Errorf("unexpected consent body: %v error=%v", body, err)
@@ -206,7 +220,11 @@ func TestWebBusinessAgreementsAcceptPreflightAndSingleWrite(t *testing.T) {
 						w.Header().Set("Location", "https://appstoreconnect.apple.com/redirected-consent")
 					}
 					w.WriteHeader(tc.postStatus)
-					_, _ = w.Write([]byte(`{"messages":[{"messageKey":"private-example-marker"}]}`))
+					responseBody := tc.postBody
+					if responseBody == "" {
+						responseBody = `{"messages":[{"messageKey":"private-example-marker"}]}`
+					}
+					_, _ = w.Write([]byte(responseBody))
 				default:
 					t.Errorf("unexpected request: %s %s", req.Method, req.URL)
 					w.WriteHeader(http.StatusInternalServerError)
@@ -259,6 +277,18 @@ func TestWebBusinessAgreementsAcceptPreflightAndSingleWrite(t *testing.T) {
 			}
 			if code != wantCode || stdout != "" || !strings.Contains(stderr, tc.want) || strings.Contains(stderr, "private-example-marker") || postCalls != wantPosts {
 				t.Fatalf("code=%d stdout=%q stderr=%q POSTs=%d", code, stdout, stderr, postCalls)
+			}
+			if tc.freshTwoFactor {
+				for _, recovery := range []string{"asc web auth logout --apple-id EMAIL", "asc web auth login --apple-id EMAIL --public-provider-id PROVIDER_ID", "complete 2FA"} {
+					if !strings.Contains(stderr, recovery) {
+						t.Errorf("missing recovery step %q: %s", recovery, stderr)
+					}
+				}
+				if strings.Contains(stderr, "web session is unauthorized or expired") || strings.Contains(stderr, "outcome is unknown") {
+					t.Fatalf("fresh-2FA refusal received generic session guidance: %s", stderr)
+				}
+			} else if strings.Contains(stderr, "fresh 2FA challenge") {
+				t.Fatalf("incorrect fresh-2FA classification: %s", stderr)
 			}
 		})
 	}

@@ -160,14 +160,19 @@ func (c *Client) AcceptBusinessAgreement(ctx context.Context, configID string) (
 		return errors.New("business agreement acceptance does not follow redirects")
 	}
 	path := providerPath + "/legalEntities/" + url.PathEscape(target.LegalEntity.LegalEntityID) + termsPath
+	headers := c.businessAgreementHeaders()
+	headers.Set("Origin", appStoreBaseURL)
 	_, err = c.doRequestBaseWithHTTPClient(&client, ctx, appStoreBaseURL, http.MethodPost, path,
-		map[string]bool{"agreeToTerms": true, "agreeToFamilyShare": true}, c.businessAgreementHeaders())
+		map[string]bool{"agreeToTerms": true, "agreeToFamilyShare": true}, headers)
 	if err != nil {
 		if errors.Is(err, readonly.ErrRefused) {
 			return nil, err
 		}
 		var apiErr *APIError
 		if errors.As(err, &apiErr) {
+			if apiErr.Status == http.StatusUnauthorized && slices.Contains(extractServiceErrorCodes(apiErr.rawResponseBody()), "NOT_AUTHORIZED.FRESH_2FA_REQUIRED") {
+				return nil, fmt.Errorf("web business agreements accept failed: Apple requires a fresh 2FA challenge; for the same account and provider, run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL --public-provider-id PROVIDER_ID' and complete 2FA; run 'asc web business agreements list' before retrying acceptance: %w", &APIError{Status: apiErr.Status})
+			}
 			err = &APIError{Status: apiErr.Status}
 		} else if errors.Is(err, context.Canceled) {
 			err = context.Canceled
