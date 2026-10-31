@@ -1342,7 +1342,7 @@ func TestResolveSigningAssetsPreflightsBeforeCreatingProfile(t *testing.T) {
 			CreateMissing:      true,
 			BeforeCreate: func(plan profileCreatePlan) error {
 				events = append(events, "repository preflight")
-				if plan.ProfileName != profileCreateName("IOS_APP_STORE", time.Now()) {
+				if plan.ProfileName != profileCreateNameForTarget("IOS_APP_STORE", "com.example.signing.profile", time.Now()) {
 					t.Errorf("preflight profile name = %q, want the name used to create the profile", plan.ProfileName)
 				}
 				if got := extractIDs(plan.Certificates); len(got) != 1 || got[0] != "cert-1" {
