@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -96,7 +97,8 @@ exits 1 after finishing the other targets if any target fails. It cannot be
 combined with --create-missing-certificate. --strict-match-identifier is the
 explicit exact-match default.
 
-Active profiles whose expiration date has passed are never selected.
+Active profiles whose expiration date has passed are never selected. When
+several active profiles match, the one with the latest expiration date wins.
 --delete-stale-profiles deletes expired or INVALID profiles for this bundle ID
 and profile type before matching; it requires --confirm. Every stale profile is
 listed before any deletion, and staleProfiles in the output separates planned,
@@ -1452,6 +1454,9 @@ func deleteStaleSigningProfiles(ctx context.Context, client *asc.Client, report 
 	}
 }
 
+// findActiveProfiles returns the bundle ID's usable profiles of the given type,
+// latest expiration first and by ID for equal dates, so a renewed profile wins
+// over the predecessor it overlaps. A profile with no readable date comes last.
 func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) ([]asc.Resource[asc.ProfileAttributes], error) {
 	var matches []asc.Resource[asc.ProfileAttributes]
 	next := ""
@@ -1481,6 +1486,14 @@ func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourc
 		}
 
 		if strings.TrimSpace(profiles.Links.Next) == "" {
+			sort.Slice(matches, func(i, j int) bool {
+				left := normalizedProfileExpiry(matches[i].Attributes.ExpirationDate)
+				right := normalizedProfileExpiry(matches[j].Attributes.ExpirationDate)
+				if left != right {
+					return left > right
+				}
+				return matches[i].ID < matches[j].ID
+			})
 			return matches, nil
 		}
 		if _, ok := seenNext[profiles.Links.Next]; ok {

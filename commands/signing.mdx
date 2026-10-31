@@ -208,7 +208,7 @@ When more than one bundle ID matches, the JSON receipt lists `matchedBundleIds`,
 
 ### Stale profiles
 
-`asc signing fetch` never selects an active profile whose expiration date has passed. To remove expired or `INVALID` profiles for the bundle ID and profile type before matching, preview the plan first, then confirm:
+`asc signing fetch` never selects an active profile whose expiration date has passed. When several active profiles match, it selects the one with the latest expiration date, so a renewed profile wins over the one it overlaps. To remove expired or `INVALID` profiles for the bundle ID and profile type before matching, preview the plan first, then confirm:
 
 ```bash  theme={null}
 asc signing fetch \
