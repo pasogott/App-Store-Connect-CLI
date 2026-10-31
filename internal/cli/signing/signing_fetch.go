@@ -33,6 +33,9 @@ const maxProfileNameLength = 64
 
 const profileNameHashSuffixLen = 6
 
+// maxProfileNameRotations bounds the default names tried for one profile.
+const maxProfileNameRotations = 20
+
 var signingFetchNowFn = time.Now
 
 // rejectDeviceWithoutCreateMissing fails before any App Store Connect call when
@@ -642,14 +645,11 @@ func fetchMatchedSigningBundle(
 	profile, certs, created, err := resolveSigningAssets(requestCtx, client, signingAssetsOptions{
 		BundleIDResourceID: item.ID,
 		BundleIdentifier:   identifier,
-		// Generated names carry the bundle ID so targets created in one run
-		// do not collide in App Store Connect or in the output directory.
-		ProfileName:     profileCreateNameForTarget(opts.ProfileType, identifier, signingFetchNowFn()),
-		ProfileType:     opts.ProfileType,
-		CertificateType: opts.CertificateType,
-		DeviceIDs:       opts.DeviceIDs,
-		CreateMissing:   opts.CreateMissing,
-		Progress:        progress,
+		ProfileType:        opts.ProfileType,
+		CertificateType:    opts.CertificateType,
+		DeviceIDs:          opts.DeviceIDs,
+		CreateMissing:      opts.CreateMissing,
+		Progress:           progress,
 		BeforeCreate: func(plan profileCreatePlan) error {
 			return preflight(plan.ProfileName, "", plan.Certificates)
 		},
@@ -914,13 +914,9 @@ func findCertificates(ctx context.Context, client *asc.Client, profileType, cert
 }
 
 type signingAssetsOptions struct {
-	BundleIDResourceID string
-	BundleIdentifier   string
-	ProfileType        string
-	// ProfileName overrides the default name for a profile created by this
-	// resolution. Batch callers use a deterministic target-scoped name while
-	// single-target callers retain the historical profile type/date name.
-	ProfileName              string
+	BundleIDResourceID       string
+	BundleIdentifier         string
+	ProfileType              string
 	CertificateType          string
 	DeviceIDs                []string
 	CreateMissing            bool
@@ -974,10 +970,9 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 		return nil, nil, false, err
 	}
 	certificateType = signingCertificateTypesForClient(client, options.CertificateType, certificateType)
-	profileName := strings.TrimSpace(options.ProfileName)
-	if profileName == "" {
-		profileName = profileCreateName(options.ProfileType, signingFetchNowFn())
-	}
+
+	now := signingFetchNowFn()
+	profileName := profileCreateNameForTarget(options.ProfileType, options.BundleIdentifier, now)
 
 	profiles, err := findActiveProfiles(ctx, client, options.BundleIDResourceID, options.ProfileType)
 	if err != nil {
@@ -1159,6 +1154,12 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 		certificates.Data = []asc.Resource[asc.CertificateAttributes]{created}
 	}
 	profile, err := createSigningProfile(ctx, client, options, profileName, certificates.Data, deviceIDs, replacement)
+	// A replacement keeps the name of the profile it deleted, so only a default
+	// name moves on. Each attempt reruns the caller's preflight for its name.
+	for rotation := 2; replacement == nil && profileNameIsHeld(err) && rotation <= maxProfileNameRotations; rotation++ {
+		profileName = rotatedProfileCreateName(options.ProfileType, options.BundleIdentifier, now, rotation)
+		profile, err = createSigningProfile(ctx, client, options, profileName, certificates.Data, deviceIDs, replacement)
+	}
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -1200,7 +1201,7 @@ func refreshSigningProfileDevices(
 	lifecycle.DevicesRemoved = removed
 	profileName := profile.Data.Attributes.Name
 	if strings.TrimSpace(profileName) == "" {
-		profileName = profileCreateName(options.ProfileType, signingFetchNowFn())
+		profileName = profileCreateNameForTarget(options.ProfileType, options.BundleIdentifier, signingFetchNowFn())
 	}
 	replacement := &profileReplacement{Profile: profile.Data, Lifecycle: lifecycle}
 	created, err := createSigningProfile(ctx, client, options, profileName, certificates.Data, desired, replacement)
@@ -1587,13 +1588,28 @@ func profileCreateName(profileType string, now time.Time) string {
 	return fmt.Sprintf("%s-%s", profileType, now.Format("20060102"))
 }
 
+// rotatedProfileCreateName numbers a default name that a profile already holds.
+func rotatedProfileCreateName(profileType, bundleIdentifier string, now time.Time, rotation int) string {
+	return profileNameWithPrefix(fmt.Sprintf("%s-%d", profileCreateName(profileType, now), rotation), bundleIdentifier)
+}
+
+// profileNameIsHeld reports App Store Connect's rejection of a name that any
+// profile in the account holds, including an INVALID one.
+func profileNameIsHeld(err error) bool {
+	return errors.Is(err, asc.ErrConflict) && strings.Contains(strings.ToLower(err.Error()), "multiple profiles found")
+}
+
 // profileCreateNameForTarget preserves the historical type/date prefix while
-// making names created during one batch unambiguous to App Store Connect.
+// making names unambiguous across bundle IDs to App Store Connect.
+func profileCreateNameForTarget(profileType, bundleIdentifier string, now time.Time) string {
+	return profileNameWithPrefix(profileCreateName(profileType, now), bundleIdentifier)
+}
+
+// profileNameWithPrefix appends the bundle ID to prefix within the name limit.
 // Bundle IDs have already passed the manifest validation boundary, but use the
 // same filename-safe component as repository paths so direct callers cannot
 // introduce separators into the API name either.
-func profileCreateNameForTarget(profileType, bundleIdentifier string, now time.Time) string {
-	prefix := profileCreateName(profileType, now)
+func profileNameWithPrefix(prefix, bundleIdentifier string) string {
 	component := safeFileName(bundleIdentifier, "target")
 	full := prefix + "-" + component
 	if utf8.RuneCountInString(full) <= maxProfileNameLength {

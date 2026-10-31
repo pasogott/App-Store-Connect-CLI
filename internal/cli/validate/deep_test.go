@@ -232,6 +232,8 @@ func TestBuildDeepValidationUsesAgreementStatusAndMonetizationRelevance(t *testi
 		monetizationUnknown   bool
 		status                *asc.WebAgreementsStatusResult
 		want                  validation.DeepStatus
+		wantCommand           string
+		wantFixability        validation.Fixability
 	}{
 		{
 			name:   "expired program agreement blocks",
@@ -262,6 +264,44 @@ func TestBuildDeepValidationUsesAgreementStatusAndMonetizationRelevance(t *testi
 			want: validation.DeepStatusPassed,
 		},
 		{
+			name: "outstanding agreement without metadata cannot pass a free app",
+			status: &asc.WebAgreementsStatusResult{Agreements: []asc.WebAgreement{
+				{AgreementID: "current", DateEffective: "2026-08-01T00:00:00Z", Status: "Active", IsProgramLicenseAgreement: true},
+				{AgreementID: "outstanding", Pending: true, ProgramLicenseClassificationUnknown: true},
+			}},
+			appPricingKnown: true,
+			want:            validation.DeepStatusUnverified,
+		},
+		{
+			name: "dated outstanding agreement without classification cannot pass a free app",
+			status: &asc.WebAgreementsStatusResult{Agreements: []asc.WebAgreement{
+				{AgreementID: "current", DateEffective: "2026-08-01T00:00:00Z", Status: "Active", IsProgramLicenseAgreement: true},
+				{AgreementID: "outstanding", DateEffective: "2026-10-29T00:00:00Z", Pending: true, ProgramLicenseClassificationUnknown: true},
+			}},
+			appPricingKnown: true,
+			want:            validation.DeepStatusUnverified,
+		},
+		{
+			name: "undated known pending agreement is not hidden by accepted history",
+			status: &asc.WebAgreementsStatusResult{Agreements: []asc.WebAgreement{
+				{AgreementID: "old", DateEffective: "2026-08-01T00:00:00Z", Status: "Active", IsProgramLicenseAgreement: true},
+				{AgreementID: "new", Pending: true, IsProgramLicenseAgreement: true},
+			}},
+			want:           validation.DeepStatusBlocked,
+			wantCommand:    `asc web agreements accept --agreement-id "new" --confirm`,
+			wantFixability: validation.FixabilityWebFixable,
+		},
+		{
+			name: "known and unclassified pending agreements require manual review",
+			status: &asc.WebAgreementsStatusResult{Agreements: []asc.WebAgreement{
+				{AgreementID: "known", Pending: true, IsProgramLicenseAgreement: true},
+				{AgreementID: "unknown", Pending: true, ProgramLicenseClassificationUnknown: true},
+			}},
+			want:           validation.DeepStatusBlocked,
+			wantCommand:    `asc web agreements accept --agreement-id "known" --confirm`,
+			wantFixability: validation.FixabilityManual,
+		},
+		{
 			name: "new agreement supersedes active agreement",
 			status: &asc.WebAgreementsStatusResult{Agreements: []asc.WebAgreement{
 				{AgreementID: "old", Title: "Apple Developer Program License Agreement", Version: "5030", DateEffective: "2026-01-01T00:00:00Z", Status: "Active", IsProgramLicenseAgreement: true},
@@ -271,7 +311,7 @@ func TestBuildDeepValidationUsesAgreementStatusAndMonetizationRelevance(t *testi
 		},
 		{
 			name:            "paid agreement is irrelevant for free app",
-			status:          &asc.WebAgreementsStatusResult{Agreements: []asc.WebAgreement{{AgreementID: "pla", Status: "active", IsProgramLicenseAgreement: true}}, ContractMessages: []asc.WebAgreementContractMessage{{Subject: "Paid Apps Agreement update"}}},
+			status:          &asc.WebAgreementsStatusResult{Warnings: []string{"App Store Connect alert has no pending agreement in Developer Portal"}, Agreements: []asc.WebAgreement{{AgreementID: "pla", Status: "active", IsProgramLicenseAgreement: true}}, ContractMessages: []asc.WebAgreementContractMessage{{Subject: "Paid Apps Agreement update"}}},
 			appPricingKnown: true,
 			want:            validation.DeepStatusPassed,
 		},
@@ -314,6 +354,12 @@ func TestBuildDeepValidationUsesAgreementStatusAndMonetizationRelevance(t *testi
 			deep, _ := buildDeepValidation(context.Background(), report, client, validation.DeepSessionCached)
 			if got := deepCheckByID(t, deep, validation.DeepCheckAgreementsActive); got.Status != test.want {
 				t.Fatalf("agreement check = %#v, want %q", got, test.want)
+			}
+			if test.wantCommand != "" {
+				got := deepCheckByID(t, deep, validation.DeepCheckAgreementsActive)
+				if got.Resolution == nil || len(got.Resolution.Commands) != 1 || got.Resolution.Commands[0] != test.wantCommand || got.Resolution.Fixability != test.wantFixability {
+					t.Fatalf("agreement resolution = %#v, want %q with fixability %q", got.Resolution, test.wantCommand, test.wantFixability)
+				}
 			}
 			if len(test.status.ContractMessages) > 0 && test.want == validation.DeepStatusBlocked {
 				got := deepCheckByID(t, deep, validation.DeepCheckAgreementsActive)
