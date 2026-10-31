@@ -275,9 +275,11 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 ## Developer Portal Agreements (web session)
 
-- App Store Connect contract alerts can coexist with Developer Portal history in which every returned agreement is accepted. The compatibility `pending` field includes alerts; `pendingAgreementIds` lists only IDs from pending history rows. A banner without a pending history row produces a warning, not an ID to accept. Review the alert in App Store Connect and the Apple Developer account; this mismatch does not establish that the alert is stale or that no new agreement exists.
+- App Store Connect contract alerts can coexist with Developer Portal history in which every returned agreement is accepted. `status` also reads `POST /services-account/QH65B2/account/getNotifications` with `{"teamId":"TEAM_ID"}` and merges `notifications.agreementsOutstanding` into the agreement list. Outstanding membership establishes pending status even when dates are absent; IDs are deduplicated and existing history metadata is preserved. The compatibility `pending` field still includes alerts; `pendingAgreementIds` includes IDs identified by history or notifications. An alert without either source identifying a pending agreement produces a warning. Notification failures return an error rather than silently reporting a complete status.
 
 - `asc web agreements status|accept|download` uses `POST /services-account/QH65B2/account/getAgreementHistory` and `POST /services-account/QH65B2/account/acceptAgreements` (HTTP 200 with `resultCode=0` on success). `accept` re-reads `getAgreementHistory` to verify `dateAccepted >= dateEffective`. `download` resolves root-relative `agreementDownloadUrl` paths against the Developer Portal origin (same-origin HTTPS only, non-empty/non-HTML) and redacts the URL from download receipts and errors.
+
+- Outstanding notifications may omit dates, version, license classification, and download URL; `status` does not infer those fields. Pending records whose classification is absent from both history and notifications include `programLicenseClassificationUnknown: true`; this additive field is omitted when classification is known. Deep validation treats unknown classification as unverified; a known pending program license remains actionable without an effective date and is not hidden by dated history. `download` remains history-only, so an ID found only in notifications may require review in the Apple Developer account.
 
 ## App Store Connect Business agreements (web session)
 

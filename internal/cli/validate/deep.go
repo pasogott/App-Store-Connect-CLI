@@ -425,7 +425,15 @@ func collectAgreementsDeepCheck(ctx context.Context, client deepWebClient, requi
 		hasUnknown = true
 	}
 	seenIDs := map[string]struct{}{}
-	for _, agreement := range currentAgreementHistory(status.Agreements) {
+	agreements := make([]asc.WebAgreement, 0, len(status.Agreements))
+	for _, agreement := range status.Agreements {
+		if agreement.Pending && agreement.ProgramLicenseClassificationUnknown {
+			hasUnknown = true
+			continue
+		}
+		agreements = append(agreements, agreement)
+	}
+	for _, agreement := range currentAgreementHistory(agreements) {
 		if !agreement.IsProgramLicenseAgreement {
 			switch {
 			case paidAgreementRelevanceKnown && !requiresPaidAgreement:
@@ -486,7 +494,7 @@ func collectAgreementsDeepCheck(ctx context.Context, client deepWebClient, requi
 		commands = append(commands, fmt.Sprintf("asc web agreements accept --agreement-id %q --confirm", agreementID))
 	}
 	fixability := validation.FixabilityManual
-	if len(commands) > 0 && !hasManualBlocker {
+	if len(commands) > 0 && !hasManualBlocker && !hasUnknown {
 		fixability = validation.FixabilityWebFixable
 	}
 	resolution := &validation.Resolution{
@@ -525,6 +533,10 @@ func currentAgreementHistory(agreements []asc.WebAgreement) []asc.WebAgreement {
 		key := strings.ToLower(strings.TrimSpace(agreement.Title))
 		if agreement.IsProgramLicenseAgreement {
 			key = "program-license-agreement"
+		}
+		if agreement.Pending && strings.TrimSpace(agreement.DateEffective) == "" {
+			// Dated history cannot supersede an undated outstanding agreement.
+			key = ""
 		}
 		if key == "" {
 			agreementID := strings.TrimSpace(agreement.AgreementID)
