@@ -93,12 +93,12 @@ Examples:
 }
 
 // versionReleaseAccepted reports whether a version has moved past Pending
-// Developer Release. It decides from the resolved state alone because a
-// pre-order keeps its legacy listing state while it awaits release.
+// Developer Release. It decides from the resolved state alone, and a pre-order
+// listing state does not count because it can persist while release is pending.
 func versionReleaseAccepted(attrs asc.AppStoreVersionAttributes) bool {
 	switch strings.ToUpper(strings.TrimSpace(shared.ResolveAppStoreVersionState(attrs))) {
 	case "PROCESSING_FOR_DISTRIBUTION", "READY_FOR_DISTRIBUTION",
-		"PROCESSING_FOR_APP_STORE", "READY_FOR_SALE", "PREORDER_READY_FOR_SALE":
+		"PROCESSING_FOR_APP_STORE", "READY_FOR_SALE":
 		return true
 	default:
 		return false

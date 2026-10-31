@@ -599,6 +599,13 @@ func TestVersionsReleaseReadsStateAfterAmbiguousFailure(t *testing.T) {
 			wantStateErr: true,
 		},
 		{
+			name:         "legacy pre-order listing keeps the failure",
+			status:       http.StatusInternalServerError,
+			attributes:   `{"appStoreState":"PREORDER_READY_FOR_SALE"}`,
+			wantReads:    2,
+			wantStateErr: true,
+		},
+		{
 			name:         "unreleased version keeps the failure and is not resent",
 			status:       http.StatusInternalServerError,
 			attributes:   `{"appVersionState":"PENDING_DEVELOPER_RELEASE"}`,
